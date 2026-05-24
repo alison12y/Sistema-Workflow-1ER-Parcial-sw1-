@@ -1,0 +1,109 @@
+<div class="designer-page">
+  <app-sidebar></app-sidebar>
+
+  <main class="main">
+    <app-navbar></app-navbar>
+
+    <section class="content">
+      <div class="designer-header">
+        <div>
+          <span>Editor UML 2.5</span>
+          <h1>Diseñador de workflow</h1>
+          <p>Modela políticas de negocio con calles, responsables, formularios e IA.</p>
+        </div>
+
+        <div class="header-actions">
+          <button class="btn-light">Validar</button>
+          <button class="btn-primary">Guardar</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active">1. Configuración</button>
+        <button class="tab">2. Lienzo UML</button>
+        <button class="tab">3. Asistente IA</button>
+      </div>
+
+      <div class="workspace">
+        <aside class="toolbox">
+          <h3>Elementos UML</h3>
+          <div class="tool start">Inicio</div>
+          <div class="tool activity">Actividad</div>
+          <div class="tool decision">Decisión</div>
+          <div class="tool fork">Paralelo</div>
+          <div class="tool end">Fin</div>
+
+          <h3>Calles</h3>
+          <button class="btn-add">+ Agregar calle</button>
+
+          <div class="lane-item">Solicitante</div>
+          <div class="lane-item">Aprobador</div>
+          <div class="lane-item">Funcionario</div>
+        </aside>
+
+        <section class="canvas-card">
+          <div class="canvas-toolbar">
+            <strong>Lienzo UML con swimlanes</strong>
+            <p>Diseño visual de la política de negocio.</p>
+          </div>
+
+          <div class="uml-canvas">
+            <div class="lane lane-blue">
+              <div class="lane-name">Solicitante</div>
+              <div class="node start-node"></div>
+              <div class="node activity-node">Crear solicitud</div>
+            </div>
+
+            <div class="lane lane-yellow">
+              <div class="lane-name">Aprobador</div>
+              <div class="node decision-node">¿Aprobada?</div>
+              <div class="node activity-node">Revisar solicitud</div>
+            </div>
+
+            <div class="lane lane-green">
+              <div class="lane-name">Funcionario</div>
+              <div class="node activity-node">Notificar resultado</div>
+              <div class="node end-node"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="bottom-grid">
+        <section class="config-card">
+          <h3>Responsables y formularios por actividad</h3>
+
+          <div class="activity-row">
+            <div>
+              <strong>Crear solicitud</strong>
+              <p>Calle: Solicitante</p>
+            </div>
+            <span class="badge pending">Formulario pendiente</span>
+            <button>Crear formulario</button>
+          </div>
+
+          <div class="activity-row">
+            <div>
+              <strong>Revisar solicitud</strong>
+              <p>Calle: Aprobador</p>
+            </div>
+            <span class="badge ready">Formulario listo</span>
+            <button>Editar formulario</button>
+          </div>
+        </section>
+
+        <section class="ai-card">
+          <h3>Asistente IA del workflow</h3>
+          <p>Describe el proceso y la IA sugerirá actividades, calles y transiciones.</p>
+
+          <textarea placeholder="Ej: El cliente registra una solicitud, el supervisor revisa, si aprueba se notifica..."></textarea>
+
+          <div class="ai-actions">
+            <button class="btn-light">Limpiar</button>
+            <button class="btn-primary">Generar sugerencia</button>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</div>

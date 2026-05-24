@@ -1,0 +1,189 @@
+.page {
+  display: flex;
+  min-height: 100vh;
+  background: #f6f3ef;
+}
+
+.main {
+  flex: 1;
+}
+
+.content {
+  padding: 34px 42px;
+}
+
+.hero {
+  background: linear-gradient(135deg, #ffffff, #eef4f8);
+  border: 1px solid #dbe1ea;
+  border-radius: 22px;
+  padding: 28px;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.eyebrow {
+  color: #6d7f8f;
+  font-weight: 800;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.hero h1 {
+  margin: 10px 0;
+  color: #111827;
+}
+
+.hero p {
+  max-width: 680px;
+  color: #536173;
+  line-height: 1.6;
+}
+
+.hero-actions,
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+button {
+  border: 1px solid #dbe1ea;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-weight: 800;
+  cursor: pointer;
+  background: white;
+}
+
+.btn-primary,
+.btn-create {
+  background: #2f5bea;
+  color: white;
+  border-color: #2f5bea;
+}
+
+.btn-outline {
+  background: white;
+  color: #2f3438;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin: 22px 0;
+}
+
+.status-card,
+.create-card,
+.policy-card {
+  background: white;
+  border: 1px solid #dbe1ea;
+  border-radius: 18px;
+  padding: 22px;
+}
+
+.status-card span {
+  color: #536173;
+}
+
+.status-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 30px;
+  color: #111827;
+}
+
+.create-card h3 {
+  margin-top: 0;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+input,
+select {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #dbe1ea;
+}
+
+.btn-create {
+  margin-top: 16px;
+}
+
+.policy-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.policy-card {
+  display: grid;
+  gap: 18px;
+}
+
+.policy-card h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.policy-card p,
+.meta {
+  color: #536173;
+}
+
+.meta {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.active {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.draft {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.danger {
+  background: #dc2626;
+  color: white;
+  border-color: #dc2626;
+}
+
+@media (max-width: 1000px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .hero {
+    flex-direction: column;
+  }
+
+  .status-grid,
+  .form-grid {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+  .policy-list {
+    grid-template-columns: 1fr;
+  }
+}

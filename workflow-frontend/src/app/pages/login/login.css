@@ -1,0 +1,190 @@
+* {
+  box-sizing: border-box;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #f6f3ef;
+}
+
+.info-panel {
+  width: 50%;
+  padding: 55px;
+  background: linear-gradient(135deg, #e9e0d8, #f7f2ec);
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.brand {
+  position: absolute;
+  top: 35px;
+  left: 55px;
+  font-size: 13px;
+  letter-spacing: 5px;
+  color: #6f625b;
+  font-weight: 700;
+}
+
+.info-content {
+  max-width: 520px;
+}
+
+.tag {
+  padding: 8px 14px;
+  border-radius: 30px;
+  background: #ffffffaa;
+  color: #6d7f8f;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+h1 {
+  margin: 28px 0 20px;
+  font-size: 58px;
+  line-height: 1.08;
+  font-weight: 300;
+  color: #2f3438;
+}
+
+.info-content p {
+  width: 430px;
+  line-height: 1.7;
+  color: #716861;
+  font-size: 17px;
+}
+
+.form-panel {
+  width: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fbfaf8;
+}
+
+.login-card {
+  width: 430px;
+  padding: 42px;
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 20px 45px rgba(58, 52, 48, 0.12);
+}
+
+.login-card h2 {
+  margin: 0;
+  font-size: 38px;
+  font-weight: 400;
+  color: #2f3438;
+}
+
+.subtitle {
+  color: #8b8b8b;
+  margin-bottom: 32px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  margin: 18px 0 8px;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 1.8px;
+  color: #6f625b;
+  font-weight: 700;
+}
+
+input {
+  padding: 15px;
+  border: 1px solid #ddd6cf;
+  border-radius: 12px;
+  outline: none;
+  font-size: 15px;
+  background: #fff;
+}
+
+input:focus {
+  border-color: #6d7f8f;
+}
+
+button {
+  margin-top: 30px;
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+  background: #2f3438;
+  color: white;
+  font-weight: 700;
+  letter-spacing: 2px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #6d7f8f;
+}
+
+.support {
+  text-align: center;
+  margin-top: 25px;
+  color: #8b8b8b;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .login-page {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .info-panel,
+  .form-panel {
+    width: 100%;
+  }
+
+  .info-panel {
+    padding: 80px 28px 40px;
+  }
+
+  .brand {
+    left: 28px;
+    top: 28px;
+  }
+
+  h1 {
+    font-size: 42px;
+  }
+
+  .info-content p {
+    width: 100%;
+    font-size: 15px;
+  }
+
+  .form-panel {
+    padding: 35px 20px;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 430px;
+    padding: 30px;
+  }
+
+  .login-card h2 {
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 36px;
+  }
+
+  .login-card {
+    padding: 25px 20px;
+  }
+}

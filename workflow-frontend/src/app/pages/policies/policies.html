@@ -1,0 +1,111 @@
+<div class="page">
+  <app-sidebar></app-sidebar>
+
+  <main class="main">
+    <app-navbar></app-navbar>
+
+    <section class="content">
+      <div class="hero">
+        <div>
+          <h1>Políticas de negocio</h1>
+        </div>
+
+        <div class="hero-actions">
+          <button class="btn-outline">Generar con IA</button>
+          <button class="btn-primary">Nueva política</button>
+        </div>
+      </div>
+
+      <div class="status-grid">
+        <div class="status-card">
+          <span>Activas</span>
+          <strong>1</strong>
+        </div>
+        <div class="status-card">
+          <span>Borradores</span>
+          <strong>1</strong>
+        </div>
+        <div class="status-card">
+          <span>Inactivas</span>
+          <strong>0</strong>
+        </div>
+      </div>
+
+      <div class="create-card">
+        <h3>Registrar política</h3>
+
+        <div class="form-grid">
+          <input placeholder="Nombre de la política">
+          <input placeholder="Descripción breve">
+          <select>
+            <option>Responsable</option>
+            <option>Administrador</option>
+            <option>Supervisor</option>
+            <option>Funcionario</option>
+          </select>
+          <select>
+            <option>Creado por</option>
+            <option>Admin</option>
+            <option>Diseñador</option>
+            <option>Supervisor</option>
+            </select>
+          <select>
+            <option>Estado inicial</option>
+            <option>Borrador</option>
+            <option>Activa</option>
+            <option>Inactiva</option>
+          </select>
+        </div>
+
+        <button class="btn-create">Guardar política</button>
+      </div>
+
+      <div class="policy-list">
+        <article class="policy-card">
+          <div>
+            <h3>Solicitud de vacaciones</h3>
+            <p>Solicitar → revisar → aprobar/rechazar → notificar.</p>
+            <span class="badge active">Activa</span>
+          </div>
+
+          <div class="meta">
+            <span>Responsable: RRHH</span>
+            <span>Versión: 1</span>
+          </div>
+
+
+          <div class="meta">
+           <span>Responsable: Administración</span>
+           <span>Creado por: Diseñador</span>
+           <span>Versión: 0.1</span>
+          </div>
+
+          <div class="actions">
+            <button>Diseñar UML</button>
+            <button>Versionar</button>
+            <button class="danger">Desactivar</button>
+          </div>
+        </article>
+
+        <article class="policy-card">
+          <div>
+            <h3>Compra de suministros</h3>
+            <p>Requisición → revisión → aprobación → orden de compra.</p>
+            <span class="badge draft">Borrador</span>
+          </div>
+
+          <div class="meta">
+            <span>Responsable: Administración</span>
+            <span>Versión: 0.1</span>
+          </div>
+
+          <div class="actions">
+            <button>Diseñar UML</button>
+            <button>Editar</button>
+            <button>Activar</button>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+</div>
