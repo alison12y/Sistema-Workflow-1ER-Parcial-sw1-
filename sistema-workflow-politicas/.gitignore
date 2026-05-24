@@ -1,0 +1,25 @@
+# Java / Spring Boot
+backend/target/
+*.class
+
+# Angular / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# Python
+ai-service/__pycache__/
+ai-service/.venv/
+ai-service/venv/
+*.pyc
+
+# Environment
+.env
+*.env
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

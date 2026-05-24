@@ -1,0 +1,10 @@
+@startuml Arquitectura
+node "Frontend (Angular)" as FE
+node "Backend (Spring Boot)" as BE
+database "MongoDB" as DB
+node "AI Service (FastAPI)" as AI
+
+FE <--> BE : REST API / JWT
+BE <--> DB : Spring Data MongoDB
+BE <--> AI : REST / JSON
+@enduml

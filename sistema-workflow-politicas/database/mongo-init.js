@@ -1,0 +1,15 @@
+db.getSiblingDB('workflow_db').createCollection('users');
+db.getSiblingDB('workflow_db').createCollection('roles');
+db.getSiblingDB('workflow_db').createCollection('permissions');
+db.getSiblingDB('workflow_db').createCollection('departments');
+db.getSiblingDB('workflow_db').createCollection('business_policies');
+db.getSiblingDB('workflow_db').createCollection('workflow_diagrams');
+db.getSiblingDB('workflow_db').createCollection('activities');
+db.getSiblingDB('workflow_db').createCollection('transitions');
+db.getSiblingDB('workflow_db').createCollection('dynamic_forms');
+db.getSiblingDB('workflow_db').createCollection('form_fields');
+db.getSiblingDB('workflow_db').createCollection('process_instances');
+db.getSiblingDB('workflow_db').createCollection('task_instances');
+db.getSiblingDB('workflow_db').createCollection('audit_logs');
+db.getSiblingDB('workflow_db').createCollection('kpi_reports');
+db.getSiblingDB('workflow_db').createCollection('ai_requests');

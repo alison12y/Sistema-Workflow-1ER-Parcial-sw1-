@@ -1,0 +1,34 @@
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./database/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongodb
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    ports:
+      - "80:80"
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: ../docker/Dockerfile.ai
+    ports:
+      - "8000:8000"
+
+volumes:
+  mongodb_data:

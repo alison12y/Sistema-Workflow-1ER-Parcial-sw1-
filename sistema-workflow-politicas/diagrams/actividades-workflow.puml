@@ -1,0 +1,10 @@
+@startuml Workflow
+start
+:Solicitud de Permiso;
+if (Aprobado?) then (si)
+  :Notificar Éxito;
+else (no)
+  :Notificar Rechazo;
+endif
+stop
+@enduml

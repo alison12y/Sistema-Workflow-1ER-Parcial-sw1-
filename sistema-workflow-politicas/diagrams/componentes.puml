@@ -1,0 +1,5 @@
+@startuml Componentes
+[Angular Client] --> [Spring Boot API]
+[Spring Boot API] --> [MongoDB]
+[Spring Boot API] --> [FastAPI]
+@enduml

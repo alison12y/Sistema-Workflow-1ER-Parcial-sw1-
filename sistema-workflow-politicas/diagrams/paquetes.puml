@@ -1,0 +1,8 @@
+@startuml Paquetes
+package "com.workflow.politicas" {
+  [controller]
+  [service]
+  [repository]
+  [model]
+}
+@enduml

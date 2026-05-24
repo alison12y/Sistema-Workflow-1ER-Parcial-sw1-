@@ -1,0 +1,9 @@
+@startuml Casos de Uso
+actor Usuario
+actor Administrador
+
+Usuario --> (Gestionar Tareas)
+Usuario --> (Ejecutar Trámites)
+Administrador --> (Diseñar Workflow)
+Administrador --> (Configurar Políticas)
+@enduml
