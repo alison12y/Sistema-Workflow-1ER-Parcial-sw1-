@@ -16,10 +16,15 @@ public class TaskInstanceService {
 
     private final TaskInstanceRepository taskInstanceRepository;
     private final ProcessInstanceService processInstanceService;
+    private final AuditLogService auditLogService;
 
-    public TaskInstanceService(TaskInstanceRepository taskInstanceRepository, ProcessInstanceService processInstanceService) {
+    public TaskInstanceService(
+            TaskInstanceRepository taskInstanceRepository,
+            ProcessInstanceService processInstanceService,
+            AuditLogService auditLogService) {
         this.taskInstanceRepository = taskInstanceRepository;
         this.processInstanceService = processInstanceService;
+        this.auditLogService = auditLogService;
     }
 
     public List<TaskInstance> findByUserId(String userId) {
@@ -42,10 +47,27 @@ public class TaskInstanceService {
             throw new IllegalStateException("Task is already completed");
         }
 
+        String previousStatus = task.getStatus();
+        String userId = task.getAssignedUserId() != null && !task.getAssignedUserId().isBlank()
+                ? task.getAssignedUserId()
+                : processInstanceService.findById(task.getProcessInstanceId())
+                        .map(p -> p.getInitiatorId())
+                        .orElse("system");
+
         task.setStatus(TASK_COMPLETED);
         task.setStepData(request != null ? request.getStepData() : null);
         task.setCompletedAt(LocalDateTime.now());
         task = taskInstanceRepository.save(task);
+
+        auditLogService.register(
+                "TaskInstance",
+                task.getId(),
+                "COMPLETE_TASK",
+                userId,
+                previousStatus,
+                TASK_COMPLETED,
+                "Task completed for process: " + task.getProcessInstanceId() + ", activity: " + task.getActivityId()
+        );
 
         processInstanceService.advanceAfterTaskCompletion(task, task.getStepData());
         return task;

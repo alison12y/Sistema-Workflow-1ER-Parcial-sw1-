@@ -10,9 +10,11 @@ import java.util.Optional;
 @Service
 public class BusinessPolicyService {
     private final BusinessPolicyRepository businessPolicyRepository;
+    private final AuditLogService auditLogService;
 
-    public BusinessPolicyService(BusinessPolicyRepository businessPolicyRepository) {
+    public BusinessPolicyService(BusinessPolicyRepository businessPolicyRepository, AuditLogService auditLogService) {
         this.businessPolicyRepository = businessPolicyRepository;
+        this.auditLogService = auditLogService;
     }
 
     public List<BusinessPolicy> findAll() {
@@ -32,7 +34,17 @@ public class BusinessPolicyService {
         policy.setStatus("DRAFT");
         policy.setCreatedAt(LocalDateTime.now());
         policy.setUpdatedAt(LocalDateTime.now());
-        return businessPolicyRepository.save(policy);
+        BusinessPolicy saved = businessPolicyRepository.save(policy);
+        auditLogService.register(
+                "BusinessPolicy",
+                saved.getId(),
+                "CREATE_POLICY",
+                saved.getCreatedBy(),
+                null,
+                "DRAFT",
+                "Policy created: " + saved.getName()
+        );
+        return saved;
     }
 
     public BusinessPolicy update(String id, BusinessPolicy policyDetails) {
@@ -50,17 +62,39 @@ public class BusinessPolicyService {
     public BusinessPolicy activate(String id) {
         BusinessPolicy policy = businessPolicyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("BusinessPolicy not found with id: " + id));
+        String previousStatus = policy.getStatus();
         policy.setStatus("ACTIVE");
         policy.setUpdatedAt(LocalDateTime.now());
-        return businessPolicyRepository.save(policy);
+        BusinessPolicy saved = businessPolicyRepository.save(policy);
+        auditLogService.register(
+                "BusinessPolicy",
+                saved.getId(),
+                "ACTIVATE_POLICY",
+                saved.getCreatedBy(),
+                previousStatus,
+                "ACTIVE",
+                "Policy activated: " + saved.getName()
+        );
+        return saved;
     }
 
     public BusinessPolicy deactivate(String id) {
         BusinessPolicy policy = businessPolicyRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("BusinessPolicy not found with id: " + id));
+        String previousStatus = policy.getStatus();
         policy.setStatus("INACTIVE");
         policy.setUpdatedAt(LocalDateTime.now());
-        return businessPolicyRepository.save(policy);
+        BusinessPolicy saved = businessPolicyRepository.save(policy);
+        auditLogService.register(
+                "BusinessPolicy",
+                saved.getId(),
+                "DEACTIVATE_POLICY",
+                saved.getCreatedBy(),
+                previousStatus,
+                "INACTIVE",
+                "Policy deactivated: " + saved.getName()
+        );
+        return saved;
     }
 
     public void deleteById(String id) {

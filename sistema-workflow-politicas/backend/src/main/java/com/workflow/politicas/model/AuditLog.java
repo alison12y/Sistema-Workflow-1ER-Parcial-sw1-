@@ -12,6 +12,8 @@ public class AuditLog {
     private String entityId;
     private String action; // "CREATE", "UPDATE", "DELETE", "TRANSITION"
     private String userId;
+    private String previousState;
+    private String newState;
     private String details;
     private LocalDateTime timestamp;
 
@@ -66,6 +68,22 @@ public class AuditLog {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getPreviousState() {
+        return previousState;
+    }
+
+    public void setPreviousState(String previousState) {
+        this.previousState = previousState;
+    }
+
+    public String getNewState() {
+        return newState;
+    }
+
+    public void setNewState(String newState) {
+        this.newState = newState;
     }
 
     public String getDetails() {

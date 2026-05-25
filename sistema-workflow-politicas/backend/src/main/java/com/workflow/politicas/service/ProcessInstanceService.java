@@ -34,6 +34,7 @@ public class ProcessInstanceService {
     private final WorkflowDiagramRepository workflowDiagramRepository;
     private final ActivityRepository activityRepository;
     private final TransitionRepository transitionRepository;
+    private final AuditLogService auditLogService;
 
     public ProcessInstanceService(
             ProcessInstanceRepository processInstanceRepository,
@@ -41,13 +42,15 @@ public class ProcessInstanceService {
             BusinessPolicyRepository businessPolicyRepository,
             WorkflowDiagramRepository workflowDiagramRepository,
             ActivityRepository activityRepository,
-            TransitionRepository transitionRepository) {
+            TransitionRepository transitionRepository,
+            AuditLogService auditLogService) {
         this.processInstanceRepository = processInstanceRepository;
         this.taskInstanceRepository = taskInstanceRepository;
         this.businessPolicyRepository = businessPolicyRepository;
         this.workflowDiagramRepository = workflowDiagramRepository;
         this.activityRepository = activityRepository;
         this.transitionRepository = transitionRepository;
+        this.auditLogService = auditLogService;
     }
 
     public ProcessInstance start(ProcessStartRequest request) {
@@ -86,12 +89,31 @@ public class ProcessInstanceService {
 
         if ("END".equals(nextActivity.getType())) {
             finalizeProcess(process, nextActivity.getId());
-            return processInstanceRepository.save(process);
+            process = processInstanceRepository.save(process);
+            auditLogService.register(
+                    "ProcessInstance",
+                    process.getId(),
+                    "START_PROCESS",
+                    request.getInitiatorId(),
+                    null,
+                    process.getStatus(),
+                    "Process started and completed immediately for policy: " + policy.getId()
+            );
+            return process;
         }
 
         process.setCurrentActivityId(nextActivity.getId());
         process = processInstanceRepository.save(process);
         createPendingTask(process, nextActivity);
+        auditLogService.register(
+                "ProcessInstance",
+                process.getId(),
+                "START_PROCESS",
+                request.getInitiatorId(),
+                null,
+                STATUS_IN_PROGRESS,
+                "Process started for policy: " + policy.getId() + ", first activity: " + nextActivity.getName()
+        );
         return process;
     }
 
@@ -111,6 +133,8 @@ public class ProcessInstanceService {
             throw new IllegalStateException("Process is not in progress");
         }
 
+        String previousProcessStatus = process.getStatus();
+
         BusinessPolicy policy = businessPolicyRepository.findById(process.getPolicyId())
                 .orElseThrow(() -> new RuntimeException("Policy not found"));
         String diagramId = resolveDiagramId(policy);
@@ -124,13 +148,41 @@ public class ProcessInstanceService {
 
         if ("END".equals(nextActivity.getType())) {
             finalizeProcess(process, nextActivity.getId());
-            return processInstanceRepository.save(process);
+            process = processInstanceRepository.save(process);
+            auditLogService.register(
+                    "ProcessInstance",
+                    process.getId(),
+                    "COMPLETE_PROCESS",
+                    resolveAuditUserId(task),
+                    previousProcessStatus,
+                    STATUS_COMPLETED,
+                    "Process completed at activity: " + nextActivity.getName()
+            );
+            return process;
         }
 
         process.setCurrentActivityId(nextActivity.getId());
         process = processInstanceRepository.save(process);
         createPendingTask(process, nextActivity);
+        auditLogService.register(
+                "ProcessInstance",
+                process.getId(),
+                "ADVANCE_PROCESS",
+                resolveAuditUserId(task),
+                previousProcessStatus,
+                STATUS_IN_PROGRESS,
+                "Process advanced to activity: " + nextActivity.getName()
+        );
         return process;
+    }
+
+    private String resolveAuditUserId(TaskInstance task) {
+        if (task.getAssignedUserId() != null && !task.getAssignedUserId().isBlank()) {
+            return task.getAssignedUserId();
+        }
+        return processInstanceRepository.findById(task.getProcessInstanceId())
+                .map(ProcessInstance::getInitiatorId)
+                .orElse("system");
     }
 
     private String resolveDiagramId(BusinessPolicy policy) {

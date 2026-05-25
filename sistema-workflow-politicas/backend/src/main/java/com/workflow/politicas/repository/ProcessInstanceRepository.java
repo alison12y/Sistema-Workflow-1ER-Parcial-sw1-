@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ProcessInstanceRepository extends MongoRepository<ProcessInstance, String> {
+    java.util.List<ProcessInstance> findByStatus(String status);
 }
