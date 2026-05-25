@@ -6,13 +6,35 @@ import google.generativeai as genai
 
 from config import ensure_api_key, get_ai_config
 
+try:
+    from google.api_core.exceptions import ResourceExhausted
+except ImportError:
+    ResourceExhausted = None
+
 
 class GeminiError(Exception):
     pass
 
 
+class GeminiQuotaExceededError(GeminiError):
+    """Cuota de Gemini excedida (HTTP 429 / ResourceExhausted)."""
+
+
 class InvalidJsonResponseError(Exception):
     pass
+
+
+def _is_quota_error(exc: Exception) -> bool:
+    if ResourceExhausted is not None and isinstance(exc, ResourceExhausted):
+        return True
+    message = str(exc).lower()
+    return (
+        "429" in message
+        or "quota" in message
+        or "resource exhausted" in message
+        or "rate limit" in message
+        or "too many requests" in message
+    )
 
 
 def call_gemini(system_instruction: str, user_prompt: str) -> str:
@@ -34,6 +56,10 @@ def call_gemini(system_instruction: str, user_prompt: str) -> str:
     except InvalidJsonResponseError:
         raise
     except Exception as exc:
+        if _is_quota_error(exc):
+            raise GeminiQuotaExceededError(
+                "Gemini quota exceeded or temporarily unavailable"
+            ) from exc
         raise GeminiError(f"Gemini request failed: {exc}") from exc
 
 
@@ -61,5 +87,5 @@ def generate_structured(system_instruction: str, user_prompt: str) -> dict[str, 
         return parse_json_response(raw)
     except InvalidJsonResponseError as exc:
         raise InvalidJsonResponseError(
-            "AI returned text that could not be parsed as JSON"
+            "AI response is not valid JSON"
         ) from exc

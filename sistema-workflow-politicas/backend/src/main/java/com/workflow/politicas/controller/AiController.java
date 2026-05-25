@@ -16,6 +16,17 @@ public class AiController {
         this.aiService = aiService;
     }
 
+    @PostMapping("/assistant")
+    public ResponseEntity<AiAssistantResponse> assistant(@RequestBody AiAssistantRequest request) {
+        try {
+            return ResponseEntity.ok(aiService.assistant(request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
+        }
+    }
+
     @PostMapping("/generate-workflow")
     public ResponseEntity<AiWorkflowGenerateResponse> generateWorkflow(@RequestBody AiWorkflowGenerateRequest request) {
         try {

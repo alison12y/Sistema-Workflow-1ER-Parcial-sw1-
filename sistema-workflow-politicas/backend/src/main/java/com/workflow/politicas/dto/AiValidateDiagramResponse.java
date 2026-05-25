@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AiValidateDiagramResponse {
+    private Boolean aiAvailable;
+    private Boolean fallbackUsed;
+    private String error;
     private boolean valid;
     private List<String> errors = new ArrayList<>();
     private List<String> suggestions = new ArrayList<>();
@@ -16,4 +19,13 @@ public class AiValidateDiagramResponse {
 
     public List<String> getSuggestions() { return suggestions; }
     public void setSuggestions(List<String> suggestions) { this.suggestions = suggestions; }
+
+    public Boolean getAiAvailable() { return aiAvailable; }
+    public void setAiAvailable(Boolean aiAvailable) { this.aiAvailable = aiAvailable; }
+
+    public Boolean getFallbackUsed() { return fallbackUsed; }
+    public void setFallbackUsed(Boolean fallbackUsed) { this.fallbackUsed = fallbackUsed; }
+
+    public String getError() { return error; }
+    public void setError(String error) { this.error = error; }
 }

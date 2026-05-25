@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Map;
 
 public class AiWorkflowGenerateResponse {
+    private Boolean aiAvailable;
+    private Boolean fallbackUsed;
+    private String error;
     private List<Map<String, Object>> activities = new ArrayList<>();
     private List<Map<String, Object>> transitions = new ArrayList<>();
     private List<Map<String, Object>> swimlanes = new ArrayList<>();
@@ -21,4 +24,13 @@ public class AiWorkflowGenerateResponse {
 
     public List<String> getSuggestions() { return suggestions; }
     public void setSuggestions(List<String> suggestions) { this.suggestions = suggestions; }
+
+    public Boolean getAiAvailable() { return aiAvailable; }
+    public void setAiAvailable(Boolean aiAvailable) { this.aiAvailable = aiAvailable; }
+
+    public Boolean getFallbackUsed() { return fallbackUsed; }
+    public void setFallbackUsed(Boolean fallbackUsed) { this.fallbackUsed = fallbackUsed; }
+
+    public String getError() { return error; }
+    public void setError(String error) { this.error = error; }
 }

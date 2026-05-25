@@ -1,11 +1,22 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
-from gemini_client import GeminiError, InvalidJsonResponseError, generate_structured
-from schemas import AssistFormRequest, GenerateWorkflowRequest, ValidateDiagramRequest
+from fallbacks import (
+    fallback_assist_form,
+    fallback_generate_workflow,
+    fallback_validate_diagram,
+    success_meta,
+)
+from gemini_client import (
+    GeminiError,
+    GeminiQuotaExceededError,
+    InvalidJsonResponseError,
+    generate_structured,
+)
+from assistant_service import generate_assistant
+from schemas import AssistantRequest, AssistFormRequest, GenerateWorkflowRequest, ValidateDiagramRequest
 
 app = FastAPI(title="AI Service for Workflow Policies")
-
 
 WORKFLOW_SYSTEM = """You are a BPM workflow designer assistant.
 Return ONLY valid JSON with this exact structure:
@@ -40,6 +51,11 @@ async def root():
     return {"message": "AI Service is running", "provider": "gemini"}
 
 
+@app.post("/assistant")
+async def assistant(request: AssistantRequest):
+    return generate_assistant(request.prompt, request.module, request.context)
+
+
 @app.post("/generate-workflow")
 async def generate_workflow(request: GenerateWorkflowRequest):
     try:
@@ -48,11 +64,14 @@ async def generate_workflow(request: GenerateWorkflowRequest):
             f"Design a workflow for: {request.prompt}",
         )
         return {
+            **success_meta(),
             "activities": result.get("activities", []),
             "transitions": result.get("transitions", []),
             "swimlanes": result.get("swimlanes", []),
             "suggestions": result.get("suggestions", []),
         }
+    except GeminiQuotaExceededError:
+        return fallback_generate_workflow(request.prompt)
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except GeminiError as exc:
@@ -78,9 +97,12 @@ async def assist_form(request: AssistFormRequest):
         except (TypeError, ValueError):
             confidence = 0.8
         return {
+            **success_meta(),
             "suggestedText": result.get("suggestedText", ""),
             "confidence": max(0.0, min(1.0, confidence)),
         }
+    except GeminiQuotaExceededError:
+        return fallback_assist_form(request.prompt, request.fieldName)
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except GeminiError as exc:
@@ -106,10 +128,13 @@ async def validate_diagram(request: ValidateDiagramRequest):
             f"Validate this workflow diagram:\n{payload}",
         )
         return {
+            **success_meta(),
             "valid": bool(result.get("valid", False)),
             "errors": result.get("errors", []),
             "suggestions": result.get("suggestions", []),
         }
+    except GeminiQuotaExceededError:
+        return fallback_validate_diagram()
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except GeminiError as exc:

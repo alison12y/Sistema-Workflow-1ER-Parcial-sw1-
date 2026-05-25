@@ -58,6 +58,17 @@ public class AiService {
         return response;
     }
 
+    public AiAssistantResponse assistant(AiAssistantRequest request) {
+        validatePrompt(request.getPrompt());
+        Map<String, Object> body = new HashMap<>();
+        body.put("prompt", request.getPrompt());
+        body.put("module", request.getModule() != null ? request.getModule() : "policies");
+        body.put("context", request.getContext() != null ? request.getContext() : Map.of());
+        AiAssistantResponse response = postToAi("/assistant", body, AiAssistantResponse.class);
+        saveAiRequest(request.getPrompt(), response, "GENERAL_ASSISTANT", request.getUserId());
+        return response;
+    }
+
     public AiValidateDiagramResponse validateDiagram(AiValidateDiagramRequest request) {
         Map<String, Object> body = new HashMap<>();
         body.put("activities", request.getActivities());
