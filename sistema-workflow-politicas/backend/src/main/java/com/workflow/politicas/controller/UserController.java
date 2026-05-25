@@ -1,9 +1,11 @@
 package com.workflow.politicas.controller;
 
-import com.workflow.politicas.model.User;
+import com.workflow.politicas.dto.UserRequest;
+import com.workflow.politicas.dto.UserResponse;
 import com.workflow.politicas.service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
@@ -16,29 +18,19 @@ public class UserController {
     }
 
     @GetMapping
-    public List<User> getAllUsers() {
+    public List<UserResponse> getAllUsers() {
         return userService.findAll();
     }
 
     @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userService.save(user);
+    public UserResponse createUser(@RequestBody UserRequest request) {
+        return userService.create(request);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody User userDetails) {
-        return userService.findById(id)
-                .map(user -> {
-                    user.setUsername(userDetails.getUsername());
-                    user.setPassword(userDetails.getPassword());
-                    user.setEmail(userDetails.getEmail());
-                    user.setFullName(userDetails.getFullName());
-                    user.setDepartmentId(userDetails.getDepartmentId());
-                    user.setRoleIds(userDetails.getRoleIds());
-                    user.setActive(userDetails.isActive());
-                    user.setUpdatedAt(java.time.LocalDateTime.now());
-                    return ResponseEntity.ok(userService.save(user));
-                })
+    public ResponseEntity<UserResponse> updateUser(@PathVariable String id, @RequestBody UserRequest request) {
+        return userService.update(id, request)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
