@@ -1,0 +1,97 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <h1>Departamentos</h1>
+      <p>Áreas organizacionales del sistema</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openCreate()">+ Nuevo departamento</button>
+  </div>
+
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+  @if (error && !modalOpen) {
+    <div class="alert error">{{ error }}</div>
+  }
+
+  <div class="data-card">
+    @if (loading) {
+      <div class="loading">Cargando departamentos...</div>
+    } @else if (!departments.length) {
+      <div class="empty-state">No hay departamentos registrados</div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Estado</th>
+              <th>Responsable (ID)</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of departments; track d.id) {
+              <tr>
+                <td>{{ d.name }}</td>
+                <td>{{ d.description || '—' }}</td>
+                <td>
+                  <span class="badge" [class]="statusClass(displayStatus(d))">
+                    {{ displayStatus(d) }}
+                  </span>
+                </td>
+                <td>{{ displayStatus(d) === 'INACTIVE' ? '—' : (d.managerId || '—') }}</td>
+                <td class="actions">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(d)">Editar</button>
+                  <button type="button" class="btn btn-danger btn-sm" (click)="remove(d)">Eliminar</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+@if (modalOpen) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>{{ editingId ? 'Editar departamento' : 'Nuevo departamento' }}</h2>
+      @if (error) {
+        <div class="alert error">{{ error }}</div>
+      }
+      <div class="form-grid">
+        <label>
+          Nombre *
+          <input type="text" [(ngModel)]="form.name" name="name" />
+        </label>
+        <label>
+          Descripción
+          <textarea [(ngModel)]="form.description" name="description"></textarea>
+        </label>
+        <label>
+          Estado
+          <select [(ngModel)]="form.status" name="status">
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="INACTIVE">INACTIVE</option>
+          </select>
+        </label>
+        @if (form.status === 'ACTIVE') {
+          <label>
+            ID responsable / gerente
+            <input type="text" [(ngModel)]="form.managerId" name="managerId" />
+            <span class="hint">Opcional: ID de usuario responsable</span>
+          </label>
+        }
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving" (click)="save()">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

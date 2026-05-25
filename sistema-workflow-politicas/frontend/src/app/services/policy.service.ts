@@ -13,7 +13,27 @@ export class PolicyService {
     return this.http.get<BusinessPolicy[]>(this.api);
   }
 
+  getById(id: string): Observable<BusinessPolicy> {
+    return this.http.get<BusinessPolicy>(`${this.api}/${id}`);
+  }
+
   create(policy: BusinessPolicy): Observable<BusinessPolicy> {
     return this.http.post<BusinessPolicy>(this.api, policy);
+  }
+
+  update(id: string, policy: BusinessPolicy): Observable<BusinessPolicy> {
+    return this.http.put<BusinessPolicy>(`${this.api}/${id}`, policy);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/${id}`);
+  }
+
+  activate(id: string): Observable<BusinessPolicy> {
+    return this.http.patch<BusinessPolicy>(`${this.api}/${id}/activate`, {});
+  }
+
+  deactivate(id: string): Observable<BusinessPolicy> {
+    return this.http.patch<BusinessPolicy>(`${this.api}/${id}/deactivate`, {});
   }
 }

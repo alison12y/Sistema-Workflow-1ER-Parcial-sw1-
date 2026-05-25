@@ -1,0 +1,82 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <h1>Roles</h1>
+      <p>Perfiles y permisos de acceso</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openCreate()">+ Nuevo rol</button>
+  </div>
+
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+  @if (error && !modalOpen) {
+    <div class="alert error">{{ error }}</div>
+  }
+
+  <div class="data-card">
+    @if (loading) {
+      <div class="loading">Cargando roles...</div>
+    } @else if (!roles.length) {
+      <div class="empty-state">No hay roles registrados</div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Permisos</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of roles; track r.id) {
+              <tr>
+                <td>{{ r.name }}</td>
+                <td>{{ r.description || '—' }}</td>
+                <td>{{ r.permissionIds?.length ? (r.permissionIds ?? []).join(', ') : '—' }}</td>
+                <td class="actions">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(r)">Editar</button>
+                  <button type="button" class="btn btn-danger btn-sm" (click)="remove(r)">Eliminar</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+@if (modalOpen) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>{{ editingId ? 'Editar rol' : 'Nuevo rol' }}</h2>
+      @if (error) {
+        <div class="alert error">{{ error }}</div>
+      }
+      <div class="form-grid">
+        <label>
+          Nombre *
+          <input type="text" [(ngModel)]="form.name" name="name" />
+        </label>
+        <label>
+          Descripción
+          <textarea [(ngModel)]="form.description" name="description"></textarea>
+        </label>
+        <label>
+          Permisos (IDs separados por coma)
+          <input type="text" [(ngModel)]="form.permissionsText" name="permissionsText" placeholder="perm1, perm2" />
+          <span class="hint">IDs de permisos existentes en el sistema</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving" (click)="save()">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

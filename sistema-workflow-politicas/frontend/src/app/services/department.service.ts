@@ -16,4 +16,12 @@ export class DepartmentService {
   create(department: Department): Observable<Department> {
     return this.http.post<Department>(this.api, department);
   }
+
+  update(id: string, department: Department): Observable<Department> {
+    return this.http.put<Department>(`${this.api}/${id}`, department);
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/${id}`);
+  }
 }

@@ -1,10 +1,20 @@
 import { Component } from '@angular/core';
-import { PlaceholderComponent } from '../placeholder/placeholder.component';
 
 @Component({
   selector: 'app-ai-assistant',
   standalone: true,
-  imports: [PlaceholderComponent],
-  template: `<app-placeholder title="Asistente IA" description="Sugerencias inteligentes con confirmación antes de aplicar cambios." />`,
+  template: `
+    <div class="page-crud">
+      <div class="page-toolbar">
+        <div>
+          <h1>Asistente IA</h1>
+          <p>Sugerencias con confirmación — disponible en fase siguiente</p>
+        </div>
+      </div>
+      <div class="data-card">
+        <div class="empty-state">Módulo de asistente IA (Fase 10) — use el dashboard para acceder cuando esté listo.</div>
+      </div>
+    </div>
+  `,
 })
 export class AiAssistantComponent {}

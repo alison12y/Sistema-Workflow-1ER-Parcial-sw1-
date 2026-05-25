@@ -1,0 +1,110 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <h1>Políticas de negocio</h1>
+      <p>Configuración de políticas y estados del ciclo de vida</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openCreate()">+ Nueva política</button>
+  </div>
+
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+  @if (error && !modalOpen) {
+    <div class="alert error">{{ error }}</div>
+  }
+
+  <div class="data-card">
+    @if (loading) {
+      <div class="loading">Cargando políticas...</div>
+    } @else if (!policies.length) {
+      <div class="empty-state">No hay políticas registradas</div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Tipo</th>
+              <th>Creador</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of policies; track p.id) {
+              <tr>
+                <td>{{ p.name }}</td>
+                <td>{{ p.description || '—' }}</td>
+                <td>{{ p.type || '—' }}</td>
+                <td>{{ p.createdBy || '—' }}</td>
+                <td>
+                  <span class="badge" [class]="statusBadgeClass(p.status)">
+                    {{ p.status || 'DRAFT' }}
+                  </span>
+                </td>
+                <td class="actions">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(p)">Editar</button>
+                  @if (p.status !== 'ACTIVE') {
+                    <button type="button" class="btn btn-success btn-sm" (click)="activate(p)">Activar</button>
+                  }
+                  @if (p.status === 'ACTIVE') {
+                    <button type="button" class="btn btn-danger btn-sm" (click)="deactivate(p)">Desactivar</button>
+                  }
+                  <button type="button" class="btn btn-danger btn-sm" (click)="remove(p)">Eliminar</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+@if (modalOpen) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>{{ editingId ? 'Editar política' : 'Nueva política' }}</h2>
+      @if (error) {
+        <div class="alert error">{{ error }}</div>
+      }
+      <div class="form-grid">
+        <label>
+          Nombre *
+          <input type="text" [(ngModel)]="form.name" name="name" />
+        </label>
+        <label>
+          Descripción *
+          <textarea [(ngModel)]="form.description" name="description"></textarea>
+        </label>
+        <label>
+          Tipo
+          <select [(ngModel)]="form.type" name="type">
+            <option value="GENERAL_REQUEST">GENERAL_REQUEST</option>
+            <option value="PURCHASE_REQUEST">PURCHASE_REQUEST</option>
+            <option value="LEAVE_REQUEST">LEAVE_REQUEST</option>
+          </select>
+        </label>
+        <label>
+          Creado por *
+          <input type="text" [(ngModel)]="form.createdBy" name="createdBy" />
+        </label>
+        @if (editingId) {
+          <label>
+            Estado (solo lectura)
+            <input type="text" [value]="form.status" disabled />
+            <span class="hint">Use Activar/Desactivar en la tabla</span>
+          </label>
+        }
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving" (click)="save()">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
