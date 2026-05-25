@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TransitionRepository extends MongoRepository<Transition, String> {
+    java.util.List<Transition> findByDiagramId(String diagramId);
 }

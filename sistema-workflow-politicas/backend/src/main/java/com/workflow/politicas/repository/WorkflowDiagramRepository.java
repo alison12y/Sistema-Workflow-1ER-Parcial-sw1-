@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WorkflowDiagramRepository extends MongoRepository<WorkflowDiagram, String> {
+    java.util.List<WorkflowDiagram> findByPolicyId(String policyId);
 }

@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FormFieldRepository extends MongoRepository<FormField, String> {
+    java.util.List<FormField> findByFormId(String formId);
 }
