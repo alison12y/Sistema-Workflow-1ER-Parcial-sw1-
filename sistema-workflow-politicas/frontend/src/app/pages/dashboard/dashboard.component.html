@@ -1,0 +1,17 @@
+<div class="dashboard">
+  <header class="page-header">
+    <h1>Bienvenido</h1>
+    <p>Seleccione un módulo para comenzar a gestionar su organización.</p>
+  </header>
+
+  <div class="cards-grid">
+    @for (card of cards; track card.path) {
+      <a [routerLink]="card.path" class="nav-card" [class]="'accent-' + card.accent">
+        <span class="card-icon">{{ card.icon }}</span>
+        <h3>{{ card.title }}</h3>
+        <p>{{ card.description }}</p>
+        <span class="card-link">Ir al módulo →</span>
+      </a>
+    }
+  </div>
+</div>

@@ -1,0 +1,28 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-brand">
+      <span class="brand-icon">◇</span>
+      <h1>Workflow Políticas</h1>
+      <p>Gestión de procesos y políticas de negocio</p>
+    </div>
+
+    <form (ngSubmit)="onSubmit()" class="login-form">
+      <label>
+        <span>Usuario</span>
+        <input type="text" name="username" [(ngModel)]="username" autocomplete="username" placeholder="Ingrese su usuario" />
+      </label>
+      <label>
+        <span>Contraseña</span>
+        <input type="password" name="password" [(ngModel)]="password" autocomplete="current-password" placeholder="••••••••" />
+      </label>
+
+      @if (error) {
+        <p class="error-msg">{{ error }}</p>
+      }
+
+      <button type="submit" class="btn-primary" [disabled]="loading">
+        {{ loading ? 'Ingresando...' : 'Iniciar sesión' }}
+      </button>
+    </form>
+  </div>
+</div>
