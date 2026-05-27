@@ -1,16 +1,16 @@
 <div class="dashboard">
   <header class="page-header">
-    <h1>Bienvenido</h1>
-    <p>Seleccione un módulo para comenzar a gestionar su organización.</p>
+    <h1>Panel de Control</h1>
+    <p>Bienvenido al sistema de gestión de políticas basado en workflow. Seleccione un módulo para continuar.</p>
   </header>
 
   <div class="cards-grid">
     @for (card of cards; track card.path) {
       <a [routerLink]="card.path" class="nav-card" [class]="'accent-' + card.accent">
-        <span class="card-icon">{{ card.icon }}</span>
+        <i class="material-icons card-icon">{{ card.icon }}</i>
         <h3>{{ card.title }}</h3>
         <p>{{ card.description }}</p>
-        <span class="card-link">Ir al módulo →</span>
+        <span class="card-link">Acceder al módulo →</span>
       </a>
     }
   </div>

@@ -7,6 +7,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -16,31 +18,68 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import jakarta.servlet.http.HttpServletResponse;
+import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
+    private final SecurityLoggingFilter securityLoggingFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter, CustomUserDetailsService userDetailsService) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthFilter,
+            CustomUserDetailsService userDetailsService,
+            SecurityLoggingFilter securityLoggingFilter
+    ) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.userDetailsService = userDetailsService;
+        this.securityLoggingFilter = securityLoggingFilter;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/policies/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/policies/**")
+                                .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")
+                        .requestMatchers(HttpMethod.PUT, "/api/policies/**")
+                                .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/policies/**")
+                                .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/policies/**").hasRole("ADMIN")
+                        .requestMatchers("/api/forms/**", "/api/form-fields/**").authenticated()
+                        .requestMatchers("/api/activity-diagrams/**").authenticated()
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            new ObjectMapper().writeValue(response.getOutputStream(),
+                                    Map.of("message", "No autenticado. Inicie sesión nuevamente."));
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            new ObjectMapper().writeValue(response.getOutputStream(),
+                                    Map.of("message", "Acceso denegado. Verifique su rol o vuelva a iniciar sesión."));
+                        })
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(securityLoggingFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

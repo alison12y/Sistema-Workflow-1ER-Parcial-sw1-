@@ -27,7 +27,7 @@
               <th>Nombre</th>
               <th>Descripción</th>
               <th>Estado</th>
-              <th>Responsable (ID)</th>
+              <th>Responsable</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -41,7 +41,7 @@
                     {{ displayStatus(d) }}
                   </span>
                 </td>
-                <td>{{ displayStatus(d) === 'INACTIVE' ? '—' : (d.managerId || '—') }}</td>
+                <td>{{ getManagerName(d.managerId) }}</td>
                 <td class="actions">
                   <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(d)">Editar</button>
                   <button type="button" class="btn btn-danger btn-sm" (click)="remove(d)">Eliminar</button>
@@ -74,15 +74,20 @@
         <label>
           Estado
           <select [(ngModel)]="form.status" name="status">
-            <option value="ACTIVE">ACTIVE</option>
-            <option value="INACTIVE">INACTIVE</option>
+            <option value="ACTIVE">Activo</option>
+            <option value="INACTIVE">Inactivo</option>
           </select>
         </label>
         @if (form.status === 'ACTIVE') {
           <label>
-            ID responsable / gerente
-            <input type="text" [(ngModel)]="form.managerId" name="managerId" />
-            <span class="hint">Opcional: ID de usuario responsable</span>
+            Responsable del departamento
+            <select [(ngModel)]="form.managerId" name="managerId">
+              <option value="">— Sin asignar —</option>
+              @for (u of users; track u.id) {
+                <option [value]="u.id">{{ u.fullName || u.username }}</option>
+              }
+            </select>
+            <span class="hint">Seleccione el usuario responsable de este departamento.</span>
           </label>
         }
       </div>

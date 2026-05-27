@@ -1,0 +1,59 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <h1>Monitoreo de Trámites</h1>
+      <p>Seguimiento en tiempo real de los procesos en ejecución</p>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="load()">Refrescar</button>
+  </div>
+
+  <div class="data-card">
+    @if (loading) {
+      <div class="loading">Cargando trámites...</div>
+    } @else if (!processes.length) {
+      <div class="empty-state">No hay trámites en ejecución</div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Política</th>
+              <th>Estado</th>
+              <th>Actividad Actual</th>
+              <th>Responsable</th>
+              <th>Tiempo</th>
+              <th>Avance</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of processes; track p.id) {
+              <tr>
+                <td><strong>{{ p.id }}</strong></td>
+                <td>{{ p.policyName }}</td>
+                <td>
+                  <span class="badge" [class]="statusBadgeClass(p.status)">
+                    {{ p.status }}
+                  </span>
+                </td>
+                <td>{{ p.currentActivity }}</td>
+                <td>{{ p.responsible }}</td>
+                <td>{{ p.timeElapsed }}</td>
+                <td>
+                  <div class="progress-bar">
+                    <div class="progress-fill" [style.width.%]="p.progress"></div>
+                    <span class="progress-text">{{ p.progress }}%</span>
+                  </div>
+                </td>
+                <td class="actions">
+                  <button type="button" class="btn btn-secondary btn-sm">Ver Traza</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

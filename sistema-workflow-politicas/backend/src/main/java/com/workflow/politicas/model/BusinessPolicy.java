@@ -12,6 +12,8 @@ public class BusinessPolicy {
     private String description;
     private String type; // e.g., "PURCHASE_REQUEST", "LEAVE_REQUEST"
     private String status; // "DRAFT", "ACTIVE", "ARCHIVED"
+    private String version;
+    private String responsible;
     private String createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -70,6 +72,22 @@ public class BusinessPolicy {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public String getResponsible() {
+        return responsible;
+    }
+
+    public void setResponsible(String responsible) {
+        this.responsible = responsible;
     }
 
     public String getCreatedBy() {

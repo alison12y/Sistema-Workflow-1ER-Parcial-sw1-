@@ -16,8 +16,16 @@ public class BusinessPolicyController {
     }
 
     @GetMapping
-    public List<BusinessPolicy> getAllPolicies() {
+    public List<BusinessPolicy> getAllPolicies(@RequestParam(required = false) String search) {
+        if (search != null && !search.trim().isEmpty()) {
+            return businessPolicyService.search(search.trim());
+        }
         return businessPolicyService.findAll();
+    }
+
+    @GetMapping("/search")
+    public List<BusinessPolicy> searchPolicies(@RequestParam String q) {
+        return businessPolicyService.search(q);
     }
 
     @GetMapping("/{id}")

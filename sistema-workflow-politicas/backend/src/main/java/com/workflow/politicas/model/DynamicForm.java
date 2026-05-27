@@ -10,6 +10,8 @@ public class DynamicForm {
     private String id;
     private String name;
     private String description;
+    private String policyId;
+    private String activityName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -46,6 +48,22 @@ public class DynamicForm {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getPolicyId() {
+        return policyId;
+    }
+
+    public void setPolicyId(String policyId) {
+        this.policyId = policyId;
+    }
+
+    public String getActivityName() {
+        return activityName;
+    }
+
+    public void setActivityName(String activityName) {
+        this.activityName = activityName;
     }
 
     public LocalDateTime getCreatedAt() {

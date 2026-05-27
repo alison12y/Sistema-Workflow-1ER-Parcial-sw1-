@@ -27,15 +27,25 @@
               <th>Nombre</th>
               <th>Descripción</th>
               <th>Permisos</th>
+              <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             @for (r of roles; track r.id) {
               <tr>
-                <td>{{ r.name }}</td>
+                <td>{{ getRoleDisplayName(r.name) }}</td>
                 <td>{{ r.description || '—' }}</td>
-                <td>{{ r.permissionIds?.length ? (r.permissionIds ?? []).join(', ') : '—' }}</td>
+                <td class="permissions-cell">
+                  @for (p of r.permissionIds; track p) {
+                    <span class="permission-tag">{{ getPermissionName(p) }}</span>
+                  } @empty { — }
+                </td>
+                <td>
+                  <span class="badge" [class.active]="r.active" [class.inactive]="!r.active">
+                    {{ r.active ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
                 <td class="actions">
                   <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(r)">Editar</button>
                   <button type="button" class="btn btn-danger btn-sm" (click)="remove(r)">Eliminar</button>
@@ -65,10 +75,24 @@
           Descripción
           <textarea [(ngModel)]="form.description" name="description"></textarea>
         </label>
+        <label class="full-width">
+          Permisos de acceso
+          <div class="roles-grid">
+            @for (p of availablePermissions; track p.code) {
+              <div class="role-item">
+                <input type="checkbox" [checked]="isPermissionSelected(p.code)" (change)="togglePermission(p.code)" [id]="'perm-' + p.code" />
+                <label [for]="'perm-' + p.code">{{ p.name }}</label>
+              </div>
+            }
+          </div>
+          <span class="hint">Seleccione las acciones que este rol puede realizar en el sistema.</span>
+        </label>
         <label>
-          Permisos (IDs separados por coma)
-          <input type="text" [(ngModel)]="form.permissionsText" name="permissionsText" placeholder="perm1, perm2" />
-          <span class="hint">IDs de permisos existentes en el sistema</span>
+          Estado
+          <select [(ngModel)]="form.active" name="active">
+            <option [ngValue]="true">Activo</option>
+            <option [ngValue]="false">Inactivo</option>
+          </select>
         </label>
       </div>
       <div class="modal-actions">

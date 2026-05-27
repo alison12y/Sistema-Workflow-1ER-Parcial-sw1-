@@ -1,12 +1,20 @@
 package com.workflow.politicas.service;
 
+import com.workflow.politicas.dto.DynamicFormDetailResponse;
+import com.workflow.politicas.dto.DynamicFormSaveRequest;
+import com.workflow.politicas.dto.FormFieldDto;
 import com.workflow.politicas.model.Activity;
 import com.workflow.politicas.model.DynamicForm;
+import com.workflow.politicas.model.FormField;
 import com.workflow.politicas.repository.ActivityRepository;
 import com.workflow.politicas.repository.DynamicFormRepository;
+import com.workflow.politicas.repository.FormFieldRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 @Service
@@ -14,10 +22,16 @@ public class DynamicFormService {
 
     private final DynamicFormRepository dynamicFormRepository;
     private final ActivityRepository activityRepository;
+    private final FormFieldRepository formFieldRepository;
 
-    public DynamicFormService(DynamicFormRepository dynamicFormRepository, ActivityRepository activityRepository) {
+    public DynamicFormService(
+            DynamicFormRepository dynamicFormRepository,
+            ActivityRepository activityRepository,
+            FormFieldRepository formFieldRepository
+    ) {
         this.dynamicFormRepository = dynamicFormRepository;
         this.activityRepository = activityRepository;
+        this.formFieldRepository = formFieldRepository;
     }
 
     public DynamicForm create(DynamicForm form) {
@@ -56,5 +70,132 @@ public class DynamicFormService {
         }
         form.setUpdatedAt(LocalDateTime.now());
         return dynamicFormRepository.save(form);
+    }
+
+    public DynamicFormDetailResponse getByPolicyAndActivity(String policyId, String activityName) {
+        if (policyId == null || policyId.isBlank()) {
+            throw new IllegalArgumentException("El identificador de la política es obligatorio");
+        }
+        if (activityName == null || activityName.isBlank()) {
+            throw new IllegalArgumentException("El nombre de la actividad es obligatorio");
+        }
+
+        Optional<DynamicForm> formOpt = dynamicFormRepository.findByPolicyIdAndActivityName(policyId, activityName);
+        if (formOpt.isEmpty()) {
+            DynamicFormDetailResponse empty = new DynamicFormDetailResponse();
+            empty.setPolicyId(policyId);
+            empty.setActivityName(activityName);
+            empty.setFields(new ArrayList<>());
+            return empty;
+        }
+
+        DynamicForm form = formOpt.get();
+        DynamicFormDetailResponse response = new DynamicFormDetailResponse();
+        response.setId(form.getId());
+        response.setPolicyId(form.getPolicyId());
+        response.setActivityName(form.getActivityName());
+        response.setName(form.getName());
+        response.setFields(mapFieldsToDto(formFieldRepository.findByFormId(form.getId())));
+        return response;
+    }
+
+    public DynamicFormDetailResponse saveFull(DynamicFormSaveRequest request) {
+        validateSaveRequest(request);
+
+        DynamicForm form = dynamicFormRepository
+                .findByPolicyIdAndActivityName(request.getPolicyId(), request.getActivityName())
+                .orElseGet(DynamicForm::new);
+
+        if (form.getId() == null) {
+            form.setCreatedAt(LocalDateTime.now());
+        }
+        form.setPolicyId(request.getPolicyId());
+        form.setActivityName(request.getActivityName());
+        form.setName(request.getName());
+        form.setDescription("Formulario de la actividad " + request.getActivityName());
+        form.setUpdatedAt(LocalDateTime.now());
+        DynamicForm savedForm = dynamicFormRepository.save(form);
+
+        formFieldRepository.deleteByFormId(savedForm.getId());
+        List<FormField> savedFields = new ArrayList<>();
+        for (FormFieldDto fieldDto : request.getFields()) {
+            FormField field = new FormField();
+            field.setFormId(savedForm.getId());
+            field.setLabel(fieldDto.getLabel().trim());
+            field.setName(fieldDto.getName().trim());
+            field.setType(normalizeFieldType(fieldDto.getType()));
+            field.setRequired(fieldDto.isRequired());
+            field.setValidationRules(fieldDto.getOptions());
+            field.setOrder(fieldDto.getOrder());
+            savedFields.add(formFieldRepository.save(field));
+        }
+
+        linkFormToActivityIfExists(savedForm);
+
+        DynamicFormDetailResponse response = new DynamicFormDetailResponse();
+        response.setId(savedForm.getId());
+        response.setPolicyId(savedForm.getPolicyId());
+        response.setActivityName(savedForm.getActivityName());
+        response.setName(savedForm.getName());
+        response.setFields(mapFieldsToDto(savedFields));
+        return response;
+    }
+
+    private void validateSaveRequest(DynamicFormSaveRequest request) {
+        if (request.getPolicyId() == null || request.getPolicyId().isBlank()) {
+            throw new IllegalArgumentException("El identificador de la política es obligatorio");
+        }
+        if (request.getActivityName() == null || request.getActivityName().isBlank()) {
+            throw new IllegalArgumentException("El nombre de la actividad es obligatorio");
+        }
+        if (request.getFields() == null || request.getFields().isEmpty()) {
+            throw new IllegalArgumentException("Debe agregar al menos un campo al formulario");
+        }
+        for (int i = 0; i < request.getFields().size(); i++) {
+            FormFieldDto field = request.getFields().get(i);
+            if (field.getLabel() == null || field.getLabel().trim().isEmpty()) {
+                throw new IllegalArgumentException("Todos los campos deben tener una etiqueta");
+            }
+            if (field.getName() == null || field.getName().trim().isEmpty()) {
+                throw new IllegalArgumentException("Todos los campos deben tener un nombre");
+            }
+            if (field.getType() == null || field.getType().trim().isEmpty()) {
+                throw new IllegalArgumentException("Todos los campos deben tener un tipo");
+            }
+            field.setOrder(i);
+        }
+        if (request.getName() == null || request.getName().isBlank()) {
+            request.setName("Formulario - " + request.getActivityName());
+        }
+    }
+
+    private void linkFormToActivityIfExists(DynamicForm savedForm) {
+        activityRepository.findAll().stream()
+                .filter(activity -> savedForm.getActivityName().equalsIgnoreCase(activity.getName()))
+                .findFirst()
+                .ifPresent(activity -> {
+                    activity.setDynamicFormId(savedForm.getId());
+                    activityRepository.save(activity);
+                });
+    }
+
+    private List<FormFieldDto> mapFieldsToDto(List<FormField> fields) {
+        return fields.stream()
+                .sorted((a, b) -> Integer.compare(a.getOrder(), b.getOrder()))
+                .map(field -> {
+                    FormFieldDto dto = new FormFieldDto();
+                    dto.setLabel(field.getLabel());
+                    dto.setName(field.getName());
+                    dto.setType(field.getType().toLowerCase(Locale.ROOT));
+                    dto.setRequired(field.isRequired());
+                    dto.setOptions(field.getValidationRules());
+                    dto.setOrder(field.getOrder());
+                    return dto;
+                })
+                .toList();
+    }
+
+    private String normalizeFieldType(String type) {
+        return type == null ? "TEXT" : type.trim().toUpperCase(Locale.ROOT);
     }
 }

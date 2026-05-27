@@ -1,0 +1,186 @@
+<div class="designer-container">
+  <aside class="toolbox">
+    <div class="toolbox-header">
+      <h3>Herramientas UML 2.5</h3>
+      <p>Seleccione para agregar al lienzo</p>
+    </div>
+
+    <div class="toolbox-scroll">
+      <div class="tool-list">
+        @for (tool of tools; track tool.type) {
+          <button type="button" class="tool-item" (click)="addNode(tool.type)">
+            <i class="material-icons">{{ tool.icon }}</i>
+            <span>{{ tool.label }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="usage-guide">
+        <h4>Instrucciones</h4>
+        <ol>
+          <li>Agregue nodos UML desde el panel.</li>
+          <li>Arrastre nodos para posicionarlos.</li>
+          <li>Edite etiqueta y responsable del nodo seleccionado.</li>
+          <li>Use <strong>Conectar</strong> para crear flujos de control.</li>
+          <li>Edite condiciones en conexiones de decisiones.</li>
+          <li>Guarde el diagrama asociado a la política.</li>
+        </ol>
+        <button type="button" class="btn btn-secondary btn-block" (click)="loadExampleTemplate()">
+          Cargar plantilla de ejemplo
+        </button>
+        <button type="button" class="btn btn-secondary btn-block" (click)="clearCanvas()">
+          Limpiar lienzo
+        </button>
+      </div>
+
+      @if (selectedNode(); as node) {
+        <div class="inspector">
+          <h4>Editar nodo</h4>
+          <label>
+            Tipo
+            <input type="text" [value]="nodeTypeLabel(node.type)" disabled />
+          </label>
+          <label>
+            Etiqueta *
+            <input type="text" [(ngModel)]="node.label" />
+          </label>
+          <label>
+            Responsable / Carril
+            <select [(ngModel)]="node.lane">
+              @for (lane of lanes; track lane) {
+                <option [value]="lane">{{ lane }}</option>
+              }
+            </select>
+          </label>
+          <div class="inspector-actions">
+            <button type="button" class="btn btn-secondary btn-sm" (click)="startConnect(node.id, $event)">
+              Conectar
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" (click)="removeSelectedNode()">Eliminar</button>
+          </div>
+        </div>
+      }
+
+      @if (selectedEdge(); as edge) {
+        <div class="inspector">
+          <h4>Editar conexión</h4>
+          <label>
+            Condición / Etiqueta
+            <input type="text" [(ngModel)]="edge.label" placeholder="Ej: [Sí], [No], [Aprobado]" />
+          </label>
+          <button type="button" class="btn btn-danger btn-sm" (click)="removeSelectedEdge()">Eliminar conexión</button>
+        </div>
+      }
+    </div>
+  </aside>
+
+  <main class="canvas-area">
+    <header class="canvas-header">
+      <div class="header-main">
+        <h1>Diagrama de Actividades UML 2.5</h1>
+        <p class="policy-line">
+          <span class="policy-label">Política:</span>
+          <span class="policy-name" [title="policy?.name || ''">{{ policy?.name || 'Cargando...' }}</span>
+        </p>
+      </div>
+      <div class="header-toolbar">
+        <div class="toolbar-group">
+          <button type="button" class="btn btn-secondary btn-sm" (click)="showFullDiagram()">Ver completo</button>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="centerDiagram()">Centrar</button>
+        </div>
+        <div class="toolbar-group">
+          <button type="button" class="btn btn-secondary btn-sm" (click)="cancel()">Volver</button>
+          <button type="button" class="btn btn-primary btn-sm" [disabled]="saving || loading" (click)="save()">
+            {{ saving ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </div>
+    </header>
+
+    @if (message) {
+      <div class="alert success">{{ message }}</div>
+    }
+    @if (error) {
+      <div class="alert error">{{ error }}</div>
+    }
+
+    <div #canvasViewport class="canvas-wrapper">
+      @if (loading) {
+        <div class="loading-state">Cargando diagrama...</div>
+      } @else {
+        <div
+          class="canvas-content"
+          [style.width.px]="canvasWidth"
+          [style.height.px]="canvasHeight"
+          (click)="selectedNodeId = null; selectedEdgeId = null"
+        >
+          <div class="swimlanes" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight">
+            @for (lane of lanes; track lane; let i = $index) {
+              <div class="swimlane" [style.top.px]="i * 120" [style.width.px]="canvasWidth">
+                <span class="lane-label">{{ lane }}</span>
+              </div>
+            }
+          </div>
+
+          <svg class="connections" [attr.width]="canvasWidth" [attr.height]="canvasHeight">
+            <defs>
+              <marker id="uml-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#7c6fbe" />
+              </marker>
+            </defs>
+            @for (edge of edges; track edge.id) {
+              <path
+                [attr.d]="getEdgePath(edge)"
+                fill="none"
+                stroke="#7c6fbe"
+                stroke-width="2"
+                marker-end="url(#uml-arrow)"
+                [class.selected]="selectedEdgeId === edge.id"
+                (click)="selectEdge(edge.id, $event)"
+              />
+              @if (edge.label) {
+                <text
+                  [attr.x]="getEdgeLabelPosition(edge).x"
+                  [attr.y]="getEdgeLabelPosition(edge).y"
+                  class="edge-label"
+                >
+                  {{ edge.label }}
+                </text>
+              }
+            }
+          </svg>
+
+          @for (node of nodes; track node.id) {
+            <div
+              class="node"
+              [ngClass]="nodeClass(node.type)"
+              [class.selected]="selectedNodeId === node.id"
+              [style.left.px]="node.x"
+              [style.top.px]="node.y"
+              (mousedown)="onNodeMouseDown($event, node)"
+              (click)="selectNode(node.id, $event)"
+            >
+              @if (node.type === 'INITIAL') {
+                <div class="uml-initial"></div>
+              } @else if (node.type === 'FINAL') {
+                <div class="uml-final"><span></span></div>
+              } @else if (node.type === 'DECISION' || node.type === 'MERGE') {
+                <div class="uml-diamond"><span>{{ node.label }}</span></div>
+              } @else if (node.type === 'FORK_JOIN') {
+                <div class="uml-fork"></div>
+                <span class="node-caption">{{ node.label }}</span>
+              } @else {
+                <div class="uml-action">
+                  <span>{{ node.label }}</span>
+                </div>
+                @if (node.lane) {
+                  <span class="node-lane">{{ node.lane }}</span>
+                }
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </main>
+</div>

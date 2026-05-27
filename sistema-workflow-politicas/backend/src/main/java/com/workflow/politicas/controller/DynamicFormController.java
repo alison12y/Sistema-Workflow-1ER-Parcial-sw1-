@@ -1,5 +1,7 @@
 package com.workflow.politicas.controller;
 
+import com.workflow.politicas.dto.DynamicFormDetailResponse;
+import com.workflow.politicas.dto.DynamicFormSaveRequest;
 import com.workflow.politicas.model.DynamicForm;
 import com.workflow.politicas.service.DynamicFormService;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,19 @@ public class DynamicFormController {
     @PostMapping
     public DynamicForm createForm(@RequestBody DynamicForm form) {
         return dynamicFormService.create(form);
+    }
+
+    @PostMapping("/save")
+    public ResponseEntity<DynamicFormDetailResponse> saveForm(@RequestBody DynamicFormSaveRequest request) {
+        return ResponseEntity.ok(dynamicFormService.saveFull(request));
+    }
+
+    @GetMapping("/policy/{policyId}")
+    public ResponseEntity<DynamicFormDetailResponse> getFormByPolicyAndActivity(
+            @PathVariable String policyId,
+            @RequestParam String activity
+    ) {
+        return ResponseEntity.ok(dynamicFormService.getByPolicyAndActivity(policyId, activity));
     }
 
     @GetMapping("/{activityId}")

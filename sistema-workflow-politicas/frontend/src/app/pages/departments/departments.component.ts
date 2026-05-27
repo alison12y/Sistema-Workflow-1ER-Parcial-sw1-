@@ -1,7 +1,9 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DepartmentService } from '../../services/department.service';
+import { UserService } from '../../services/user.service';
 import { Department } from '../../models/auth.model';
+import { UserDto } from '../../models/api.models';
 
 type DeptForm = Department & { status: string };
 
@@ -14,8 +16,10 @@ type DeptForm = Department & { status: string };
 })
 export class DepartmentsComponent implements OnInit {
   private readonly departmentService = inject(DepartmentService);
+  private readonly userService = inject(UserService);
 
   departments: Department[] = [];
+  users: UserDto[] = [];
   loading = true;
   saving = false;
   modalOpen = false;
@@ -27,6 +31,7 @@ export class DepartmentsComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    this.loadUsers();
   }
 
   load(): void {
@@ -43,8 +48,20 @@ export class DepartmentsComponent implements OnInit {
     });
   }
 
+  loadUsers(): void {
+    this.userService.getAll().subscribe({
+      next: (u) => (this.users = u),
+    });
+  }
+
+  getManagerName(managerId?: string): string {
+    if (!managerId || managerId === 'INACTIVE') return '—';
+    const user = this.users.find((u) => u.id === managerId);
+    return user ? (user.fullName || user.username) : managerId;
+  }
+
   displayStatus(d: Department): string {
-    return d.managerId === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    return d.managerId === 'INACTIVE' ? 'Inactivo' : 'Activo';
   }
 
   openCreate(): void {
@@ -115,7 +132,7 @@ export class DepartmentsComponent implements OnInit {
   }
 
   statusClass(status: string): string {
-    return status === 'ACTIVE' ? 'active' : 'inactive';
+    return status === 'Activo' ? 'active' : 'inactive';
   }
 
   private emptyForm(): DeptForm {

@@ -1,13 +1,13 @@
 <div class="app-shell">
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <span class="logo">◇</span>
+      <i class="material-icons logo">account_tree</i>
       <span class="title">Workflow</span>
     </div>
     <nav class="sidebar-nav">
       @for (item of navItems; track item.path) {
         <a [routerLink]="item.path" routerLinkActive="active" class="nav-link">
-          <span class="nav-icon">{{ item.icon }}</span>
+          <i class="material-icons nav-icon">{{ item.icon }}</i>
           <span>{{ item.label }}</span>
         </a>
       }
@@ -17,8 +17,8 @@
   <div class="main-area">
     <header class="top-header">
       <div class="header-title">
-        <h2>Sistema de Políticas</h2>
-        <p class="subtitle">Panel de administración</p>
+        <h2>SISTEMA DE GESTIÓN DE POLÍTICAS DE NEGOCIO BASADO EN WORKFLOW</h2>
+        <p class="subtitle">Panel de Gestión Integral - 1er Parcial Ing. Software 1</p>
       </div>
       <div class="header-actions">
         @if (user) {

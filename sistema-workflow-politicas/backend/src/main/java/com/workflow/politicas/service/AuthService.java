@@ -55,6 +55,9 @@ public class AuthService {
         response.setToken(jwtToken);
         response.setUsername(user.getUsername());
         response.setFullName(user.getFullName());
+        if (!userDetails.getAuthorities().isEmpty()) {
+            response.setRole(userDetails.getAuthorities().iterator().next().getAuthority());
+        }
         return response;
     }
 
@@ -74,6 +77,9 @@ public class AuthService {
         response.setToken(jwtToken);
         response.setUsername(user.getUsername());
         response.setFullName(user.getFullName());
+        if (!userDetails.getAuthorities().isEmpty()) {
+            response.setRole(userDetails.getAuthorities().iterator().next().getAuthority());
+        }
         return response;
     }
 }

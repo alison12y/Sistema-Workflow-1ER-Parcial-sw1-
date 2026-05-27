@@ -80,8 +80,11 @@
           <input type="email" [(ngModel)]="form.email" name="email" />
         </label>
         <label>
-          Contraseña {{ editingId ? '(vacío = sin cambio)' : '*' }}
-          <input type="password" [(ngModel)]="form.password" name="password" autocomplete="new-password" />
+          Contraseña {{ editingId ? '(opcional)' : '*' }}
+          <input type="password" [(ngModel)]="form.password" name="password" autocomplete="new-password" [placeholder]="editingId ? 'Dejar vacío para mantener la actual' : 'Ingrese contraseña'" />
+          @if (editingId) {
+            <small class="help-text">Por seguridad, la contraseña actual no se muestra. Escriba una nueva solo si desea cambiarla.</small>
+          }
         </label>
         <label>
           Departamento
@@ -92,10 +95,16 @@
             }
           </select>
         </label>
-        <label>
-          Roles (IDs separados por coma)
-          <input type="text" [(ngModel)]="form.roleIdsText" name="roleIdsText" placeholder="id1, id2" />
-          <span class="hint">Disponibles: @for (r of roles; track r.id) { {{ r.name }} ({{ r.id }}); }</span>
+        <label class="full-width">
+          Roles
+          <div class="roles-grid">
+            @for (r of roles; track r.id) {
+              <div class="role-item">
+                <input type="checkbox" [checked]="isRoleSelected(r.id!)" (change)="toggleRole(r.id!)" [id]="'role-' + r.id" />
+                <label [for]="'role-' + r.id">{{ getPrettyRoleName(r.name) }}</label>
+              </div>
+            }
+          </div>
         </label>
         <label>
           Estado

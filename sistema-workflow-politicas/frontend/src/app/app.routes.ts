@@ -24,6 +24,26 @@ export const routes: Routes = [
           import('./pages/policies/policies.component').then((m) => m.PoliciesComponent),
       },
       {
+        path: 'monitoring',
+        loadComponent: () =>
+          import('./pages/monitoring/monitoring.component').then((m) => m.MonitoringComponent),
+      },
+      {
+        path: 'kpi',
+        loadComponent: () =>
+          import('./pages/kpi/kpi.component').then((m) => m.KpiComponent),
+      },
+      {
+        path: 'workflow-designer/:id',
+        loadComponent: () =>
+          import('./pages/workflow-designer/workflow-designer.component').then((m) => m.WorkflowDesignerComponent),
+      },
+      {
+        path: 'form-designer/:id',
+        loadComponent: () =>
+          import('./pages/form-designer/form-designer.component').then((m) => m.FormDesignerComponent),
+      },
+      {
         path: 'users',
         loadComponent: () => import('./pages/users/users.component').then((m) => m.UsersComponent),
       },

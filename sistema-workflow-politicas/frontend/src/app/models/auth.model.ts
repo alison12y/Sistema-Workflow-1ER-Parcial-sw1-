@@ -25,6 +25,7 @@ export interface Role {
   name: string;
   description?: string;
   permissionIds?: string[];
+  active?: boolean;
 }
 
 export interface Department {
@@ -41,4 +42,8 @@ export interface BusinessPolicy {
   type?: string;
   status?: string;
   createdBy?: string;
+  responsible?: string;
+  version?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

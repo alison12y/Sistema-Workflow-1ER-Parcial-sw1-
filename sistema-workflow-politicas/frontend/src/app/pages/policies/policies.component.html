@@ -7,6 +7,20 @@
     <button type="button" class="btn btn-primary" (click)="openCreate()">+ Nueva política</button>
   </div>
 
+  <div class="search-bar">
+    <input
+      type="search"
+      [(ngModel)]="searchTerm"
+      name="searchTerm"
+      placeholder="Buscar por nombre o descripción..."
+      (keyup.enter)="onSearch()"
+    />
+    <button type="button" class="btn btn-secondary" (click)="onSearch()">Buscar</button>
+    @if (searchTerm) {
+      <button type="button" class="btn btn-secondary" (click)="clearSearch()">Limpiar</button>
+    }
+  </div>
+
   @if (message) {
     <div class="alert success">{{ message }}</div>
   }
@@ -18,7 +32,9 @@
     @if (loading) {
       <div class="loading">Cargando políticas...</div>
     } @else if (!policies.length) {
-      <div class="empty-state">No hay políticas registradas</div>
+      <div class="empty-state">
+        {{ searchTerm ? 'No se encontraron políticas con ese criterio' : 'No hay políticas registradas' }}
+      </div>
     } @else {
       <div class="table-wrap">
         <table class="data-table">
@@ -26,9 +42,10 @@
             <tr>
               <th>Nombre</th>
               <th>Descripción</th>
-              <th>Tipo</th>
-              <th>Creador</th>
+              <th>Responsable</th>
               <th>Estado</th>
+              <th>Versión</th>
+              <th>Fecha</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -37,21 +54,19 @@
               <tr>
                 <td>{{ p.name }}</td>
                 <td>{{ p.description || '—' }}</td>
-                <td>{{ p.type || '—' }}</td>
-                <td>{{ p.createdBy || '—' }}</td>
+                <td>{{ p.responsible || '—' }}</td>
                 <td>
                   <span class="badge" [class]="statusBadgeClass(p.status)">
-                    {{ p.status || 'DRAFT' }}
+                    {{ statusLabel(p.status) }}
                   </span>
                 </td>
+                <td>{{ p.version || '1.0' }}</td>
+                <td>{{ (p.createdAt | date:'shortDate') || '—' }}</td>
                 <td class="actions">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="openView(p)">Ver</button>
                   <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(p)">Editar</button>
-                  @if (p.status !== 'ACTIVE') {
-                    <button type="button" class="btn btn-success btn-sm" (click)="activate(p)">Activar</button>
-                  }
-                  @if (p.status === 'ACTIVE') {
-                    <button type="button" class="btn btn-danger btn-sm" (click)="deactivate(p)">Desactivar</button>
-                  }
+                  <a [routerLink]="['/workflow-designer', p.id]" class="btn btn-secondary btn-sm">Diagrama</a>
+                  <a [routerLink]="['/form-designer', p.id]" class="btn btn-secondary btn-sm">Formulario</a>
                   <button type="button" class="btn btn-danger btn-sm" (click)="remove(p)">Eliminar</button>
                 </td>
               </tr>
@@ -73,7 +88,7 @@
       <div class="form-grid">
         <label>
           Nombre *
-          <input type="text" [(ngModel)]="form.name" name="name" />
+          <input type="text" [(ngModel)]="form.name" name="name" minlength="3" />
         </label>
         <label>
           Descripción *
@@ -82,27 +97,74 @@
         <label>
           Tipo
           <select [(ngModel)]="form.type" name="type">
-            <option value="GENERAL_REQUEST">GENERAL_REQUEST</option>
-            <option value="PURCHASE_REQUEST">PURCHASE_REQUEST</option>
-            <option value="LEAVE_REQUEST">LEAVE_REQUEST</option>
+            <option value="GENERAL_REQUEST">Solicitud General</option>
+            <option value="PURCHASE_REQUEST">Solicitud de Compra</option>
+            <option value="LEAVE_REQUEST">Permiso de Ausencia</option>
+            <option value="DOCUMENT_APPROVAL">Aprobación de Documento</option>
+            <option value="CLAIM_ATTENTION">Atención de Reclamo</option>
           </select>
         </label>
         <label>
-          Creado por *
-          <input type="text" [(ngModel)]="form.createdBy" name="createdBy" />
+          Responsable *
+          <input
+            type="text"
+            [(ngModel)]="form.responsible"
+            name="responsible"
+            placeholder="Ej: Responsable de Proceso"
+          />
         </label>
-        @if (editingId) {
-          <label>
-            Estado (solo lectura)
-            <input type="text" [value]="form.status" disabled />
-            <span class="hint">Use Activar/Desactivar en la tabla</span>
-          </label>
-        }
+        <label>
+          Versión *
+          <input type="text" [(ngModel)]="form.version" name="version" placeholder="1.0" />
+        </label>
+        <label>
+          Estado
+          <select [(ngModel)]="form.status" name="status">
+            <option value="DRAFT">Borrador</option>
+            <option value="ACTIVE">Activa</option>
+            <option value="INACTIVE">Inactiva</option>
+            <option value="VERSIONED">Versionada</option>
+          </select>
+        </label>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancelar</button>
         <button type="button" class="btn btn-primary" [disabled]="saving" (click)="save()">
           {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (viewModalOpen && viewingPolicy) {
+  <div class="modal-backdrop" (click)="closeViewModal()">
+    <div class="modal-panel view-panel" (click)="$event.stopPropagation()">
+      <h2>Detalle de política</h2>
+      <dl class="detail-list">
+        <dt>Nombre</dt>
+        <dd>{{ viewingPolicy.name }}</dd>
+        <dt>Descripción</dt>
+        <dd>{{ viewingPolicy.description || '—' }}</dd>
+        <dt>Tipo</dt>
+        <dd>{{ typeLabel(viewingPolicy.type) }}</dd>
+        <dt>Responsable</dt>
+        <dd>{{ viewingPolicy.responsible || '—' }}</dd>
+        <dt>Estado</dt>
+        <dd>
+          <span class="badge" [class]="statusBadgeClass(viewingPolicy.status)">
+            {{ statusLabel(viewingPolicy.status) }}
+          </span>
+        </dd>
+        <dt>Versión</dt>
+        <dd>{{ viewingPolicy.version || '1.0' }}</dd>
+        <dt>Fecha de creación</dt>
+        <dd>{{ (viewingPolicy.createdAt | date:'medium') || '—' }}</dd>
+      </dl>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeViewModal()">Cerrar</button>
+        <button type="button" class="btn btn-primary" (click)="closeViewModal(); openEdit(viewingPolicy)">
+          Editar
         </button>
       </div>
     </div>

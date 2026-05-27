@@ -55,6 +55,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 );
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
+        } else if (username == null && authHeader != null) {
+            org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
+                    .warn("Invalid JWT token received for {}", request.getRequestURI());
         }
         filterChain.doFilter(request, response);
     }

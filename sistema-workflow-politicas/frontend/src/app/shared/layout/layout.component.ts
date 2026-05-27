@@ -21,12 +21,14 @@ export class LayoutComponent {
   user = this.auth.getCurrentUser();
 
   navItems: NavItem[] = [
-    { path: '/dashboard', label: 'Dashboard', icon: '▣' },
-    { path: '/policies', label: 'Políticas', icon: '◈' },
-    { path: '/users', label: 'Usuarios', icon: '◎' },
-    { path: '/roles', label: 'Roles', icon: '◇' },
-    { path: '/departments', label: 'Departamentos', icon: '▤' },
-    { path: '/ai-assistant', label: 'Asistente IA', icon: '✦' },
+    { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { path: '/policies', label: 'Políticas', icon: 'description' },
+    { path: '/monitoring', label: 'Monitoreo', icon: 'timeline' },
+    { path: '/kpi', label: 'KPIs', icon: 'insert_chart' },
+    { path: '/users', label: 'Usuarios', icon: 'people' },
+    { path: '/roles', label: 'Roles', icon: 'security' },
+    { path: '/departments', label: 'Departamentos', icon: 'business' },
+    { path: '/ai-assistant', label: 'Asistente IA', icon: 'auto_awesome' },
   ];
 
   logout(): void {

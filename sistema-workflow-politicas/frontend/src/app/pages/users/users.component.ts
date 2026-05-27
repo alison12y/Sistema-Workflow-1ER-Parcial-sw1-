@@ -6,6 +6,7 @@ import { DepartmentService } from '../../services/department.service';
 import { UserDto, UserRequest } from '../../models/api.models';
 import { Role } from '../../models/auth.model';
 import { Department } from '../../models/auth.model';
+import { getRoleDisplayName } from '../../shared/utils/role-display.util';
 
 @Component({
   selector: 'app-users',
@@ -29,7 +30,7 @@ export class UsersComponent implements OnInit {
   message = '';
   error = '';
 
-  form: UserRequest & { roleIdsText?: string } = this.emptyForm();
+  form: UserRequest = this.emptyForm();
 
   ngOnInit(): void {
     this.loadAll();
@@ -70,7 +71,6 @@ export class UsersComponent implements OnInit {
       password: null,
       departmentId: user.departmentId ?? '',
       roleIds: user.roleIds ? [...user.roleIds] : [],
-      roleIdsText: user.roleIds?.join(', ') ?? '',
       active: user.active ?? true,
     };
     this.modalOpen = true;
@@ -83,19 +83,22 @@ export class UsersComponent implements OnInit {
   save(): void {
     this.error = '';
     this.message = '';
-    const roleIds = this.parseRoleIds(this.form.roleIdsText ?? '');
     const body: UserRequest = {
       username: this.form.username.trim(),
       fullName: this.form.fullName?.trim(),
       email: this.form.email?.trim(),
       departmentId: this.form.departmentId || undefined,
-      roleIds: roleIds.length ? roleIds : undefined,
+      roleIds: this.form.roleIds?.length ? this.form.roleIds : undefined,
       active: this.form.active,
       password: this.form.password?.trim() || null,
     };
 
     if (!body.username) {
       this.error = 'El usuario es obligatorio';
+      return;
+    }
+    if (body.username.length < 3) {
+      this.error = 'El usuario debe tener al menos 3 caracteres';
       return;
     }
     if (!this.editingId && !body.password) {
@@ -135,32 +138,48 @@ export class UsersComponent implements OnInit {
 
   deptName(id?: string): string {
     if (!id) return '—';
-    return this.departments.find((d) => d.id === id)?.name ?? id;
+    const dept = this.departments.find((d) => d.id === id);
+    return dept?.name ?? '—';
   }
 
   roleNames(ids?: string[]): string {
     if (!ids?.length) return '—';
-    return ids
-      .map((id) => this.roles.find((r) => r.id === id)?.name ?? id)
-      .join(', ');
+    const names = new Set<string>();
+    ids.forEach((id) => {
+      const role = this.roles.find((r) => r.id === id);
+      if (role?.name) {
+        names.add(getRoleDisplayName(role.name));
+      }
+    });
+    return names.size ? Array.from(names).join(', ') : '—';
   }
 
-  private parseRoleIds(text: string): string[] {
-    return text
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+  getPrettyRoleName(name: string): string {
+    return getRoleDisplayName(name);
   }
 
-  private emptyForm(): UserRequest & { roleIdsText?: string } {
+  toggleRole(roleId: string): void {
+    if (!this.form.roleIds) this.form.roleIds = [];
+    const index = this.form.roleIds.indexOf(roleId);
+    if (index === -1) {
+      this.form.roleIds.push(roleId);
+    } else {
+      this.form.roleIds.splice(index, 1);
+    }
+  }
+
+  isRoleSelected(roleId: string): boolean {
+    return this.form.roleIds?.includes(roleId) ?? false;
+  }
+
+  private emptyForm(): UserRequest {
     return {
       username: '',
       fullName: '',
       email: '',
-      password: '',
+      password: null,
       departmentId: '',
       roleIds: [],
-      roleIdsText: '',
       active: true,
     };
   }

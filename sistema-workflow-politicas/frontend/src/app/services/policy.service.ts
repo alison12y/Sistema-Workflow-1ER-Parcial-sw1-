@@ -9,8 +9,15 @@ export class PolicyService {
   private readonly http = inject(HttpClient);
   private readonly api = `${environment.apiUrl}/api/policies`;
 
-  getAll(): Observable<BusinessPolicy[]> {
-    return this.http.get<BusinessPolicy[]>(this.api);
+  getAll(search?: string): Observable<BusinessPolicy[]> {
+    const params = search?.trim() ? { search: search.trim() } : undefined;
+    return this.http.get<BusinessPolicy[]>(this.api, { params });
+  }
+
+  search(query: string): Observable<BusinessPolicy[]> {
+    return this.http.get<BusinessPolicy[]>(`${this.api}/search`, {
+      params: { q: query.trim() },
+    });
   }
 
   getById(id: string): Observable<BusinessPolicy> {

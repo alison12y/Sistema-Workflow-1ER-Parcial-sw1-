@@ -1,0 +1,66 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <h1>Asistente IA de Workflow</h1>
+      <p>Diseño inteligente de procesos y formularios</p>
+    </div>
+  </div>
+
+  <div class="ai-container">
+    <div class="ai-info-box">
+      <div class="info-icon">
+        <i class="material-icons">info</i>
+      </div>
+      <div class="info-text">
+        <p>El asistente IA ayuda a diseñar workflows y completar formularios durante la ejecución de políticas de negocio. Puede solicitar sugerencias de actividades, responsables o redacción de documentos.</p>
+      </div>
+    </div>
+
+    <div class="ai-chat-card">
+      <div class="ai-history">
+        @if (!response && !loading) {
+          <div class="empty-chat">
+            <i class="material-icons">psychology</i>
+            <p>¿En qué puedo ayudarte hoy con tus políticas de negocio?</p>
+          </div>
+        }
+        @if (loading) {
+          <div class="ai-loading">
+            <div class="spinner"></div>
+            <span>Generando sugerencia inteligente...</span>
+          </div>
+        }
+        @if (response) {
+          <div class="ai-response-box">
+            <div class="response-header">
+              <i class="material-icons">auto_awesome</i>
+              <span>Sugerencia del Asistente</span>
+            </div>
+            <pre class="response-content">{{ response }}</pre>
+            <div class="response-actions">
+              <button class="btn btn-secondary btn-sm">Copiar</button>
+              <button class="btn btn-primary btn-sm">Aplicar a mi diseño</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="ai-suggestions">
+        <p>Sugerencias:</p>
+        <div class="suggestion-chips">
+          @for (s of suggestions; track s) {
+            <button class="chip" (click)="sendPrompt(s)">{{ s }}</button>
+          }
+        </div>
+      </div>
+
+      <div class="ai-input-area">
+        <textarea [(ngModel)]="prompt" placeholder="Escriba su solicitud aquí (ej: Sugerir flujo para compra)..." (keyup.enter)="sendPrompt()"></textarea>
+        <button class="btn btn-primary" [disabled]="loading || !prompt.trim()" (click)="sendPrompt()">
+          <i class="material-icons">send</i>
+          Enviar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

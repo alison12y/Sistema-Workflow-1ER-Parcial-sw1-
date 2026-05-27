@@ -1,0 +1,71 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <h1>Dashboard de KPIs</h1>
+      <p>Indicadores clave de rendimiento y cuellos de botella</p>
+    </div>
+  </div>
+
+  @if (loading) {
+    <div class="loading">Cargando indicadores...</div>
+  } @else {
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-value">{{ dashboardData.averageProcessTime }}</span>
+        <span class="kpi-label">Tiempo promedio Trámite</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-value">{{ dashboardData.averageActivityTime }}</span>
+        <span class="kpi-label">Tiempo promedio Actividad</span>
+      </div>
+      <div class="kpi-card accent-blue">
+        <span class="kpi-value">{{ dashboardData.totalPendingProcesses }}</span>
+        <span class="kpi-label">Trámites Pendientes</span>
+      </div>
+      <div class="kpi-card accent-success">
+        <span class="kpi-value">{{ dashboardData.totalCompletedProcesses }}</span>
+        <span class="kpi-label">Trámites Finalizados</span>
+      </div>
+      <div class="kpi-card accent-lavender">
+        <span class="kpi-value">{{ dashboardData.complianceRate || '92%' }}</span>
+        <span class="kpi-label">Tasa de Cumplimiento</span>
+      </div>
+      <div class="kpi-card accent-danger">
+        <span class="kpi-value">{{ dashboardData.delayedTasksCount }}</span>
+        <span class="kpi-label">Actividades con Retraso</span>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <h2>Cuellos de Botella</h2>
+      <p>Actividades con mayor tiempo de espera detectadas por el sistema</p>
+    </div>
+
+    <div class="data-card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Actividad</th>
+              <th>Responsable</th>
+              <th>Retraso Promedio</th>
+              <th>Casos</th>
+              <th>Motivo detectado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (b of bottlenecks; track b.activityName) {
+              <tr>
+                <td><strong>{{ b.activityName }}</strong></td>
+                <td>{{ b.responsible }}</td>
+                <td class="text-danger"><strong>{{ b.averageDelay }}</strong></td>
+                <td>{{ b.instanceCount }}</td>
+                <td><small>{{ b.motive }}</small></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>

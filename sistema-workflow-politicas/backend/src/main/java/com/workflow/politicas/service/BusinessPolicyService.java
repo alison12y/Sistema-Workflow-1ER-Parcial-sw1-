@@ -21,17 +21,46 @@ public class BusinessPolicyService {
         return businessPolicyRepository.findAll();
     }
 
+    public List<BusinessPolicy> search(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return findAll();
+        }
+        String term = query.trim();
+        return businessPolicyRepository
+                .findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(term, term);
+    }
+
     public Optional<BusinessPolicy> findById(String id) {
         return businessPolicyRepository.findById(id);
     }
 
     public BusinessPolicy create(BusinessPolicy policy) {
-        if (policy.getName() == null || policy.getName().isEmpty() ||
-            policy.getDescription() == null || policy.getDescription().isEmpty() ||
-            policy.getCreatedBy() == null || policy.getCreatedBy().isEmpty()) {
-            throw new IllegalArgumentException("Name, description and createdBy are mandatory");
+        if (policy.getName() == null || policy.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("El nombre es obligatorio");
         }
-        policy.setStatus("DRAFT");
+        if (policy.getName().trim().length() < 3) {
+            throw new IllegalArgumentException("El nombre debe tener al menos 3 caracteres");
+        }
+        if (policy.getDescription() == null || policy.getDescription().trim().isEmpty()) {
+            throw new IllegalArgumentException("La descripción es obligatoria");
+        }
+        if (policy.getCreatedBy() == null || policy.getCreatedBy().trim().isEmpty()) {
+            policy.setCreatedBy("system");
+        }
+        if (policy.getStatus() == null || policy.getStatus().trim().isEmpty()) {
+            policy.setStatus("DRAFT");
+        }
+        if (policy.getVersion() == null || policy.getVersion().trim().isEmpty()) {
+            policy.setVersion("1.0");
+        }
+        if (policy.getType() == null || policy.getType().trim().isEmpty()) {
+            policy.setType("GENERAL_REQUEST");
+        }
+        policy.setName(policy.getName().trim());
+        policy.setDescription(policy.getDescription().trim());
+        if (policy.getResponsible() != null) {
+            policy.setResponsible(policy.getResponsible().trim());
+        }
         policy.setCreatedAt(LocalDateTime.now());
         policy.setUpdatedAt(LocalDateTime.now());
         BusinessPolicy saved = businessPolicyRepository.save(policy);
@@ -54,6 +83,9 @@ public class BusinessPolicyService {
         policy.setName(policyDetails.getName());
         policy.setDescription(policyDetails.getDescription());
         policy.setType(policyDetails.getType());
+        policy.setVersion(policyDetails.getVersion());
+        policy.setResponsible(policyDetails.getResponsible());
+        policy.setStatus(policyDetails.getStatus());
         policy.setUpdatedAt(LocalDateTime.now());
         
         return businessPolicyRepository.save(policy);

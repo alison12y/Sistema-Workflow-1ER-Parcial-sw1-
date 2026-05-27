@@ -1,0 +1,146 @@
+<div class="designer-container">
+  <aside class="toolbox">
+    <div class="toolbox-header">
+      <h3>Componentes del formulario</h3>
+      <p>Seleccione para agregar</p>
+    </div>
+    <div class="toolbox-scroll">
+      <div class="tool-list">
+        @for (ft of fieldTypes; track ft.type) {
+          <button type="button" class="tool-item" (click)="addField(ft.type)">
+            <i class="material-icons">{{ ft.icon }}</i>
+            <span>{{ ft.label }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="usage-guide">
+        <h4>¿Cómo se usa?</h4>
+        <ol>
+          <li>Seleccione un componente del panel izquierdo.</li>
+          <li>Configure el nombre del campo.</li>
+          <li>Marque si el campo será obligatorio.</li>
+          <li>Guarde el formulario.</li>
+          <li>El formulario se usará cuando el funcionario ejecute la actividad.</li>
+        </ol>
+      </div>
+    </div>
+  </aside>
+
+  <main class="preview-area">
+    <div class="preview-header">
+      <div class="header-info">
+        <h1>Diseñador de Formulario</h1>
+        <p><strong>Política:</strong> {{ policy?.name || 'Cargando...' }}</p>
+        <p><strong>Actividad asociada:</strong> {{ activityName }}</p>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn btn-secondary" (click)="cancel()">Volver</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving || loading" (click)="save()">
+          {{ saving ? 'Guardando...' : 'Guardar formulario' }}
+        </button>
+      </div>
+    </div>
+
+    @if (message) {
+      <div class="alert success">{{ message }}</div>
+    }
+    @if (error) {
+      <div class="alert error">{{ error }}</div>
+    }
+
+    <div class="header-alert">
+      <p>
+        Seleccione un componente de la izquierda para agregarlo al formulario. Configure la etiqueta,
+        tipo y obligatoriedad. Este formulario será utilizado por el funcionario durante la ejecución
+        de la actividad asignada.
+      </p>
+    </div>
+
+    <div class="form-preview">
+      <div class="preview-title">Vista previa del formulario</div>
+
+      @if (loading) {
+        <div class="empty-preview">Cargando formulario...</div>
+      } @else if (!fields.length) {
+        <div class="empty-preview">
+          <i class="material-icons">add_circle_outline</i>
+          <p>Añada componentes desde el panel izquierdo para comenzar a diseñar el formulario</p>
+        </div>
+      }
+
+      @for (field of fields; track $index) {
+        <div class="field-item">
+          <div class="field-controls">
+            <span class="field-type-tag">{{ field.type | uppercase }}</span>
+            <button type="button" class="btn-icon delete" (click)="removeField($index)" title="Eliminar campo">
+              ✕
+            </button>
+          </div>
+          <div class="field-meta">
+            <div class="meta-row">
+              <label>Etiqueta del campo *</label>
+              <input
+                type="text"
+                [(ngModel)]="field.label"
+                class="label-edit"
+                [placeholder]="getFieldPlaceholder(field.type)"
+              />
+              <span class="field-help">{{ getFieldHelpText(field.type) }}</span>
+            </div>
+            <div class="meta-row checkboxes">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="field.required" /> Obligatorio
+              </label>
+            </div>
+          </div>
+          @if (field.type === 'select') {
+            <div class="meta-row options-row">
+              <label>Opciones (separadas por coma)</label>
+              <input
+                type="text"
+                [(ngModel)]="field.options"
+                placeholder="Personal, Académico, Médico, Laboral, Otro"
+              />
+              <span class="field-help">Defina las opciones separadas por coma.</span>
+            </div>
+          }
+          <div class="field-input-mock">
+            @if (field.type === 'text') {
+              <input type="text" disabled [placeholder]="getFieldPlaceholder(field.type)" />
+            }
+            @if (field.type === 'textarea') {
+              <textarea disabled [placeholder]="getFieldPlaceholder(field.type)"></textarea>
+            }
+            @if (field.type === 'date') {
+              <input type="date" disabled [attr.aria-label]="getFieldPlaceholder(field.type)" />
+            }
+            @if (field.type === 'checkbox') {
+              <div class="mock-check">
+                <input type="checkbox" disabled />
+                <span>{{ field.label || getFieldPlaceholder(field.type) }}</span>
+              </div>
+            }
+            @if (field.type === 'select') {
+              <select disabled>
+                @for (opt of getSelectOptions(field.options); track opt) {
+                  <option>{{ opt }}</option>
+                }
+              </select>
+            }
+            @if (field.type === 'file') {
+              <div class="mock-file">{{ getFieldPlaceholder(field.type) }}</div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="preview-footer">
+      <button type="button" class="btn btn-secondary" (click)="cancel()">Volver</button>
+      <button type="button" class="btn btn-primary" [disabled]="saving || loading" (click)="save()">
+        {{ saving ? 'Guardando...' : 'Guardar formulario' }}
+      </button>
+    </div>
+  </main>
+</div>
