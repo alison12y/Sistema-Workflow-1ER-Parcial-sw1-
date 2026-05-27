@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/policies/**").hasRole("ADMIN")
                         .requestMatchers("/api/forms/**", "/api/form-fields/**").authenticated()
                         .requestMatchers("/api/activity-diagrams/**").authenticated()
+                        .requestMatchers("/api/tramites", "/api/tramites/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

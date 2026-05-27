@@ -33,9 +33,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
+        final String path = request.getRequestURI();
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String username;
+
+        if (path.startsWith("/api/tramites")) {
+            org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
+                    .debug("Tramites request {} {} Authorization={}",
+                            request.getMethod(),
+                            path,
+                            authHeader != null && authHeader.startsWith("Bearer ") ? "Bearer present" : "missing");
+        }
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -54,6 +64,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         new WebAuthenticationDetailsSource().buildDetails(request)
                 );
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                if (path.startsWith("/api/tramites")) {
+                    org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
+                            .info("Tramites JWT OK user={} authorities={}",
+                                    username,
+                                    userDetails.getAuthorities());
+                }
+            } else if (path.startsWith("/api/tramites")) {
+                org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
+                        .warn("Tramites JWT invalid for user={}", username);
             }
         } else if (username == null && authHeader != null) {
             org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)

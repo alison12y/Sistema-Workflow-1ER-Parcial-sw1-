@@ -1,0 +1,134 @@
+<div class="page-crud tramite-detail-page">
+  <div class="page-toolbar">
+    <div>
+      <a routerLink="/tramites" class="back-link">← Volver a Trámites</a>
+      <h1>Detalle del trámite</h1>
+      @if (tramite) {
+        <p class="subtitle">{{ tramite.code }} — {{ tramite.policyName }}</p>
+      }
+    </div>
+    <div class="toolbar-actions">
+      <button type="button" class="btn btn-secondary" (click)="refresh()" [disabled]="loading">Actualizar</button>
+      <a routerLink="/tramites" class="btn btn-secondary">Volver</a>
+    </div>
+  </div>
+
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+  @if (error) {
+    <div class="alert error">{{ error }}</div>
+  }
+
+  @if (loading) {
+    <div class="loading">Cargando detalle...</div>
+  } @else if (tramite) {
+    <div class="detail-card data-card">
+      <h2>Información general</h2>
+      <div class="detail-grid">
+        <div><span>Código</span><strong>{{ tramite.code }}</strong></div>
+        <div><span>Política</span><strong>{{ tramite.policyName }}</strong></div>
+        <div><span>Estado</span><strong><span class="badge" [class]="statusClass(tramite.status)">{{ statusLabel(tramite.status) }}</span></strong></div>
+        <div><span>Prioridad</span><strong><span [class]="priorityClass(tramite.priority)">{{ priorityLabel(tramite.priority) }}</span></strong></div>
+        <div><span>Solicitante</span><strong>{{ displayRequester(tramite) }}</strong></div>
+        <div><span>Actividad actual</span><strong>{{ tramite.currentActivity }}</strong></div>
+        <div><span>Responsable actual</span><strong>{{ tramite.responsible }}</strong></div>
+        <div><span>Progreso</span>
+          <strong class="progress-inline">
+            <span class="progress-bar-inline"><span [style.width.%]="tramite.progress"></span></span>
+            {{ tramite.progress }}%
+          </strong>
+        </div>
+        <div><span>Fecha de creación</span><strong>{{ formatDate(tramite.createdAt) }}</strong></div>
+        <div><span>Última actualización</span><strong>{{ formatDate(tramite.updatedAt) }}</strong></div>
+        <div class="full-width"><span>Descripción</span><strong>{{ displayDescription(tramite) }}</strong></div>
+        @if (tramite.policyDescription) {
+          <div class="full-width"><span>Descripción de la política</span><strong>{{ tramite.policyDescription }}</strong></div>
+        }
+      </div>
+
+      @if (canAdvance() || canCancel()) {
+        <div class="detail-actions">
+          @if (canAdvance()) {
+            <button type="button" class="btn btn-primary" [disabled]="acting" (click)="advance()">
+              {{ acting ? 'Procesando...' : 'Avanzar actividad' }}
+            </button>
+          }
+          @if (canCancel()) {
+            <button type="button" class="btn btn-danger" [disabled]="acting" (click)="cancel()">Cancelar trámite</button>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="detail-card data-card">
+      <h2>Tareas del trámite</h2>
+      @if (!tramite.tasks?.length) {
+        <p class="empty-hint">Cargando tareas del proceso… Actualice la página si persiste.</p>
+      } @else {
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Actividad</th>
+                <th>Estado</th>
+                <th>Responsable</th>
+                <th>Inicio</th>
+                <th>Fin</th>
+                <th>Observaciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (task of tramite.tasks; track task.order) {
+                <tr [class.task-current]="task.status === 'EN_CURSO'">
+                  <td>{{ task.order }}</td>
+                  <td>{{ task.name }}</td>
+                  <td>{{ taskStatusLabel(task.status) }}</td>
+                  <td>{{ task.responsible }}</td>
+                  <td>{{ formatDate(task.startedAt) }}</td>
+                  <td>{{ formatDate(task.completedAt) }}</td>
+                  <td>{{ task.notes || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+    <div class="detail-card data-card">
+      <h2>Trazabilidad del proceso</h2>
+      @if (!tramite.trace?.length) {
+        <p class="empty-hint">Sin eventos de trazabilidad.</p>
+      } @else {
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Evento</th>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>Estado anterior</th>
+                <th>Estado nuevo</th>
+                <th>Comentario</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of tramite.trace; track $index) {
+                <tr>
+                  <td>{{ traceTitle(item) }}</td>
+                  <td>{{ formatDate(item.occurredAt || item.startedAt) }}</td>
+                  <td>{{ traceUser(item) }}</td>
+                  <td>{{ item.previousStatus || '—' }}</td>
+                  <td>{{ item.newStatus || '—' }}</td>
+                  <td>{{ item.comment || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+</div>

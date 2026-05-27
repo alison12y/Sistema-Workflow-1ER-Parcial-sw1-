@@ -29,10 +29,14 @@ public class SecurityLoggingFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
 
         String path = request.getRequestURI();
-        if (!path.startsWith("/api/forms") && !path.startsWith("/api/form-fields")) {
+        if (!path.startsWith("/api/forms")
+                && !path.startsWith("/api/form-fields")
+                && !path.startsWith("/api/tramites")) {
             return;
         }
 
+        String authHeader = request.getHeader("Authorization");
+        boolean hasBearer = authHeader != null && authHeader.startsWith("Bearer ");
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth != null ? auth.getName() : "anonymous";
         String authorities = auth != null
@@ -40,9 +44,10 @@ public class SecurityLoggingFilter extends OncePerRequestFilter {
                 : "none";
 
         log.info(
-                "Forms API [{} {}] user={} authorities=[{}] status={}",
+                "API [{} {}] authHeader={} user={} authorities=[{}] status={}",
                 request.getMethod(),
                 path,
+                hasBearer ? "Bearer present" : "missing",
                 username,
                 authorities,
                 response.getStatus()

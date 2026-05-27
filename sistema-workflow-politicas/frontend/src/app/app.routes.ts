@@ -57,6 +57,16 @@ export const routes: Routes = [
           import('./pages/departments/departments.component').then((m) => m.DepartmentsComponent),
       },
       {
+        path: 'tramites',
+        loadComponent: () =>
+          import('./pages/tramites/tramites.component').then((m) => m.TramitesComponent),
+      },
+      {
+        path: 'tramites/:id',
+        loadComponent: () =>
+          import('./pages/tramites/tramite-detail.component').then((m) => m.TramiteDetailComponent),
+      },
+      {
         path: 'ai-assistant',
         loadComponent: () =>
           import('./pages/ai-assistant/ai-assistant.component').then((m) => m.AiAssistantComponent),

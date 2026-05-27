@@ -1,0 +1,148 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <h1>Trámites</h1>
+      <p>Gestión de trámites iniciados desde políticas de negocio</p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openCreate()">Crear nuevo trámite</button>
+  </div>
+
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+  @if (error && !modalOpen) {
+    <div class="alert error">{{ error }}</div>
+  }
+
+  <div class="data-card">
+    @if (loading) {
+      <div class="loading">Cargando trámites...</div>
+    } @else if (!tramites.length) {
+      <div class="empty-state">No hay trámites registrados. Use «Crear nuevo trámite» para iniciar uno.</div>
+    } @else {
+      <div class="table-wrap table-wrap-wide">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Política</th>
+              <th>Descripción</th>
+              <th>Solicitante</th>
+              <th>Estado</th>
+              <th>Actividad actual</th>
+              <th>Responsable</th>
+              <th>Prioridad</th>
+              <th>Progreso</th>
+              <th>Fecha creación</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of tramites; track t.code) {
+              <tr>
+                <td><strong>{{ t.code }}</strong></td>
+                <td>{{ t.policyName }}</td>
+                <td [title]="displayDescription(t)">{{ truncate(displayDescription(t)) }}</td>
+                <td>{{ displayRequester(t) }}</td>
+                <td>
+                  <span class="badge" [class]="statusClass(t.status)">{{ statusLabel(t.status) }}</span>
+                </td>
+                <td>{{ t.currentActivity }}</td>
+                <td>{{ t.responsible }}</td>
+                <td>
+                  <span [class]="priorityClass(t.priority)">{{ priorityLabel(t.priority) }}</span>
+                </td>
+                <td>
+                  <div class="progress-cell">
+                    <div class="progress-bar"><span [style.width.%]="t.progress"></span></div>
+                    <strong class="progress-pct">{{ t.progress }}%</strong>
+                  </div>
+                </td>
+                <td>{{ formatDate(t.createdAt) }}</td>
+                <td class="actions">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="viewDetail(t)">Ver detalle</button>
+                  @if (canAdvance(t)) {
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      [disabled]="advancingId === t.id"
+                      (click)="advanceTramite(t, $event)"
+                    >
+                      {{ advancingId === t.id ? 'Avanzando...' : 'Avanzar' }}
+                    </button>
+                  }
+                  @if (canCancel(t)) {
+                    <button
+                      type="button"
+                      class="btn btn-danger btn-sm"
+                      [disabled]="cancellingId === t.id"
+                      (click)="cancelTramite(t, $event)"
+                    >
+                      {{ cancellingId === t.id ? 'Cancelando...' : 'Cancelar' }}
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+@if (modalOpen) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal-panel modal-panel-form" (click)="$event.stopPropagation()">
+      <h2>Crear nuevo trámite</h2>
+      <p class="modal-help">Complete los datos para iniciar un trámite sobre una política activa.</p>
+      @if (error) {
+        <div class="alert error">{{ error }}</div>
+      }
+      <div class="form-grid">
+        <label>
+          Política activa *
+          <select [(ngModel)]="form.policyId" name="policyId">
+            <option value="">— Seleccione —</option>
+            @for (p of activePolicies; track p.id) {
+              <option [value]="p.id">{{ p.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          Prioridad *
+          <select [(ngModel)]="form.priority" name="priority">
+            @for (pr of priorities; track pr.value) {
+              <option [value]="pr.value">{{ pr.label }}</option>
+            }
+          </select>
+        </label>
+        <label class="full-width">
+          Descripción del trámite *
+          <textarea [(ngModel)]="form.description" name="description" rows="3" placeholder="Describa el motivo o alcance del trámite"></textarea>
+        </label>
+        <label class="full-width">
+          Solicitante *
+          <select [(ngModel)]="form.requestedBy" name="requestedBy">
+            <option value="">— Seleccione —</option>
+            @for (u of users; track u.username) {
+              <option [value]="u.username">{{ userDisplay(u) }}</option>
+            }
+          </select>
+        </label>
+      </div>
+      @if (!activePolicies.length) {
+        <p class="modal-warning">No hay políticas activas. Active una política antes de crear un trámite.</p>
+      }
+      @if (!users.length) {
+        <p class="modal-warning">No hay usuarios disponibles para asignar como solicitante.</p>
+      }
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving || !activePolicies.length" (click)="createTramite()">
+          {{ saving ? 'Creando...' : 'Crear trámite' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

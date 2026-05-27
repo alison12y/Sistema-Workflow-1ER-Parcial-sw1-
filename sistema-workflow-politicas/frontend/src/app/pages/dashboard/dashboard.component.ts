@@ -26,6 +26,13 @@ export class DashboardComponent {
       accent: 'primary',
     },
     {
+      title: 'Trámites',
+      description: 'Iniciar y gestionar trámites a partir de políticas existentes',
+      path: '/tramites',
+      icon: 'assignment',
+      accent: 'blue',
+    },
+    {
       title: 'Monitoreo',
       description: 'Seguimiento en tiempo real de trámites y procesos',
       path: '/monitoring',

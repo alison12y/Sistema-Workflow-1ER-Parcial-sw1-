@@ -23,6 +23,7 @@ export class LayoutComponent {
   navItems: NavItem[] = [
     { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { path: '/policies', label: 'Políticas', icon: 'description' },
+    { path: '/tramites', label: 'Trámites', icon: 'assignment' },
     { path: '/monitoring', label: 'Monitoreo', icon: 'timeline' },
     { path: '/kpi', label: 'KPIs', icon: 'insert_chart' },
     { path: '/users', label: 'Usuarios', icon: 'people' },
