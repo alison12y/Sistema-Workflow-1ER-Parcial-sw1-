@@ -49,8 +49,8 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/policies/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/policies/**")
                                 .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")
