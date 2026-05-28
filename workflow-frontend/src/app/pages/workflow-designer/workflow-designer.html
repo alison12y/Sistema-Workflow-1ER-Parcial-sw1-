@@ -56,7 +56,9 @@
 
             <div class="lane lane-yellow">
               <div class="lane-name">Aprobador</div>
-              <div class="node decision-node">¿Aprobada?</div>
+              <div class="node decision-node">
+                 <span>¿Aprobada?</span>
+              </div>
               <div class="node activity-node">Revisar solicitud</div>
             </div>
 
@@ -68,6 +70,68 @@
           </div>
         </section>
       </div>
+
+
+      <div class="properties-panel">
+
+  <div class="properties-header">
+
+    <div>
+      <span class="tag">ACTIVIDAD UML</span>
+      <h3>Propiedades del nodo</h3>
+    </div>
+
+    <button class="btn-light">
+      Seleccionar nodo
+    </button>
+
+  </div>
+
+  <div class="properties-grid">
+
+    <div class="property-card">
+
+      <label>Nombre de actividad</label>
+      <input type="text" value="Revisar solicitud">
+
+    </div>
+
+    <div class="property-card">
+
+      <label>Responsable</label>
+
+      <select>
+        <option>Supervisor</option>
+        <option>Administrador</option>
+      </select>
+
+    </div>
+
+    <div class="property-card">
+
+      <label>Formulario asociado</label>
+
+      <select>
+        <option>Formulario CU4</option>
+        <option>Solicitud básica</option>
+      </select>
+
+    </div>
+
+    <div class="property-card">
+
+      <label>Estado</label>
+
+      <select>
+        <option>Activo</option>
+        <option>Borrador</option>
+      </select>
+
+    </div>
+
+  </div>
+
+</div>
 
       <div class="bottom-grid">
         <section class="config-card">

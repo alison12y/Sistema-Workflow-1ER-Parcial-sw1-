@@ -281,3 +281,120 @@ textarea {
     min-width: 760px;
   }
 }
+
+.properties-panel{
+  margin-top:20px;
+  background:white;
+  border:1px solid #dbe1ea;
+  border-radius:18px;
+  padding:20px;
+}
+
+.properties-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:18px;
+}
+
+.tag{
+  background:#eef4ff;
+  color:#2563eb;
+  padding:6px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+}
+
+.properties-header h3{
+  margin-top:10px;
+  color:#111827;
+}
+
+.properties-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+}
+
+.property-card{
+  background:#f8fafc;
+  border-radius:14px;
+  padding:14px;
+}
+
+.property-card label{
+  display:block;
+  margin-bottom:8px;
+  font-size:13px;
+  font-weight:700;
+  color:#475569;
+}
+
+.property-card input,
+.property-card select{
+  width:100%;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #dbe1ea;
+}
+
+@media(max-width:1000px){
+
+  .properties-grid{
+    grid-template-columns:1fr;
+  }
+
+}
+* {
+  box-sizing: border-box;
+}
+
+.designer-page {
+  width: 100%;
+  overflow-x: hidden;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+.main {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.content {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.canvas-card,
+.properties-panel,
+.config-card,
+.ai-card {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.uml-canvas {
+  width: 100%;
+  min-width: 0;
+  overflow: auto;
+}
+
+.bottom-grid {
+  align-items: stretch;
+}
+
+.ai-card textarea {
+  max-width: 100%;
+}
+
+@media (max-width: 1000px) {
+  .uml-canvas {
+    min-width: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .lane {
+    min-height: 260px;
+  }
+}
