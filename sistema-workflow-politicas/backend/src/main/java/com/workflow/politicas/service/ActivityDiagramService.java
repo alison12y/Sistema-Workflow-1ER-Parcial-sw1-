@@ -19,13 +19,16 @@ public class ActivityDiagramService {
 
     private final ActivityDiagramRepository activityDiagramRepository;
     private final BusinessPolicyRepository businessPolicyRepository;
+    private final BitacoraService bitacoraService;
 
     public ActivityDiagramService(
             ActivityDiagramRepository activityDiagramRepository,
-            BusinessPolicyRepository businessPolicyRepository
+            BusinessPolicyRepository businessPolicyRepository,
+            BitacoraService bitacoraService
     ) {
         this.activityDiagramRepository = activityDiagramRepository;
         this.businessPolicyRepository = businessPolicyRepository;
+        this.bitacoraService = bitacoraService;
     }
 
     public ActivityDiagram getByPolicyId(String policyId) {
@@ -60,7 +63,20 @@ public class ActivityDiagramService {
         diagram.setEdges(request.getEdges());
         diagram.setUpdatedAt(LocalDateTime.now());
 
-        return activityDiagramRepository.save(diagram);
+        ActivityDiagram saved = activityDiagramRepository.save(diagram);
+
+        businessPolicyRepository.findById(saved.getPolicyId()).ifPresent(policy -> {
+            String actor = bitacoraService.resolveActorDisplay();
+            bitacoraService.registrar(
+                    "Diagramas UML",
+                    "GUARDAR_DIAGRAMA",
+                    actor + " guardó el Diagrama de Actividades UML 2.5 de la política " + policy.getName(),
+                    "ActivityDiagram",
+                    saved.getId()
+            );
+        });
+
+        return saved;
     }
 
     public ActivityDiagram update(String id, ActivityDiagramSaveRequest request) {

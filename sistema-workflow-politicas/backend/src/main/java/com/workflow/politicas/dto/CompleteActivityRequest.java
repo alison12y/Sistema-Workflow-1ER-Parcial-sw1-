@@ -1,0 +1,34 @@
+package com.workflow.politicas.dto;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class CompleteActivityRequest {
+    private String activityName;
+    private int taskOrder;
+    private List<ResponseItemDto> responses = new ArrayList<>();
+
+    public String getActivityName() {
+        return activityName;
+    }
+
+    public void setActivityName(String activityName) {
+        this.activityName = activityName;
+    }
+
+    public int getTaskOrder() {
+        return taskOrder;
+    }
+
+    public void setTaskOrder(int taskOrder) {
+        this.taskOrder = taskOrder;
+    }
+
+    public List<ResponseItemDto> getResponses() {
+        return responses;
+    }
+
+    public void setResponses(List<ResponseItemDto> responses) {
+        this.responses = responses;
+    }
+}

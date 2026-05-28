@@ -1,68 +1,89 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { KpiService } from '../../services/kpi.service';
+import { KpiBottleneck, KpiSummary } from '../../models/kpi.model';
 
 @Component({
   selector: 'app-kpi',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './kpi.component.html',
-  styleUrl: './kpi.component.scss'
+  styleUrl: './kpi.component.scss',
 })
 export class KpiComponent implements OnInit {
   private readonly kpiService = inject(KpiService);
 
-  dashboardData: any = null;
-  bottlenecks: any[] = [];
+  summary: KpiSummary | null = null;
+  bottlenecks: KpiBottleneck[] = [];
   loading = true;
+  message = '';
+  error = '';
 
   ngOnInit(): void {
-    this.load();
+    this.load(false);
   }
 
-  load(): void {
+  load(showSuccessMessage = true): void {
     this.loading = true;
-    this.kpiService.getDashboard().subscribe({
-      next: (data) => {
-        this.dashboardData = data || this.getMockDashboard();
-        this.loadBottlenecks();
+    this.error = '';
+    this.message = '';
+
+    this.kpiService.getSummary().subscribe({
+      next: (summary) => {
+        this.summary = summary;
+        this.kpiService.getBottlenecks().subscribe({
+          next: (bottlenecks) => {
+            this.bottlenecks = bottlenecks;
+            this.loading = false;
+            if (showSuccessMessage) {
+              this.message = 'Indicadores actualizados correctamente';
+            }
+          },
+          error: (err) => this.handleError(err),
+        });
       },
-      error: () => {
-        this.dashboardData = this.getMockDashboard();
-        this.loadBottlenecks();
-      }
+      error: (err) => this.handleError(err),
     });
   }
 
-  loadBottlenecks(): void {
-    this.kpiService.getBottlenecks().subscribe({
-      next: (data) => {
-        this.bottlenecks = data?.activitiesWithDelays || this.getMockBottlenecks();
-        this.loading = false;
-      },
-      error: () => {
-        this.bottlenecks = this.getMockBottlenecks();
-        this.loading = false;
-      }
-    });
+  refresh(): void {
+    this.load(true);
   }
 
-  getMockDashboard() {
-    return {
-      averageProcessTime: '3.5 días',
-      averageActivityTime: '8 horas',
-      totalPendingProcesses: 24,
-      totalCompletedProcesses: 156,
-      delayedTasksCount: 5,
-      complianceRate: '92%'
-    };
+  get hasData(): boolean {
+    return (this.summary?.totalTramites ?? 0) > 0;
   }
 
-  getMockBottlenecks() {
-    return [
-      { activityName: 'Revisión de solicitud', averageDelay: '3 días', instanceCount: 12, responsible: 'Supervisor', motive: 'Alta carga de tareas pendientes' },
-      { activityName: 'Validar presupuesto', averageDelay: '1.5 días', instanceCount: 8, responsible: 'Administración', motive: 'Falta de documentación de respaldo' },
-      { activityName: 'Firma de gerencia', averageDelay: '2 días', instanceCount: 5, responsible: 'Gerente General', motive: 'Disponibilidad limitada' }
-    ];
+  get hasBottlenecks(): boolean {
+    return this.bottlenecks.length > 0;
+  }
+
+  stuckCount(item: KpiBottleneck): number {
+    return item.pendingCount + item.inProgressCount;
+  }
+
+  levelClass(level: string): string {
+    switch (level) {
+      case 'Alto':
+        return 'level-high';
+      case 'Medio':
+        return 'level-medium';
+      case 'Bajo':
+        return 'level-low';
+      default:
+        return '';
+    }
+  }
+
+  private handleError(err: HttpErrorResponse): void {
+    this.summary = null;
+    this.bottlenecks = [];
+    this.loading = false;
+    if (err.status === 401) {
+      this.error = 'Su sesión expiró. Inicie sesión nuevamente';
+    } else {
+      this.error = 'No se pudieron cargar los KPIs';
+    }
   }
 }

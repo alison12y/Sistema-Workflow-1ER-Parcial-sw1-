@@ -29,9 +29,14 @@ export const routes: Routes = [
           import('./pages/monitoring/monitoring.component').then((m) => m.MonitoringComponent),
       },
       {
-        path: 'kpi',
+        path: 'kpis',
         loadComponent: () =>
           import('./pages/kpi/kpi.component').then((m) => m.KpiComponent),
+      },
+      {
+        path: 'kpi',
+        redirectTo: 'kpis',
+        pathMatch: 'full',
       },
       {
         path: 'workflow-designer/:id',
@@ -57,9 +62,24 @@ export const routes: Routes = [
           import('./pages/departments/departments.component').then((m) => m.DepartmentsComponent),
       },
       {
+        path: 'bitacora',
+        loadComponent: () =>
+          import('./pages/bitacora/bitacora.component').then((m) => m.BitacoraComponent),
+      },
+      {
         path: 'tramites',
         loadComponent: () =>
           import('./pages/tramites/tramites.component').then((m) => m.TramitesComponent),
+      },
+      {
+        path: 'mis-actividades',
+        loadComponent: () =>
+          import('./pages/my-activities/my-activities.component').then((m) => m.MyActivitiesComponent),
+      },
+      {
+        path: 'mis-actividades/:tramiteId/form',
+        loadComponent: () =>
+          import('./pages/form-execution/form-execution.component').then((m) => m.FormExecutionComponent),
       },
       {
         path: 'tramites/:id',

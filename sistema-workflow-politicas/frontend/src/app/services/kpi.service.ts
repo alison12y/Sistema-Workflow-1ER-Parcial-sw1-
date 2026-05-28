@@ -2,18 +2,18 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { KpiDashboardResponse, KpiBottlenecksResponse } from '../models/api.models';
+import { KpiBottleneck, KpiSummary } from '../models/kpi.model';
 
 @Injectable({ providedIn: 'root' })
 export class KpiService {
   private readonly http = inject(HttpClient);
-  private readonly api = `${environment.apiUrl}/api/kpi`;
+  private readonly api = `${environment.apiUrl}/api/kpis`;
 
-  getDashboard(): Observable<KpiDashboardResponse> {
-    return this.http.get<KpiDashboardResponse>(`${this.api}/dashboard`);
+  getSummary(): Observable<KpiSummary> {
+    return this.http.get<KpiSummary>(`${this.api}/summary`);
   }
 
-  getBottlenecks(): Observable<KpiBottlenecksResponse> {
-    return this.http.get<KpiBottlenecksResponse>(`${this.api}/bottlenecks`);
+  getBottlenecks(): Observable<KpiBottleneck[]> {
+    return this.http.get<KpiBottleneck[]>(`${this.api}/bottlenecks`);
   }
 }

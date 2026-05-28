@@ -1,13 +1,13 @@
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .kpi-card {
   background: var(--color-surface);
-  padding: 1.5rem;
+  padding: 1.25rem;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   display: flex;
@@ -20,29 +20,88 @@
   &.accent-blue { border-left-color: #4299e1; }
   &.accent-success { border-left-color: #48bb78; }
   &.accent-danger { border-left-color: #f56565; }
+  &.accent-lavender { border-left-color: #9f7aea; }
 }
 
 .kpi-value {
   display: block;
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--color-accent);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .kpi-label {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--color-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  &.highlight {
+    border: 1px solid rgba(159, 122, 234, 0.35);
+    background: rgba(159, 122, 234, 0.06);
+  }
+}
+
+.summary-label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .section-title {
-  margin: 2rem 0 1rem;
-  h2 { margin: 0; color: var(--color-accent); }
-  p { margin: 0.25rem 0 0; color: var(--color-muted); font-size: 0.9rem; }
+  margin: 0 0 1rem;
+
+  h2 {
+    margin: 0;
+    color: var(--color-accent);
+  }
+
+  p {
+    margin: 0.25rem 0 0;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
 }
 
-.text-danger {
-  color: #f56565;
+.level-badge {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.level-high {
+  background: rgba(245, 101, 101, 0.15);
+  color: #c53030;
+}
+
+.level-medium {
+  background: rgba(237, 137, 54, 0.15);
+  color: #c05621;
+}
+
+.level-low {
+  background: rgba(72, 187, 120, 0.15);
+  color: #2f855a;
 }

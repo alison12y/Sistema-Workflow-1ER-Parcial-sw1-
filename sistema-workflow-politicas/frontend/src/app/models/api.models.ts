@@ -26,25 +26,6 @@ export interface DepartmentDto {
   status?: string;
 }
 
-export interface KpiDashboardResponse {
-  averageProcessTime: string;
-  averageActivityTime: string;
-  totalPendingProcesses: number;
-  totalCompletedProcesses: number;
-  delayedTasksCount: number;
-}
-
-export interface KpiBottlenecksResponse {
-  activitiesWithDelays: ActivityDelayDto[];
-}
-
-export interface ActivityDelayDto {
-  activityId: string;
-  activityName: string;
-  averageDelay: string;
-  instanceCount: number;
-}
-
 export interface ProcessTraceabilityResponse {
   processId: string;
   policyName: string;

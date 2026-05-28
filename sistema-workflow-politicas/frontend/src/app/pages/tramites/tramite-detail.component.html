@@ -98,6 +98,49 @@
     </div>
 
     <div class="detail-card data-card">
+      <h2>Respuestas del formulario</h2>
+      @if (loadingSubmissions) {
+        <p class="empty-hint">Cargando respuestas...</p>
+      } @else if (!formSubmissions.length) {
+        <p class="empty-hint">No hay respuestas registradas para este trámite</p>
+      } @else {
+        <div class="form-submissions-list">
+          @for (submission of formSubmissions; track submission.activityName + submission.updatedAt) {
+            <article class="submission-block">
+              <div class="submission-meta detail-grid">
+                <div><span>Actividad</span><strong>{{ submission.activityName }}</strong></div>
+                <div><span>Usuario</span><strong>{{ submission.submittedByName }}</strong></div>
+                <div><span>Fecha</span><strong>{{ formatDate(submission.updatedAt) }}</strong></div>
+              </div>
+              <div class="submission-fields">
+                @for (field of submission.fields; track field.label) {
+                  <div class="field-row">
+                    <span>{{ field.label }}:</span>
+                    @if (field.isFile) {
+                      @if (field.downloadAvailable && field.fileId && field.fileName) {
+                        <button
+                          type="button"
+                          class="file-download-link"
+                          (click)="downloadFile(field.fileId, field.fileName)"
+                        >
+                          Descargar {{ field.fileName }}
+                        </button>
+                      } @else {
+                        <strong>Archivo no disponible</strong>
+                      }
+                    } @else {
+                      <strong>{{ field.value }}</strong>
+                    }
+                  </div>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="detail-card data-card">
       <h2>Trazabilidad del proceso</h2>
       @if (!tramite.trace?.length) {
         <p class="empty-hint">Sin eventos de trazabilidad.</p>

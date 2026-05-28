@@ -1,0 +1,15 @@
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.search-input {
+  flex: 1 1 280px;
+  min-width: 220px;
+}
+
+.filter-select {
+  min-width: 200px;
+}

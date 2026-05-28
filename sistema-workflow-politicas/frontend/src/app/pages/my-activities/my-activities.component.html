@@ -1,0 +1,62 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <h1>Mis actividades</h1>
+      <p>Tareas pendientes asignadas dentro de los trámites en ejecución</p>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="refresh()">Actualizar</button>
+  </div>
+
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+  @if (error) {
+    <div class="alert error">{{ error }}</div>
+  }
+
+  <div class="data-card">
+    @if (loading) {
+      <div class="loading">Cargando actividades...</div>
+    } @else if (!activities.length) {
+      <div class="empty-state">No tienes actividades pendientes</div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Política</th>
+              <th>Actividad</th>
+              <th>Estado</th>
+              <th>Responsable</th>
+              <th>Prioridad</th>
+              <th>Fecha de asignación</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (activity of activities; track activity.tramiteId + activity.taskOrder) {
+              <tr>
+                <td><strong>{{ activity.code }}</strong></td>
+                <td>{{ activity.policyName }}</td>
+                <td>{{ activity.activityName }}</td>
+                <td>{{ taskStatusLabel(activity.status) }}</td>
+                <td>{{ activity.responsible }}</td>
+                <td>{{ priorityLabel(activity.priority) }}</td>
+                <td>{{ formatDate(activity.assignedAt) }}</td>
+                <td class="actions">
+                  <button type="button" class="btn btn-primary btn-sm" (click)="openForm(activity)">
+                    Completar formulario
+                  </button>
+                  <a [routerLink]="['/tramites', activity.tramiteId]" class="btn btn-secondary btn-sm">
+                    Ver detalle
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

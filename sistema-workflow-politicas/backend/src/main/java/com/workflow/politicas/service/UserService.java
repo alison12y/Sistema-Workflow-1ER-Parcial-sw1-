@@ -15,10 +15,16 @@ import java.util.Optional;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final BitacoraService bitacoraService;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            BitacoraService bitacoraService
+    ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.bitacoraService = bitacoraService;
     }
 
     public List<UserResponse> findAll() {
@@ -38,7 +44,16 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
-        return toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        String actor = bitacoraService.resolveActorDisplay();
+        bitacoraService.registrar(
+                "Usuarios",
+                "CREAR_USUARIO",
+                actor + " creó el usuario " + saved.getUsername(),
+                "User",
+                saved.getId()
+        );
+        return toResponse(saved);
     }
 
     public Optional<UserResponse> update(String id, UserRequest request) {
@@ -48,12 +63,31 @@ public class UserService {
                 user.setPassword(passwordEncoder.encode(request.getPassword()));
             }
             user.setUpdatedAt(LocalDateTime.now());
-            return toResponse(userRepository.save(user));
+            User saved = userRepository.save(user);
+            String actor = bitacoraService.resolveActorDisplay();
+            bitacoraService.registrar(
+                    "Usuarios",
+                    "EDITAR_USUARIO",
+                    actor + " editó el usuario " + saved.getUsername(),
+                    "User",
+                    saved.getId()
+            );
+            return toResponse(saved);
         });
     }
 
     public void deleteById(String id) {
-        userRepository.deleteById(id);
+        userRepository.findById(id).ifPresent(user -> {
+            String actor = bitacoraService.resolveActorDisplay();
+            bitacoraService.registrar(
+                    "Usuarios",
+                    "ELIMINAR_USUARIO",
+                    actor + " eliminó el usuario " + user.getUsername(),
+                    "User",
+                    user.getId()
+            );
+            userRepository.deleteById(id);
+        });
     }
 
     private void applyRequestFields(User user, UserRequest request) {

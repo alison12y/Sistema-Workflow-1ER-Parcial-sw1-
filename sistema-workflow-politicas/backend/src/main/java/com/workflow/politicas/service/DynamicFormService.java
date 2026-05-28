@@ -7,6 +7,7 @@ import com.workflow.politicas.model.Activity;
 import com.workflow.politicas.model.DynamicForm;
 import com.workflow.politicas.model.FormField;
 import com.workflow.politicas.repository.ActivityRepository;
+import com.workflow.politicas.repository.BusinessPolicyRepository;
 import com.workflow.politicas.repository.DynamicFormRepository;
 import com.workflow.politicas.repository.FormFieldRepository;
 import org.springframework.stereotype.Service;
@@ -23,15 +24,21 @@ public class DynamicFormService {
     private final DynamicFormRepository dynamicFormRepository;
     private final ActivityRepository activityRepository;
     private final FormFieldRepository formFieldRepository;
+    private final BusinessPolicyRepository businessPolicyRepository;
+    private final BitacoraService bitacoraService;
 
     public DynamicFormService(
             DynamicFormRepository dynamicFormRepository,
             ActivityRepository activityRepository,
-            FormFieldRepository formFieldRepository
+            FormFieldRepository formFieldRepository,
+            BusinessPolicyRepository businessPolicyRepository,
+            BitacoraService bitacoraService
     ) {
         this.dynamicFormRepository = dynamicFormRepository;
         this.activityRepository = activityRepository;
         this.formFieldRepository = formFieldRepository;
+        this.businessPolicyRepository = businessPolicyRepository;
+        this.bitacoraService = bitacoraService;
     }
 
     public DynamicForm create(DynamicForm form) {
@@ -131,6 +138,17 @@ public class DynamicFormService {
         }
 
         linkFormToActivityIfExists(savedForm);
+
+        businessPolicyRepository.findById(savedForm.getPolicyId()).ifPresent(policy -> {
+            String actor = bitacoraService.resolveActorDisplay();
+            bitacoraService.registrar(
+                    "Formularios",
+                    "GUARDAR_FORMULARIO",
+                    actor + " guardó el formulario dinámico de la política " + policy.getName(),
+                    "DynamicForm",
+                    savedForm.getId()
+            );
+        });
 
         DynamicFormDetailResponse response = new DynamicFormDetailResponse();
         response.setId(savedForm.getId());

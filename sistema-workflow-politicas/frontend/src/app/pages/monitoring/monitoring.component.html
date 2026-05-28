@@ -2,16 +2,23 @@
   <div class="page-toolbar">
     <div>
       <h1>Monitoreo de Trámites</h1>
-      <p>Seguimiento en tiempo real de los procesos en ejecución</p>
+      <p>Seguimiento del estado y avance de los trámites en ejecución</p>
     </div>
-    <button type="button" class="btn btn-secondary" (click)="load()">Refrescar</button>
+    <button type="button" class="btn btn-secondary" (click)="refresh()">Actualizar</button>
   </div>
+
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+  @if (error) {
+    <div class="alert error">{{ error }}</div>
+  }
 
   <div class="data-card">
     @if (loading) {
       <div class="loading">Cargando trámites...</div>
-    } @else if (!processes.length) {
-      <div class="empty-state">No hay trámites en ejecución</div>
+    } @else if (!tramites.length) {
+      <div class="empty-state">No existen trámites para monitorear</div>
     } @else {
       <div class="table-wrap">
         <table class="data-table">
@@ -20,7 +27,7 @@
               <th>Código</th>
               <th>Política</th>
               <th>Estado</th>
-              <th>Actividad Actual</th>
+              <th>Actividad actual</th>
               <th>Responsable</th>
               <th>Tiempo</th>
               <th>Avance</th>
@@ -28,26 +35,29 @@
             </tr>
           </thead>
           <tbody>
-            @for (p of processes; track p.id) {
+            @for (item of tramites; track item.id) {
               <tr>
-                <td><strong>{{ p.id }}</strong></td>
-                <td>{{ p.policyName }}</td>
+                <td><strong>{{ item.code }}</strong></td>
+                <td>{{ item.policyName }}</td>
                 <td>
-                  <span class="badge" [class]="statusBadgeClass(p.status)">
-                    {{ p.status }}
+                  <span class="badge" [class]="statusClass(item.status)">
+                    {{ statusLabel(item.status) }}
                   </span>
                 </td>
-                <td>{{ p.currentActivity }}</td>
-                <td>{{ p.responsible }}</td>
-                <td>{{ p.timeElapsed }}</td>
+                <td>{{ item.currentActivity }}</td>
+                <td>{{ item.responsible }}</td>
+                <td>{{ item.timeElapsed }}</td>
                 <td>
                   <div class="progress-bar">
-                    <div class="progress-fill" [style.width.%]="p.progress"></div>
-                    <span class="progress-text">{{ p.progress }}%</span>
+                    <div class="progress-fill" [style.width.%]="item.progress"></div>
+                    <span class="progress-text">{{ item.progress }}%</span>
                   </div>
                 </td>
                 <td class="actions">
-                  <button type="button" class="btn btn-secondary btn-sm">Ver Traza</button>
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="openTrace(item)">
+                    Ver Traza
+                  </button>
+                  <a [routerLink]="['/tramites', item.id]" class="btn btn-secondary btn-sm">Ver detalle</a>
                 </td>
               </tr>
             }
@@ -57,3 +67,102 @@
     }
   </div>
 </div>
+
+@if (traceModalOpen) {
+  <div class="modal-backdrop" (click)="closeTraceModal()">
+    <div class="modal-panel trace-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h2>Traza del trámite</h2>
+          @if (traceData) {
+            <p class="modal-subtitle">{{ traceData.code }} — {{ traceData.policyName }}</p>
+          }
+        </div>
+        <button type="button" class="btn-ghost" (click)="closeTraceModal()">Cerrar</button>
+      </div>
+
+      @if (traceLoading) {
+        <div class="loading">Cargando traza...</div>
+      } @else if (traceError) {
+        <div class="alert error">{{ traceError }}</div>
+      } @else if (traceData) {
+        <div class="trace-summary">
+          <div><span>Código</span><strong>{{ traceData.code }}</strong></div>
+          <div><span>Política</span><strong>{{ traceData.policyName }}</strong></div>
+          <div><span>Estado actual</span><strong>{{ statusLabel(traceData.status) }}</strong></div>
+          <div><span>Actividad actual</span><strong>{{ traceData.currentActivity }}</strong></div>
+          <div><span>Responsable actual</span><strong>{{ traceData.responsible }}</strong></div>
+          <div><span>Progreso</span><strong>{{ traceData.progress }}%</strong></div>
+        </div>
+
+        <h3>Recorrido del trámite</h3>
+        @if (!traceData.tasks?.length) {
+          <p class="empty-hint">No hay actividades registradas para este trámite.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Actividad</th>
+                  <th>Responsable</th>
+                  <th>Estado</th>
+                  <th>Fecha inicio</th>
+                  <th>Fecha fin</th>
+                  <th>Observaciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (task of traceData.tasks; track task.order) {
+                  <tr [class.task-current]="task.status === 'EN_CURSO'">
+                    <td>{{ task.name }}</td>
+                    <td>{{ task.responsible }}</td>
+                    <td>{{ taskStatusLabel(task.status) }}</td>
+                    <td>{{ formatDate(task.startedAt) }}</td>
+                    <td>{{ formatDate(task.completedAt) }}</td>
+                    <td>{{ task.notes || '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <h3>Eventos de trazabilidad</h3>
+        @if (!traceData.events?.length) {
+          <p class="empty-hint">Sin eventos de trazabilidad.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Evento</th>
+                  <th>Fecha</th>
+                  <th>Usuario</th>
+                  <th>Estado anterior</th>
+                  <th>Estado nuevo</th>
+                  <th>Observaciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (event of traceData.events; track $index) {
+                  <tr>
+                    <td>{{ traceTitle(event) }}</td>
+                    <td>{{ formatDate(event.occurredAt || event.startedAt) }}</td>
+                    <td>{{ traceUser(event) }}</td>
+                    <td>{{ event.previousStatus || '—' }}</td>
+                    <td>{{ event.newStatus || '—' }}</td>
+                    <td>{{ event.comment || '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeTraceModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}

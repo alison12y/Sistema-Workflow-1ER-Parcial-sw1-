@@ -1,0 +1,95 @@
+.back-link {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.subtitle {
+  color: var(--color-muted);
+  margin-top: 0.25rem;
+}
+
+.empty-form-card {
+  padding: 1.5rem;
+}
+
+.empty-form-message {
+  margin: 1rem 0 0;
+  color: var(--color-text);
+}
+
+.summary-card {
+  margin-bottom: 1rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem 1rem;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  span {
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
+.form-card h2 {
+  margin: 0 0 1rem;
+  color: var(--color-accent);
+}
+
+.execution-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  label {
+    font-weight: 600;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--color-border, #d9dee7);
+    border-radius: var(--radius-sm, 8px);
+    background: var(--color-surface);
+  }
+}
+
+.required {
+  color: #e53e3e;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.file-name {
+  color: var(--color-muted);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}

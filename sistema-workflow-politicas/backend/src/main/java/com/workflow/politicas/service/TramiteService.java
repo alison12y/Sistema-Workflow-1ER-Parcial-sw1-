@@ -54,17 +54,20 @@ public class TramiteService {
     private final BusinessPolicyRepository businessPolicyRepository;
     private final ActivityDiagramRepository activityDiagramRepository;
     private final UserRepository userRepository;
+    private final BitacoraService bitacoraService;
 
     public TramiteService(
             TramiteRepository tramiteRepository,
             BusinessPolicyRepository businessPolicyRepository,
             ActivityDiagramRepository activityDiagramRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            BitacoraService bitacoraService
     ) {
         this.tramiteRepository = tramiteRepository;
         this.businessPolicyRepository = businessPolicyRepository;
         this.activityDiagramRepository = activityDiagramRepository;
         this.userRepository = userRepository;
+        this.bitacoraService = bitacoraService;
     }
 
     public List<Tramite> findAll() {
@@ -260,7 +263,16 @@ public class TramiteService {
         ));
         tramite.setTrace(trace);
 
-        return enrichAndPersistIfNeeded(tramiteRepository.save(tramite));
+        Tramite saved = enrichAndPersistIfNeeded(tramiteRepository.save(tramite));
+        bitacoraService.registrar(
+                authenticatedUsername,
+                "Trámites",
+                "CREAR_TRAMITE",
+                actorDisplay + " creó el trámite " + saved.getCode() + " para la política " + policy.getName(),
+                "Tramite",
+                saved.getId()
+        );
+        return saved;
     }
 
     public Tramite advance(String id, TramiteAdvanceRequest request, String authenticatedUsername) {
@@ -322,7 +334,16 @@ public class TramiteService {
         }
 
         tramite.setUpdatedAt(now);
-        return enrichAndPersistIfNeeded(tramiteRepository.save(tramite));
+        Tramite saved = enrichAndPersistIfNeeded(tramiteRepository.save(tramite));
+        bitacoraService.registrar(
+                authenticatedUsername,
+                "Trámites",
+                "AVANZAR_TRAMITE",
+                actorDisplay + " avanzó el trámite " + saved.getCode(),
+                "Tramite",
+                saved.getId()
+        );
+        return saved;
     }
 
     public Tramite cancel(String id, TramiteCancelRequest request, String authenticatedUsername) {
@@ -360,7 +381,16 @@ public class TramiteService {
                 comment
         ));
 
-        return enrichAndPersistIfNeeded(tramiteRepository.save(tramite));
+        Tramite saved = enrichAndPersistIfNeeded(tramiteRepository.save(tramite));
+        bitacoraService.registrar(
+                authenticatedUsername,
+                "Trámites",
+                "CANCELAR_TRAMITE",
+                actorDisplay + " canceló el trámite " + saved.getCode(),
+                "Tramite",
+                saved.getId()
+        );
+        return saved;
     }
 
     private void validateCreateRequest(TramiteCreateRequest request) {

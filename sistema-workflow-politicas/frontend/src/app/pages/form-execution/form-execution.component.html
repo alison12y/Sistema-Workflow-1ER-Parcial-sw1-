@@ -1,0 +1,131 @@
+<div class="page-crud form-execution-page">
+  <div class="page-toolbar">
+    <div>
+      <a routerLink="/mis-actividades" class="back-link">← Volver a Mis actividades</a>
+      <h1>Formulario de ejecución</h1>
+      <p class="subtitle">Complete los datos reales del trámite para la actividad en curso.</p>
+      @if (activity) {
+        <p>{{ activity.code }} — {{ activity.policyName }} — {{ activity.activityName }}</p>
+      }
+    </div>
+  </div>
+
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+  @if (error && !missingForm) {
+    <div class="alert error">{{ error }}</div>
+  }
+
+  @if (loading) {
+    <div class="loading">Cargando formulario...</div>
+  } @else if (activity && missingForm) {
+    <div class="data-card empty-form-card">
+      <div class="summary-grid">
+        <div><span>Trámite</span><strong>{{ activity.code }}</strong></div>
+        <div><span>Política</span><strong>{{ activity.policyName }}</strong></div>
+        <div><span>Actividad</span><strong>{{ activity.activityName }}</strong></div>
+      </div>
+      <p class="empty-form-message">{{ error }}</p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="cancel()">Volver</button>
+        <button type="button" class="btn btn-primary" (click)="goToFormDesigner()">
+          Crear formulario para esta actividad
+        </button>
+      </div>
+    </div>
+  } @else if (activity && fields.length) {
+    <div class="summary-card data-card">
+      <div class="summary-grid">
+        <div><span>Trámite</span><strong>{{ activity.code }}</strong></div>
+        <div><span>Política</span><strong>{{ activity.policyName }}</strong></div>
+        <div><span>Actividad</span><strong>{{ activity.activityName }}</strong></div>
+        <div><span>Responsable</span><strong>{{ activity.responsible }}</strong></div>
+        <div><span>Prioridad</span><strong>{{ priorityLabel(activity.priority) }}</strong></div>
+      </div>
+    </div>
+
+    <div class="data-card form-card">
+      <h2>Complete el formulario</h2>
+      <div class="execution-form">
+        @for (field of fields; track field.name + field.order) {
+          <div class="form-field">
+            @if (field.type !== 'checkbox') {
+              <label>
+                {{ field.label }}
+                @if (field.required) { <span class="required">*</span> }
+              </label>
+            }
+
+            @switch (field.type) {
+              @case ('textarea') {
+                <textarea
+                  [(ngModel)]="values[field.name || field.label]"
+                  [required]="field.required"
+                  rows="4"
+                ></textarea>
+              }
+              @case ('select') {
+                <select [(ngModel)]="values[field.name || field.label]" [required]="field.required">
+                  <option value="">Seleccione...</option>
+                  @for (opt of getSelectOptions(field.options); track opt) {
+                    <option [value]="opt">{{ opt }}</option>
+                  }
+                </select>
+              }
+              @case ('checkbox') {
+                <label class="checkbox-field">
+                  <input
+                    type="checkbox"
+                    [checked]="values[field.name || field.label] === 'true'"
+                    (change)="values[field.name || field.label] = $any($event.target).checked ? 'true' : 'false'"
+                  />
+                  <span>
+                    {{ field.label }}
+                    @if (field.required) { <span class="required">*</span> }
+                  </span>
+                </label>
+              }
+              @case ('date') {
+                <input
+                  type="date"
+                  [(ngModel)]="values[field.name || field.label]"
+                  [required]="field.required"
+                />
+              }
+              @case ('file') {
+                <input
+                  type="file"
+                  (change)="onFileSelected(field.name || field.label, $event)"
+                  [disabled]="isUploadingFile(field.name || field.label) || saving || completing"
+                />
+                @if (isUploadingFile(field.name || field.label)) {
+                  <small class="file-name">Subiendo archivo...</small>
+                } @else if (hasSelectedFile(field.name || field.label)) {
+                  <small class="file-name">Archivo listo: {{ getFileLabel(field.name || field.label) }}</small>
+                }
+              }
+              @default {
+                <input
+                  type="text"
+                  [(ngModel)]="values[field.name || field.label]"
+                  [required]="field.required"
+                />
+              }
+            }
+          </div>
+        }
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="cancel()">Cancelar</button>
+        <button type="button" class="btn btn-secondary" [disabled]="saving || completing" (click)="saveDraft()">
+          {{ saving ? 'Guardando...' : 'Guardar avance' }}
+        </button>
+        <button type="button" class="btn btn-primary" [disabled]="saving || completing" (click)="completeActivity()">
+          {{ completing ? 'Completando...' : 'Completar actividad' }}
+        </button>
+      </div>
+    </div>
+  }
+</div>

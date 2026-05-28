@@ -17,11 +17,11 @@
       <div class="usage-guide">
         <h4>¿Cómo se usa?</h4>
         <ol>
-          <li>Seleccione un componente del panel izquierdo.</li>
-          <li>Configure el nombre del campo.</li>
-          <li>Marque si el campo será obligatorio.</li>
-          <li>Guarde el formulario.</li>
-          <li>El formulario se usará cuando el funcionario ejecute la actividad.</li>
+          <li>Seleccione la actividad asociada del workflow.</li>
+          <li>Agregue componentes desde el panel izquierdo.</li>
+          <li>Configure etiqueta, tipo y obligatoriedad.</li>
+          <li>Guarde la plantilla para esa actividad.</li>
+          <li>El usuario la llenará desde Mis actividades.</li>
         </ol>
       </div>
     </div>
@@ -31,8 +31,24 @@
     <div class="preview-header">
       <div class="header-info">
         <h1>Diseñador de Formulario</h1>
+        <p class="subtitle">Cree la plantilla que será utilizada durante la ejecución de una actividad.</p>
         <p><strong>Política:</strong> {{ policy?.name || 'Cargando...' }}</p>
-        <p><strong>Actividad asociada:</strong> {{ activityName }}</p>
+        <div class="activity-selector">
+          <label for="activitySelect">Actividad asociada</label>
+          <select
+            id="activitySelect"
+            [(ngModel)]="activityName"
+            (ngModelChange)="onActivityChange()"
+            [disabled]="loadingActivities || saving"
+          >
+            @for (activity of availableActivities; track activity) {
+              <option [value]="activity">{{ activity }}</option>
+            }
+          </select>
+          <span class="field-help">
+            Cada actividad puede tener su propio formulario. Se cargan desde el diagrama UML de la política.
+          </span>
+        </div>
       </div>
       <div class="header-actions">
         <button type="button" class="btn btn-secondary" (click)="cancel()">Volver</button>
@@ -51,16 +67,16 @@
 
     <div class="header-alert">
       <p>
-        Seleccione un componente de la izquierda para agregarlo al formulario. Configure la etiqueta,
-        tipo y obligatoriedad. Este formulario será utilizado por el funcionario durante la ejecución
-        de la actividad asignada.
+        <strong>Plantilla de formulario:</strong> lo que diseña aquí no es el llenado real del trámite.
+        Este formulario es una plantilla. El usuario lo llenará luego desde Mis actividades cuando el trámite
+        llegue a la actividad <strong>{{ activityName }}</strong>.
       </p>
     </div>
 
     <div class="form-preview">
-      <div class="preview-title">Vista previa del formulario</div>
+      <div class="preview-title">Vista previa — {{ activityName }}</div>
 
-      @if (loading) {
+      @if (loading || loadingActivities) {
         <div class="empty-preview">Cargando formulario...</div>
       } @else if (!fields.length) {
         <div class="empty-preview">

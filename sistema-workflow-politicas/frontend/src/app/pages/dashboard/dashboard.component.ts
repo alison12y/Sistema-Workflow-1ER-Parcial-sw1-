@@ -42,7 +42,7 @@ export class DashboardComponent {
     {
       title: 'KPIs e Indicadores',
       description: 'Consultar tiempos promedio y cuellos de botella',
-      path: '/kpi',
+      path: '/kpis',
       icon: 'insert_chart',
       accent: 'lavender',
     },

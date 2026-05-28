@@ -1,0 +1,65 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <h1>Bitácora del Sistema</h1>
+      <p>Registro de acciones realizadas por los usuarios</p>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="refresh()">Actualizar</button>
+  </div>
+
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+  @if (error) {
+    <div class="alert error">{{ error }}</div>
+  }
+
+  <div class="filters-row">
+    <input
+      type="search"
+      class="search-input"
+      placeholder="Buscar por usuario, módulo, acción o descripción..."
+      [(ngModel)]="searchTerm"
+      (ngModelChange)="onSearchChange()"
+    />
+    <select class="filter-select" [(ngModel)]="selectedModule" (ngModelChange)="onModuleChange()">
+      <option value="">Todos los módulos</option>
+      @for (module of modules.slice(1); track module) {
+        <option [value]="module">{{ module }}</option>
+      }
+    </select>
+  </div>
+
+  <div class="data-card">
+    @if (loading) {
+      <div class="loading">Cargando bitácora...</div>
+    } @else if (!filteredEntries.length) {
+      <div class="empty-state">No hay registros en la bitácora</div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Usuario</th>
+              <th>Módulo</th>
+              <th>Acción</th>
+              <th>Descripción</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of filteredEntries; track entry.createdAt + entry.description + entry.action) {
+              <tr>
+                <td>{{ formatDate(entry.createdAt) }}</td>
+                <td>{{ entry.username }}</td>
+                <td>{{ entry.module }}</td>
+                <td>{{ actionLabel(entry.action) }}</td>
+                <td>{{ entry.description }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

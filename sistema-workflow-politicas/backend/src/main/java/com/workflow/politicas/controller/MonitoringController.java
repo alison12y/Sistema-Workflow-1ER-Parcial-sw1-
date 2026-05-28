@@ -1,11 +1,13 @@
 package com.workflow.politicas.controller;
 
-import com.workflow.politicas.dto.ProcessTraceabilityResponse;
-import com.workflow.politicas.model.ProcessInstance;
-import com.workflow.politicas.model.TaskInstance;
+import com.workflow.politicas.dto.MonitoringItemDto;
+import com.workflow.politicas.dto.MonitoringTraceResponse;
 import com.workflow.politicas.service.MonitoringService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -19,29 +21,14 @@ public class MonitoringController {
         this.monitoringService = monitoringService;
     }
 
-    @GetMapping("/processes")
-    public List<ProcessInstance> listRunningProcesses() {
-        return monitoringService.listRunningProcesses();
+    @GetMapping
+    public List<MonitoringItemDto> listTramites() {
+        return monitoringService.listTramites();
     }
 
-    @GetMapping("/processes/{processId}")
-    public ResponseEntity<ProcessInstance> getProcessDetail(@PathVariable String processId) {
-        return monitoringService.getProcessDetail(processId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @GetMapping("/processes/{processId}/tasks")
-    public ResponseEntity<List<TaskInstance>> getProcessTasks(@PathVariable String processId) {
-        if (monitoringService.getProcessDetail(processId).isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(monitoringService.getProcessTasks(processId));
-    }
-
-    @GetMapping("/traceability/{processId}")
-    public ResponseEntity<ProcessTraceabilityResponse> getTraceability(@PathVariable String processId) {
-        return monitoringService.getTraceability(processId)
+    @GetMapping("/{id}/trace")
+    public ResponseEntity<MonitoringTraceResponse> getTrace(@PathVariable String id) {
+        return monitoringService.getTrace(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

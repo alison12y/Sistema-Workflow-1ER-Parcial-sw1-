@@ -59,6 +59,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/forms/**", "/api/form-fields/**").authenticated()
                         .requestMatchers("/api/activity-diagrams/**").authenticated()
                         .requestMatchers("/api/tramites", "/api/tramites/**").authenticated()
+                        .requestMatchers("/api/bitacora/**").authenticated()
+                        .requestMatchers("/api/kpis/**").authenticated()
+                        .requestMatchers("/api/monitoring/**").authenticated()
+                        .requestMatchers("/api/my-activities/**").authenticated()
+                        .requestMatchers("/api/form-submissions/**").authenticated()
+                        .requestMatchers("/api/form-submissions/files/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

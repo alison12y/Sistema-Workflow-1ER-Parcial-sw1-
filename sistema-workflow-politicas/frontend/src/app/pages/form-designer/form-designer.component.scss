@@ -109,10 +109,45 @@
     color: var(--color-accent);
   }
 
+  .subtitle {
+    color: var(--color-muted);
+    margin-bottom: 0.5rem !important;
+  }
+
   p {
     margin: 0.15rem 0 0;
     font-size: 0.9rem;
     color: var(--color-text);
+  }
+}
+
+.activity-selector {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 420px;
+
+  label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  select {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+  }
+
+  .field-help {
+    font-size: 0.78rem;
+    color: var(--color-muted);
+    line-height: 1.4;
   }
 }
 

@@ -4,8 +4,13 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PolicyService } from '../../services/policy.service';
 import { FormDesignerService } from '../../services/form-designer.service';
+import { ActivityDiagramService } from '../../services/activity-diagram.service';
 import { BusinessPolicy } from '../../models/auth.model';
 import { FormDesignerField } from '../../models/form.model';
+import {
+  DEFAULT_POLICY_ACTIVITIES,
+  extractActivitiesFromDiagram,
+} from '../../utils/policy-activities.util';
 
 const SELECT_DEFAULT_OPTIONS = 'Personal, Académico, Médico, Laboral, Otro';
 
@@ -21,14 +26,17 @@ export class FormDesignerComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly policyService = inject(PolicyService);
   private readonly formDesignerService = inject(FormDesignerService);
+  private readonly activityDiagramService = inject(ActivityDiagramService);
 
   policyId: string | null = null;
   policy: BusinessPolicy | null = null;
-  activityName = 'Registrar solicitud';
+  activityName = DEFAULT_POLICY_ACTIVITIES[0];
+  availableActivities: string[] = [...DEFAULT_POLICY_ACTIVITIES];
   formId: string | null = null;
 
   fields: FormDesignerField[] = [];
   loading = true;
+  loadingActivities = true;
   saving = false;
   message = '';
   error = '';
@@ -44,8 +52,14 @@ export class FormDesignerComponent implements OnInit {
 
   ngOnInit(): void {
     this.policyId = this.route.snapshot.paramMap.get('id');
+    const activityParam = this.route.snapshot.queryParamMap.get('activity');
+    if (activityParam?.trim()) {
+      this.activityName = activityParam.trim();
+    }
+
     if (!this.policyId) {
       this.loading = false;
+      this.loadingActivities = false;
       this.error = 'No se encontró la política asociada';
       return;
     }
@@ -55,11 +69,42 @@ export class FormDesignerComponent implements OnInit {
       error: () => (this.error = 'No se pudo cargar la política'),
     });
 
+    this.loadActivities();
+  }
+
+  loadActivities(): void {
+    if (!this.policyId) {
+      return;
+    }
+
+    this.loadingActivities = true;
+    this.activityDiagramService.getByPolicy(this.policyId).subscribe({
+      next: (diagram) => {
+        this.availableActivities = extractActivitiesFromDiagram(diagram);
+        this.ensureSelectedActivity();
+        this.loadingActivities = false;
+        this.loadSavedForm();
+      },
+      error: () => {
+        this.availableActivities = [...DEFAULT_POLICY_ACTIVITIES];
+        this.ensureSelectedActivity();
+        this.loadingActivities = false;
+        this.loadSavedForm();
+      },
+    });
+  }
+
+  onActivityChange(): void {
+    this.loading = true;
+    this.message = '';
+    this.error = '';
     this.loadSavedForm();
   }
 
   loadSavedForm(): void {
-    if (!this.policyId) return;
+    if (!this.policyId) {
+      return;
+    }
 
     this.formDesignerService.getByPolicyAndActivity(this.policyId, this.activityName).subscribe({
       next: (form) => {
@@ -132,6 +177,10 @@ export class FormDesignerComponent implements OnInit {
       this.error = 'No se encontró la política asociada';
       return;
     }
+    if (!this.activityName?.trim()) {
+      this.error = 'Debe seleccionar una actividad asociada';
+      return;
+    }
     if (!this.fields.length) {
       this.error = 'Debe agregar al menos un campo al formulario';
       return;
@@ -168,15 +217,15 @@ export class FormDesignerComponent implements OnInit {
     this.formDesignerService
       .saveForm({
         policyId: this.policyId,
-        activityName: this.activityName,
-        name: `Formulario - ${this.activityName}`,
+        activityName: this.activityName.trim(),
+        name: `Formulario - ${this.activityName.trim()}`,
         fields: payloadFields,
       })
       .subscribe({
         next: (saved) => {
           this.saving = false;
           this.formId = saved.id ?? null;
-          this.message = 'Formulario guardado correctamente';
+          this.message = `Formulario guardado correctamente para ${this.activityName}`;
           setTimeout(() => (this.message = ''), 5000);
         },
         error: (err) => {
@@ -188,6 +237,12 @@ export class FormDesignerComponent implements OnInit {
 
   cancel(): void {
     this.router.navigate(['/policies']);
+  }
+
+  private ensureSelectedActivity(): void {
+    if (!this.availableActivities.includes(this.activityName)) {
+      this.activityName = this.availableActivities[0];
+    }
   }
 
   private toFieldName(label: string): string {

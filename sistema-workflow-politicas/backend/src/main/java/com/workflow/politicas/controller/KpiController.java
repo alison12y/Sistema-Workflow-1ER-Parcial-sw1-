@@ -1,14 +1,16 @@
 package com.workflow.politicas.controller;
 
-import com.workflow.politicas.dto.KpiBottlenecksResponse;
-import com.workflow.politicas.dto.KpiDashboardResponse;
+import com.workflow.politicas.dto.KpiBottleneckDto;
+import com.workflow.politicas.dto.KpiSummaryResponse;
 import com.workflow.politicas.service.KpiService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/api/kpi")
+@RequestMapping("/api/kpis")
 public class KpiController {
 
     private final KpiService kpiService;
@@ -17,13 +19,13 @@ public class KpiController {
         this.kpiService = kpiService;
     }
 
-    @GetMapping("/dashboard")
-    public KpiDashboardResponse getDashboard() {
-        return kpiService.getDashboard();
+    @GetMapping("/summary")
+    public KpiSummaryResponse getSummary() {
+        return kpiService.getSummary();
     }
 
     @GetMapping("/bottlenecks")
-    public KpiBottlenecksResponse getBottlenecks() {
+    public List<KpiBottleneckDto> getBottlenecks() {
         return kpiService.getBottlenecks();
     }
 }

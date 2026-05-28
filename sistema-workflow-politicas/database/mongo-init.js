@@ -11,5 +11,7 @@ db.getSiblingDB('workflow_db').createCollection('form_fields');
 db.getSiblingDB('workflow_db').createCollection('process_instances');
 db.getSiblingDB('workflow_db').createCollection('task_instances');
 db.getSiblingDB('workflow_db').createCollection('audit_logs');
+db.getSiblingDB('workflow_db').createCollection('bitacora');
+db.getSiblingDB('workflow_db').createCollection('form_submissions');
 db.getSiblingDB('workflow_db').createCollection('kpi_reports');
 db.getSiblingDB('workflow_db').createCollection('ai_requests');

@@ -2,7 +2,13 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TramiteService } from '../../services/tramite.service';
+import { FormSubmissionService } from '../../services/form-submission.service';
 import { Tramite } from '../../models/tramite.model';
+import {
+  FormSubmissionView,
+  toFormSubmissionViews,
+  triggerFileDownload,
+} from '../../utils/form-submission-display.util';
 import {
   httpErrorMessage,
   traceUserName,
@@ -24,11 +30,14 @@ import {
 })
 export class TramiteDetailComponent implements OnInit {
   private readonly tramiteService = inject(TramiteService);
+  private readonly formSubmissionService = inject(FormSubmissionService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   tramite: Tramite | null = null;
+  formSubmissions: FormSubmissionView[] = [];
   loading = true;
+  loadingSubmissions = true;
   acting = false;
   message = '';
   error = '';
@@ -55,15 +64,33 @@ export class TramiteDetailComponent implements OnInit {
 
   load(id: string): void {
     this.loading = true;
+    this.loadingSubmissions = true;
     this.error = '';
+    this.formSubmissions = [];
+
     this.tramiteService.getById(id).subscribe({
       next: (data) => {
         this.tramite = data;
         this.loading = false;
+        this.loadFormSubmissions(id);
       },
       error: (err) => {
         this.error = httpErrorMessage(err, 'No se pudo cargar el detalle del trámite');
         this.loading = false;
+        this.loadingSubmissions = false;
+      },
+    });
+  }
+
+  loadFormSubmissions(tramiteId: string): void {
+    this.formSubmissionService.getByTramite(tramiteId).subscribe({
+      next: (submissions) => {
+        this.formSubmissions = toFormSubmissionViews(submissions);
+        this.loadingSubmissions = false;
+      },
+      error: () => {
+        this.formSubmissions = [];
+        this.loadingSubmissions = false;
       },
     });
   }
@@ -124,5 +151,19 @@ export class TramiteDetailComponent implements OnInit {
 
   traceTitle(item: { eventLabel?: string; activityName?: string }): string {
     return item.eventLabel || item.activityName || 'Evento';
+  }
+
+  downloadFile(fileId: string | undefined, fileName: string | undefined): void {
+    if (!fileId || !fileName) {
+      this.error = 'No se pudo descargar el archivo adjunto';
+      return;
+    }
+
+    this.formSubmissionService.downloadFile(fileId).subscribe({
+      next: (blob) => triggerFileDownload(blob, fileName),
+      error: () => {
+        this.error = 'No se pudo descargar el archivo adjunto';
+      },
+    });
   }
 }

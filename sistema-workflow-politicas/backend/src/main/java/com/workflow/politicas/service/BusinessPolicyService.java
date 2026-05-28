@@ -11,10 +11,16 @@ import java.util.Optional;
 public class BusinessPolicyService {
     private final BusinessPolicyRepository businessPolicyRepository;
     private final AuditLogService auditLogService;
+    private final BitacoraService bitacoraService;
 
-    public BusinessPolicyService(BusinessPolicyRepository businessPolicyRepository, AuditLogService auditLogService) {
+    public BusinessPolicyService(
+            BusinessPolicyRepository businessPolicyRepository,
+            AuditLogService auditLogService,
+            BitacoraService bitacoraService
+    ) {
         this.businessPolicyRepository = businessPolicyRepository;
         this.auditLogService = auditLogService;
+        this.bitacoraService = bitacoraService;
     }
 
     public List<BusinessPolicy> findAll() {
@@ -73,6 +79,14 @@ public class BusinessPolicyService {
                 "DRAFT",
                 "Policy created: " + saved.getName()
         );
+        String actor = bitacoraService.resolveActorDisplay();
+        bitacoraService.registrar(
+                "Políticas",
+                "CREAR_POLITICA",
+                actor + " creó la política " + saved.getName(),
+                "BusinessPolicy",
+                saved.getId()
+        );
         return saved;
     }
 
@@ -87,8 +101,17 @@ public class BusinessPolicyService {
         policy.setResponsible(policyDetails.getResponsible());
         policy.setStatus(policyDetails.getStatus());
         policy.setUpdatedAt(LocalDateTime.now());
-        
-        return businessPolicyRepository.save(policy);
+
+        BusinessPolicy saved = businessPolicyRepository.save(policy);
+        String actor = bitacoraService.resolveActorDisplay();
+        bitacoraService.registrar(
+                "Políticas",
+                "EDITAR_POLITICA",
+                actor + " editó la política " + saved.getName(),
+                "BusinessPolicy",
+                saved.getId()
+        );
+        return saved;
     }
 
     public BusinessPolicy activate(String id) {
@@ -130,6 +153,16 @@ public class BusinessPolicyService {
     }
 
     public void deleteById(String id) {
-        businessPolicyRepository.deleteById(id);
+        businessPolicyRepository.findById(id).ifPresent(policy -> {
+            String actor = bitacoraService.resolveActorDisplay();
+            bitacoraService.registrar(
+                    "Políticas",
+                    "ELIMINAR_POLITICA",
+                    actor + " eliminó la política " + policy.getName(),
+                    "BusinessPolicy",
+                    policy.getId()
+            );
+            businessPolicyRepository.deleteById(id);
+        });
     }
 }

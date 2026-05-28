@@ -21,5 +21,6 @@ ai-service/venv/
 .vscode/
 .idea/
 
-# Logs
-*.log
+# Uploaded files
+uploads/
+backend/uploads/
