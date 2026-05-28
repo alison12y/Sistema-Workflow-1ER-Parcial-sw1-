@@ -16,7 +16,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfigurationSource;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
@@ -29,25 +28,24 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
     private final SecurityLoggingFilter securityLoggingFilter;
-    private final CorsConfigurationSource corsConfigurationSource;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthFilter,
             CustomUserDetailsService userDetailsService,
-            SecurityLoggingFilter securityLoggingFilter,
-            CorsConfigurationSource corsConfigurationSource
+            SecurityLoggingFilter securityLoggingFilter
     ) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.userDetailsService = userDetailsService;
         this.securityLoggingFilter = securityLoggingFilter;
-        this.corsConfigurationSource = corsConfigurationSource;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                // CORS lo maneja el CorsFilter global (CorsConfig) con HIGHEST_PRECEDENCE.
+                // Evita duplicar headers Access-Control-Allow-Origin en la cadena de Security.
+                .cors(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
