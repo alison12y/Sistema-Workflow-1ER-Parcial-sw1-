@@ -1,0 +1,89 @@
+<div class="page-crud settings-page">
+  <div class="page-toolbar">
+    <div>
+      <h1>Configuración</h1>
+      <p>Preferencias locales del sistema. Se guardan en este navegador.</p>
+    </div>
+  </div>
+
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+
+  <div class="data-card settings-card">
+    <section class="settings-section">
+      <h2>Apariencia</h2>
+      <p class="section-desc">Seleccione el tema visual de la aplicación.</p>
+
+      <div class="theme-options">
+        <label class="theme-option" [class.selected]="settings.theme === 'light'">
+          <input
+            type="radio"
+            name="theme"
+            value="light"
+            [checked]="settings.theme === 'light'"
+            (change)="onThemeChange('light')"
+          />
+          <i class="material-icons">light_mode</i>
+          <span>Tema claro</span>
+        </label>
+
+        <label class="theme-option" [class.selected]="settings.theme === 'dark'">
+          <input
+            type="radio"
+            name="theme"
+            value="dark"
+            [checked]="settings.theme === 'dark'"
+            (change)="onThemeChange('dark')"
+          />
+          <i class="material-icons">dark_mode</i>
+          <span>Tema oscuro</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2>Notificaciones</h2>
+      <p class="section-desc">Configure alertas locales dentro de la aplicación.</p>
+
+      <div class="toggle-row">
+        <div>
+          <strong>Notificaciones en la app</strong>
+          <p>Muestra avisos visuales al guardar, completar actividades u otras acciones.</p>
+        </div>
+        <label class="switch">
+          <input
+            type="checkbox"
+            [checked]="settings.appNotifications"
+            (change)="onAppNotificationsChange($any($event.target).checked)"
+          />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <strong>Notificaciones por email</strong>
+          <p>Preferencia local. El envío real de emails puede implementarse en una fase posterior.</p>
+        </div>
+        <label class="switch">
+          <input
+            type="checkbox"
+            [checked]="settings.emailNotifications"
+            (change)="onEmailNotificationsChange($any($event.target).checked)"
+          />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="settings-section info-section">
+      <h2>Información</h2>
+      <ul>
+        <li>Las preferencias se almacenan en <code>localStorage</code> del navegador.</li>
+        <li>El tema se aplica de inmediato y persiste al recargar la página.</li>
+        <li>Las notificaciones por email son una preferencia visual hasta conectar un servicio de correo.</li>
+      </ul>
+    </section>
+  </div>
+</div>

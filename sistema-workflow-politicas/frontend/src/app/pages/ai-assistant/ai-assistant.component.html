@@ -12,7 +12,8 @@
         <i class="material-icons">info</i>
       </div>
       <div class="info-text">
-        <p>El asistente IA ayuda a diseñar workflows y completar formularios durante la ejecución de políticas de negocio. Puede solicitar sugerencias de actividades, responsables o redacción de documentos.</p>
+        <p>Asistente IA local basado en reglas para apoyar la edición del workflow y el llenado de formularios. Puede sugerir flujos de política, campos de formulario, explicar cómo completar actividades y orientar mejoras del proceso. No requiere conexión con IA externa.</p>
+        <p><strong>Integración obligatoria:</strong> use <em>Sugerir con IA</em> en el Diseñador UML 2.5 y <em>Ayuda IA</em> en el Formulario de ejecución (Mis actividades).</p>
       </div>
     </div>
 
@@ -38,8 +39,7 @@
             </div>
             <pre class="response-content">{{ response }}</pre>
             <div class="response-actions">
-              <button class="btn btn-secondary btn-sm">Copiar</button>
-              <button class="btn btn-primary btn-sm">Aplicar a mi diseño</button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="copyResponse()">Copiar</button>
             </div>
           </div>
         }

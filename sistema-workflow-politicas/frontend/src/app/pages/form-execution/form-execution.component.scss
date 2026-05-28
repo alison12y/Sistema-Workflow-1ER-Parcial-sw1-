@@ -42,9 +42,53 @@
   }
 }
 
-.form-card h2 {
-  margin: 0 0 1rem;
-  color: var(--color-accent);
+.form-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 0;
+    color: var(--color-accent);
+  }
+}
+
+.suggestions-list {
+  display: grid;
+  gap: 0.5rem;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.suggestion-item {
+  padding: 0.65rem 0.75rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+
+  strong { font-size: 0.85rem; }
+
+  .field-type {
+    display: inline-block;
+    margin-left: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--color-muted);
+    text-transform: uppercase;
+  }
+
+  p {
+    margin: 0.35rem 0 0;
+    font-size: 0.82rem;
+    color: var(--color-text);
+  }
+
+  &.file-hint p {
+    color: var(--color-muted);
+    font-style: italic;
+  }
 }
 
 .execution-form {
@@ -58,32 +102,42 @@
   gap: 0.35rem;
 
   label {
-    font-weight: 600;
+    font-size: 0.875rem;
+    font-weight: 500;
   }
 
   input,
   select,
   textarea {
-    width: 100%;
-    padding: 0.65rem 0.75rem;
-    border: 1px solid var(--color-border, #d9dee7);
-    border-radius: var(--radius-sm, 8px);
-    background: var(--color-surface);
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    background: var(--color-cream);
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  .required {
+    color: #c53030;
   }
 }
 
-.required {
-  color: #e53e3e;
-}
-
 .checkbox-field {
-  display: flex;
+  flex-direction: row !important;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 500;
+  cursor: pointer;
+
+  input {
+    width: auto;
+  }
 }
 
 .file-name {
+  font-size: 0.8rem;
   color: var(--color-muted);
 }
 
@@ -91,5 +145,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 1.5rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
 }

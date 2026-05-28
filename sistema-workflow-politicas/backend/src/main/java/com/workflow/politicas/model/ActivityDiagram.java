@@ -13,6 +13,7 @@ public class ActivityDiagram {
     private String id;
     private String policyId;
     private String name;
+    private List<String> lanes = new ArrayList<>();
     private List<DiagramNode> nodes = new ArrayList<>();
     private List<DiagramEdge> edges = new ArrayList<>();
     private LocalDateTime createdAt;
@@ -40,6 +41,14 @@ public class ActivityDiagram {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public List<String> getLanes() {
+        return lanes;
+    }
+
+    public void setLanes(List<String> lanes) {
+        this.lanes = lanes;
     }
 
     public List<DiagramNode> getNodes() {

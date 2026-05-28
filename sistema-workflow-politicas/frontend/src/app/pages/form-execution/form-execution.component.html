@@ -46,7 +46,13 @@
     </div>
 
     <div class="data-card form-card">
-      <h2>Complete el formulario</h2>
+      <div class="form-card-header">
+        <h2>Complete el formulario</h2>
+        <button type="button" class="btn btn-ai" (click)="openAiPanel()">
+          <i class="material-icons">psychology</i>
+          Ayuda IA
+        </button>
+      </div>
       <div class="execution-form">
         @for (field of fields; track field.name + field.order) {
           <div class="form-field">
@@ -129,3 +135,58 @@
     </div>
   }
 </div>
+
+@if (showAiPanel) {
+  <div class="modal-overlay" (click)="closeAiPanel()">
+    <div class="modal-card ai-form-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2><i class="material-icons">psychology</i> Ayuda IA — Formulario</h2>
+        <button type="button" class="btn-icon" (click)="closeAiPanel()">
+          <i class="material-icons">close</i>
+        </button>
+      </div>
+      <p class="modal-subtitle">
+        Asistente IA local basado en reglas. Sugiere valores según la actividad
+        @if (activity) { <strong>{{ activity.activityName }}</strong> }.
+      </p>
+
+      @if (aiGenerating) {
+        <div class="ai-loading">Generando sugerencias...</div>
+      }
+
+      @if (aiInfoMessage) {
+        <div class="alert info">{{ aiInfoMessage }}</div>
+      }
+      @if (aiSkippedMessage) {
+        <div class="alert warning">{{ aiSkippedMessage }}</div>
+      }
+
+      @if (aiSuggestions.length) {
+        <div class="suggestions-list">
+          @for (s of aiSuggestions; track s.fieldId) {
+            <div class="suggestion-item" [class.file-hint]="!s.applicable">
+              <strong>{{ s.fieldLabel }}</strong>
+              <span class="field-type">{{ s.fieldType }}</span>
+              <p>{{ formatSuggestionValue(s) }}</p>
+            </div>
+          }
+        </div>
+      }
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeAiPanel()">Cancelar</button>
+        <button type="button" class="btn btn-secondary" [disabled]="aiGenerating" (click)="generateAiSuggestions()">
+          Regenerar
+        </button>
+        <button
+          type="button"
+          class="btn btn-ai"
+          [disabled]="aiGenerating || !aiSuggestions.length"
+          (click)="applyAiSuggestions()"
+        >
+          Aplicar sugerencias
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -4,6 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { PolicyService } from '../../services/policy.service';
 import { ActivityDiagramService } from '../../services/activity-diagram.service';
+import {
+  AiAssistantService,
+  DiagramSuggestion,
+  PROCESS_TYPE_OPTIONS,
+} from '../../services/ai-assistant.service';
 import { BusinessPolicy } from '../../models/auth.model';
 import { DiagramEdge, DiagramNode } from '../../models/activity-diagram.model';
 
@@ -12,6 +17,9 @@ interface UmlTool {
   label: string;
   icon: string;
 }
+
+const LANE_HEIGHT = 120;
+const DEFAULT_LANES = ['Funcionario', 'Recursos Humanos', 'Supervisor'];
 
 @Component({
   selector: 'app-workflow-designer',
@@ -25,6 +33,7 @@ export class WorkflowDesignerComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly policyService = inject(PolicyService);
   private readonly diagramService = inject(ActivityDiagramService);
+  private readonly aiAssistant = inject(AiAssistantService);
 
   @ViewChild('canvasViewport') canvasViewportRef!: ElementRef<HTMLDivElement>;
 
@@ -35,7 +44,7 @@ export class WorkflowDesignerComponent implements OnInit {
 
   nodes: DiagramNode[] = [];
   edges: DiagramEdge[] = [];
-  lanes = ['Funcionario', 'Recursos Humanos', 'Supervisor'];
+  lanes = [...DEFAULT_LANES];
 
   canvasWidth = 1600;
   canvasHeight = 480;
@@ -48,6 +57,17 @@ export class WorkflowDesignerComponent implements OnInit {
   selectedNodeId: string | null = null;
   selectedEdgeId: string | null = null;
   connectSourceId: string | null = null;
+
+  showAiModal = false;
+  aiProcessType = PROCESS_TYPE_OPTIONS[0];
+  aiGenerating = false;
+  aiSuggestion: DiagramSuggestion | null = null;
+  aiError = '';
+  readonly processTypeOptions = PROCESS_TYPE_OPTIONS;
+
+  newLaneName = '';
+  editingLaneIndex: number | null = null;
+  editingLaneName = '';
 
   private draggingNodeId: string | null = null;
   private dragOffsetX = 0;
@@ -90,6 +110,7 @@ export class WorkflowDesignerComponent implements OnInit {
         if (diagram.nodes?.length) {
           this.nodes = diagram.nodes.map((n) => ({ ...n }));
           this.edges = (diagram.edges ?? []).map((e) => ({ ...e }));
+          this.lanes = this.resolveLanes(diagram.lanes, this.nodes);
           if (diagram.name) {
             this.diagramName = diagram.name;
           }
@@ -109,7 +130,19 @@ export class WorkflowDesignerComponent implements OnInit {
     });
   }
 
+  resolveLanes(savedLanes: string[] | undefined, nodes: DiagramNode[]): string[] {
+    if (savedLanes?.length) {
+      return [...savedLanes];
+    }
+    const fromNodes = nodes
+      .map((n) => n.lane?.trim())
+      .filter((lane): lane is string => !!lane);
+    const unique = [...new Set(fromNodes)];
+    return unique.length ? unique : [...DEFAULT_LANES];
+  }
+
   loadExampleTemplate(): void {
+    this.lanes = [...DEFAULT_LANES];
     this.nodes = [
       { id: 'n1', type: 'INITIAL', label: 'Inicio', x: 40, y: 210, lane: 'Funcionario' },
       { id: 'n2', type: 'ACTION', label: 'Registrar solicitud', x: 130, y: 190, lane: 'Funcionario' },
@@ -138,6 +171,186 @@ export class WorkflowDesignerComponent implements OnInit {
     this.updateCanvasSize();
   }
 
+  openAiModal(): void {
+    this.showAiModal = true;
+    this.aiSuggestion = null;
+    this.aiError = '';
+    this.aiProcessType = PROCESS_TYPE_OPTIONS[0];
+  }
+
+  closeAiModal(): void {
+    this.showAiModal = false;
+    this.aiSuggestion = null;
+    this.aiError = '';
+    this.aiGenerating = false;
+  }
+
+  generateAiSuggestion(): void {
+    this.aiGenerating = true;
+    this.aiError = '';
+    this.aiSuggestion = null;
+
+    const suggestion = this.aiAssistant.suggestDiagram(
+      this.aiProcessType,
+      this.policy?.name ?? this.diagramName
+    );
+
+    this.aiGenerating = false;
+    if (!suggestion) {
+      this.aiError = 'No se pudo generar la sugerencia';
+      return;
+    }
+
+    this.aiSuggestion = suggestion;
+    this.message = 'Sugerencia generada correctamente';
+    setTimeout(() => (this.message = ''), 4000);
+  }
+
+  insertAiSuggestion(): void {
+    if (!this.aiSuggestion) return;
+
+    if (this.nodes.length > 0) {
+      const confirmed = confirm('Ya existe un diagrama. ¿Desea reemplazarlo con la sugerencia de IA?');
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    const timestamp = Date.now();
+    const idMap = new Map<string, string>();
+
+    this.lanes = [...this.aiSuggestion.lanes];
+    this.nodes = this.aiSuggestion.nodes.map((node) => {
+      const newId = `ai-${timestamp}-${node.id}`;
+      idMap.set(node.id, newId);
+      return { ...node, id: newId };
+    });
+    this.edges = this.aiSuggestion.edges.map((edge, index) => ({
+      ...edge,
+      id: `ai-edge-${timestamp}-${index}`,
+      sourceId: idMap.get(edge.sourceId) ?? edge.sourceId,
+      targetId: idMap.get(edge.targetId) ?? edge.targetId,
+    }));
+
+    if (this.aiSuggestion.name) {
+      this.diagramName = this.aiSuggestion.name;
+    }
+
+    this.selectedNodeId = null;
+    this.selectedEdgeId = null;
+    this.updateCanvasSize();
+    this.closeAiModal();
+    this.message = 'Sugerencia insertada en el diagrama';
+    setTimeout(() => (this.message = ''), 5000);
+    setTimeout(() => this.centerDiagram(), 0);
+  }
+
+  addLane(): void {
+    const name = this.newLaneName.trim();
+    if (!name) {
+      this.error = 'Ingrese un nombre para el carril';
+      return;
+    }
+    if (this.lanes.some((l) => l.toLowerCase() === name.toLowerCase())) {
+      this.error = 'Ya existe un carril con ese nombre';
+      return;
+    }
+    this.lanes.push(name);
+    this.newLaneName = '';
+    this.error = '';
+    this.updateCanvasSize();
+  }
+
+  startEditLane(index: number): void {
+    this.editingLaneIndex = index;
+    this.editingLaneName = this.lanes[index];
+  }
+
+  saveEditLane(): void {
+    if (this.editingLaneIndex === null) return;
+    const newName = this.editingLaneName.trim();
+    const oldName = this.lanes[this.editingLaneIndex];
+    if (!newName) {
+      this.error = 'El nombre del carril no puede estar vacío';
+      return;
+    }
+    if (this.lanes.some((l, i) => i !== this.editingLaneIndex && l.toLowerCase() === newName.toLowerCase())) {
+      this.error = 'Ya existe un carril con ese nombre';
+      return;
+    }
+    this.lanes[this.editingLaneIndex] = newName;
+    for (const node of this.nodes) {
+      if (node.lane === oldName) {
+        node.lane = newName;
+      }
+    }
+    this.editingLaneIndex = null;
+    this.editingLaneName = '';
+    this.error = '';
+  }
+
+  cancelEditLane(): void {
+    this.editingLaneIndex = null;
+    this.editingLaneName = '';
+  }
+
+  removeLane(index: number): void {
+    const lane = this.lanes[index];
+    const assigned = this.nodes.filter((n) => n.lane === lane);
+    if (assigned.length) {
+      const ok = confirm(
+        `El carril "${lane}" tiene ${assigned.length} nodo(s) asignado(s). ¿Eliminarlo y mover los nodos al primer carril?`
+      );
+      if (!ok) return;
+      const fallback = this.lanes.find((_, i) => i !== index) ?? 'General';
+      for (const node of assigned) {
+        node.lane = fallback;
+        this.snapNodeToLane(node);
+      }
+    } else if (!confirm(`¿Eliminar el carril "${lane}"?`)) {
+      return;
+    }
+
+    this.lanes.splice(index, 1);
+    if (!this.lanes.length) {
+      this.lanes.push('General');
+    }
+    this.updateCanvasSize();
+  }
+
+  moveLaneUp(index: number): void {
+    if (index <= 0) return;
+    [this.lanes[index - 1], this.lanes[index]] = [this.lanes[index], this.lanes[index - 1]];
+    this.repositionNodesByLane();
+    this.updateCanvasSize();
+  }
+
+  moveLaneDown(index: number): void {
+    if (index >= this.lanes.length - 1) return;
+    [this.lanes[index + 1], this.lanes[index]] = [this.lanes[index], this.lanes[index + 1]];
+    this.repositionNodesByLane();
+    this.updateCanvasSize();
+  }
+
+  onNodeLaneChange(node: DiagramNode): void {
+    this.snapNodeToLane(node);
+    this.updateCanvasSize();
+  }
+
+  snapNodeToLane(node: DiagramNode): void {
+    const laneIndex = Math.max(0, this.lanes.indexOf(node.lane ?? ''));
+    const lane = this.lanes[laneIndex] ?? this.lanes[0];
+    node.lane = lane;
+    const size = this.getNodeSize(node);
+    node.y = laneIndex * LANE_HEIGHT + Math.max(20, (LANE_HEIGHT - size.height) / 2);
+  }
+
+  repositionNodesByLane(): void {
+    for (const node of this.nodes) {
+      this.snapNodeToLane(node);
+    }
+  }
+
   addNode(type: string): void {
     const id = `node-${Date.now()}`;
     const lane = this.lanes[0];
@@ -150,14 +363,16 @@ export class WorkflowDesignerComponent implements OnInit {
       ACTION: 'Nueva actividad',
     };
 
-    this.nodes.push({
+    const node: DiagramNode = {
       id,
       type,
       label: defaults[type] ?? 'Nodo',
       x: 60 + (this.nodes.length * 35) % 500,
-      y: 120 + (this.nodes.length * 25) % 280,
+      y: 120,
       lane,
-    });
+    };
+    this.snapNodeToLane(node);
+    this.nodes.push(node);
     this.selectedNodeId = id;
     this.error = '';
     this.updateCanvasSize();
@@ -274,7 +489,7 @@ export class WorkflowDesignerComponent implements OnInit {
     }
 
     this.canvasWidth = Math.max(1200, maxX + padding);
-    this.canvasHeight = Math.max(this.lanes.length * 120 + 40, maxY + padding);
+    this.canvasHeight = Math.max(this.lanes.length * LANE_HEIGHT + 40, maxY + padding);
   }
 
   centerDiagram(): void {
@@ -406,6 +621,7 @@ export class WorkflowDesignerComponent implements OnInit {
     const payload = {
       policyId: this.policyId,
       name: this.diagramName,
+      lanes: this.lanes,
       nodes: this.nodes,
       edges: this.edges,
     };

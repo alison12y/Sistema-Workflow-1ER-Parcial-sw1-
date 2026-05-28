@@ -25,6 +25,12 @@
     </style>
   </head>
   <body>
+    <script>
+      try {
+        var s = JSON.parse(localStorage.getItem('app_settings') || '{}');
+        if (s.theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    </script>
     <app-root></app-root>
   </body>
 </html>

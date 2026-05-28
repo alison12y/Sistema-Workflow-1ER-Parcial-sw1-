@@ -27,6 +27,7 @@ export interface ActivityDiagram {
   id?: string;
   policyId?: string;
   name?: string;
+  lanes?: string[];
   nodes: DiagramNode[];
   edges: DiagramEdge[];
   createdAt?: string;
@@ -36,6 +37,7 @@ export interface ActivityDiagram {
 export interface ActivityDiagramSaveRequest {
   policyId: string;
   name: string;
+  lanes?: string[];
   nodes: DiagramNode[];
   edges: DiagramEdge[];
 }

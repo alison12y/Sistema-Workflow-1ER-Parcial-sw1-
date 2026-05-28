@@ -1,0 +1,45 @@
+<div class="contextual-assistant" [class.open]="isOpen">
+  @if (isOpen) {
+    <div class="assistant-panel" role="dialog" aria-label="Asistente contextual">
+      <header class="panel-header">
+        <div class="panel-title">
+          <i class="material-icons">support_agent</i>
+          <div>
+            <strong>Asistente contextual</strong>
+            <span>{{ help.title }}</span>
+          </div>
+        </div>
+        <button type="button" class="panel-close" (click)="closePanel()" aria-label="Cerrar asistente">
+          <i class="material-icons">close</i>
+        </button>
+      </header>
+
+      <div class="panel-body">
+        <p class="panel-message">{{ help.message }}</p>
+        @if (help.tips?.length) {
+          <ul class="panel-tips">
+            @for (tip of help.tips; track tip) {
+              <li>{{ tip }}</li>
+            }
+          </ul>
+        }
+      </div>
+
+      <footer class="panel-footer">
+        <small>Ayuda según la pantalla actual. No interfiere con sus acciones.</small>
+      </footer>
+    </div>
+  }
+
+  <button
+    type="button"
+    class="assistant-fab"
+    [class.active]="isOpen"
+    (click)="togglePanel()"
+    [attr.aria-expanded]="isOpen"
+    aria-label="Abrir asistente contextual"
+  >
+    <i class="material-icons">{{ isOpen ? 'close' : 'help_outline' }}</i>
+    <span class="fab-label">Ayuda</span>
+  </button>
+</div>

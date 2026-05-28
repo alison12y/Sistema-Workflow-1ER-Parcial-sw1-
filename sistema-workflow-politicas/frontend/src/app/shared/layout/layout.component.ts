@@ -32,6 +32,7 @@ export class LayoutComponent {
     { path: '/departments', label: 'Departamentos', icon: 'business' },
     { path: '/bitacora', label: 'Bitácora', icon: 'history' },
     { path: '/ai-assistant', label: 'Asistente IA', icon: 'auto_awesome' },
+    { path: '/settings', label: 'Configuración', icon: 'settings' },
   ];
 
   logout(): void {

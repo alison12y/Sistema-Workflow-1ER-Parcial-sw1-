@@ -8,6 +8,7 @@ import java.util.List;
 public class ActivityDiagramSaveRequest {
     private String policyId;
     private String name;
+    private List<String> lanes;
     private List<DiagramNode> nodes;
     private List<DiagramEdge> edges;
 
@@ -25,6 +26,14 @@ public class ActivityDiagramSaveRequest {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public List<String> getLanes() {
+        return lanes;
+    }
+
+    public void setLanes(List<String> lanes) {
+        this.lanes = lanes;
     }
 
     public List<DiagramNode> getNodes() {

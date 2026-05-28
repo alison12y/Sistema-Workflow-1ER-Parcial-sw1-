@@ -25,12 +25,57 @@
           <li>Edite condiciones en conexiones de decisiones.</li>
           <li>Guarde el diagrama asociado a la política.</li>
         </ol>
+        <button type="button" class="btn btn-ai btn-block" (click)="openAiModal()">
+          <i class="material-icons">auto_awesome</i>
+          Sugerir con IA
+        </button>
         <button type="button" class="btn btn-secondary btn-block" (click)="loadExampleTemplate()">
           Cargar plantilla de ejemplo
         </button>
         <button type="button" class="btn btn-secondary btn-block" (click)="clearCanvas()">
           Limpiar lienzo
         </button>
+      </div>
+
+      <div class="lanes-panel">
+        <h4>Calles / Carriles UML</h4>
+        <div class="lane-add">
+          <input type="text" [(ngModel)]="newLaneName" placeholder="Nuevo carril..." (keyup.enter)="addLane()" />
+          <button type="button" class="btn btn-secondary btn-sm" (click)="addLane()">+</button>
+        </div>
+        @for (lane of lanes; track lane; let i = $index) {
+          <div class="lane-item">
+            @if (editingLaneIndex === i) {
+              <input type="text" [(ngModel)]="editingLaneName" (keyup.enter)="saveEditLane()" />
+              <button type="button" class="btn-icon" (click)="saveEditLane()" title="Guardar">
+                <i class="material-icons">check</i>
+              </button>
+              <button type="button" class="btn-icon" (click)="cancelEditLane()" title="Cancelar">
+                <i class="material-icons">close</i>
+              </button>
+            } @else {
+              <span class="lane-name">{{ lane }}</span>
+              <div class="lane-actions">
+                @if (i > 0) {
+                  <button type="button" class="btn-icon" (click)="moveLaneUp(i)" title="Subir">
+                    <i class="material-icons">arrow_upward</i>
+                  </button>
+                }
+                @if (i < lanes.length - 1) {
+                  <button type="button" class="btn-icon" (click)="moveLaneDown(i)" title="Bajar">
+                    <i class="material-icons">arrow_downward</i>
+                  </button>
+                }
+                <button type="button" class="btn-icon" (click)="startEditLane(i)" title="Editar">
+                  <i class="material-icons">edit</i>
+                </button>
+                <button type="button" class="btn-icon danger" (click)="removeLane(i)" title="Eliminar">
+                  <i class="material-icons">delete</i>
+                </button>
+              </div>
+            }
+          </div>
+        }
       </div>
 
       @if (selectedNode(); as node) {
@@ -46,7 +91,7 @@
           </label>
           <label>
             Responsable / Carril
-            <select [(ngModel)]="node.lane">
+            <select [(ngModel)]="node.lane" (ngModelChange)="onNodeLaneChange(node)">
               @for (lane of lanes; track lane) {
                 <option [value]="lane">{{ lane }}</option>
               }
@@ -85,6 +130,10 @@
       </div>
       <div class="header-toolbar">
         <div class="toolbar-group">
+          <button type="button" class="btn btn-ai btn-sm" (click)="openAiModal()">
+            <i class="material-icons">auto_awesome</i>
+            Sugerir con IA
+          </button>
           <button type="button" class="btn btn-secondary btn-sm" (click)="showFullDiagram()">Ver completo</button>
           <button type="button" class="btn btn-secondary btn-sm" (click)="centerDiagram()">Centrar</button>
         </div>
@@ -184,3 +233,66 @@
     </div>
   </main>
 </div>
+
+@if (showAiModal) {
+  <div class="modal-overlay" (click)="closeAiModal()">
+    <div class="modal-card ai-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2><i class="material-icons">auto_awesome</i> Sugerir con IA</h2>
+        <button type="button" class="btn-icon" (click)="closeAiModal()">
+          <i class="material-icons">close</i>
+        </button>
+      </div>
+      <p class="modal-subtitle">Asistente IA local basado en reglas para generar diagramas UML 2.5 con carriles.</p>
+
+      <label>
+        Tipo de proceso
+        <select [(ngModel)]="aiProcessType">
+          @for (opt of processTypeOptions; track opt) {
+            <option [value]="opt">{{ opt }}</option>
+          }
+        </select>
+      </label>
+
+      @if (aiError) {
+        <div class="alert error">{{ aiError }}</div>
+      }
+
+      @if (aiGenerating) {
+        <div class="ai-loading-inline">Generando sugerencia...</div>
+      }
+
+      @if (aiSuggestion) {
+        <div class="ai-preview">
+          <h4>Vista previa del flujo sugerido</h4>
+          <p><strong>Carriles:</strong> {{ aiSuggestion.lanes.join(', ') }}</p>
+          <ol>
+            @for (node of aiSuggestion.nodes; track node.id) {
+              @if (node.type === 'ACTION' || node.type === 'DECISION' || node.type === 'INITIAL' || node.type === 'FINAL') {
+                <li>
+                  {{ node.label }}
+                  @if (node.lane) { <span class="lane-tag">[{{ node.lane }}]</span> }
+                </li>
+              }
+            }
+          </ol>
+        </div>
+      }
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeAiModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="aiGenerating" (click)="generateAiSuggestion()">
+          {{ aiGenerating ? 'Generando...' : 'Generar sugerencia' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-ai"
+          [disabled]="!aiSuggestion"
+          (click)="insertAiSuggestion()"
+        >
+          Insertar en diagrama
+        </button>
+      </div>
+    </div>
+  </div>
+}

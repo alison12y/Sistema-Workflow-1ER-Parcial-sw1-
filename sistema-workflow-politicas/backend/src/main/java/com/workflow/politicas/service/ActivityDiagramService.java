@@ -59,6 +59,7 @@ public class ActivityDiagramService {
         diagram.setName(request.getName() != null && !request.getName().isBlank()
                 ? request.getName().trim()
                 : "Diagrama de actividades");
+        diagram.setLanes(request.getLanes());
         diagram.setNodes(request.getNodes());
         diagram.setEdges(request.getEdges());
         diagram.setUpdatedAt(LocalDateTime.now());
@@ -86,6 +87,7 @@ public class ActivityDiagramService {
         validate(request);
 
         diagram.setName(request.getName());
+        diagram.setLanes(request.getLanes());
         diagram.setNodes(request.getNodes());
         diagram.setEdges(request.getEdges());
         diagram.setUpdatedAt(LocalDateTime.now());

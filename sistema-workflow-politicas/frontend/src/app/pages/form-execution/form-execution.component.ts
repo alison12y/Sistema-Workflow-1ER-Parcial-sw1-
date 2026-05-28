@@ -6,6 +6,11 @@ import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { FormDesignerService } from '../../services/form-designer.service';
 import { FormSubmissionService } from '../../services/form-submission.service';
 import { MyActivitiesService } from '../../services/my-activities.service';
+import { AuthService } from '../../services/auth.service';
+import {
+  AiAssistantService,
+  FormFieldSuggestion,
+} from '../../services/ai-assistant.service';
 import {
   FormSubmissionFileMeta,
   MyActivity,
@@ -28,6 +33,8 @@ export class FormExecutionComponent implements OnInit {
   private readonly myActivitiesService = inject(MyActivitiesService);
   private readonly formDesignerService = inject(FormDesignerService);
   private readonly formSubmissionService = inject(FormSubmissionService);
+  private readonly authService = inject(AuthService);
+  private readonly aiAssistant = inject(AiAssistantService);
 
   activity: MyActivity | null = null;
   fields: FormDesignerFieldPayload[] = [];
@@ -41,6 +48,12 @@ export class FormExecutionComponent implements OnInit {
   missingForm = false;
   message = '';
   error = '';
+
+  showAiPanel = false;
+  aiSuggestions: FormFieldSuggestion[] = [];
+  aiGenerating = false;
+  aiInfoMessage = '';
+  aiSkippedMessage = '';
 
   readonly priorityLabel = tramitePriorityLabel;
 
@@ -178,6 +191,81 @@ export class FormExecutionComponent implements OnInit {
       return ['Opción 1', 'Opción 2'];
     }
     return options.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+
+  openAiPanel(): void {
+    this.showAiPanel = true;
+    this.aiSkippedMessage = '';
+    this.aiInfoMessage = '';
+    this.generateAiSuggestions();
+  }
+
+  closeAiPanel(): void {
+    this.showAiPanel = false;
+    this.aiSuggestions = [];
+    this.aiInfoMessage = '';
+    this.aiSkippedMessage = '';
+  }
+
+  generateAiSuggestions(): void {
+    if (!this.activity) return;
+
+    this.aiGenerating = true;
+    this.aiSuggestions = [];
+    this.aiInfoMessage = '';
+
+    const currentUser = this.authService.getCurrentUser();
+    const result = this.aiAssistant.suggestFormValues(
+      this.activity.activityName,
+      this.fields,
+      currentUser,
+      this.activity.policyName
+    );
+
+    this.aiSuggestions = result.suggestions;
+    this.aiGenerating = false;
+
+    const missing = this.aiAssistant.detectMissingRequiredFields(this.fields, this.values);
+    if (missing.length) {
+      this.aiInfoMessage = 'La IA detectó campos obligatorios pendientes';
+    }
+  }
+
+  applyAiSuggestions(): void {
+    const { values, appliedCount, skippedCount } = this.aiAssistant.applyFormSuggestions(
+      this.fields,
+      this.aiSuggestions,
+      this.values
+    );
+
+    this.values = { ...values };
+
+    if (appliedCount > 0) {
+      this.message = 'Se aplicaron sugerencias al formulario';
+    }
+    if (skippedCount > 0) {
+      this.aiSkippedMessage = 'No se sobrescribieron campos ya completados';
+    }
+
+    const stillMissing = this.aiAssistant.detectMissingRequiredFields(this.fields, this.values);
+    if (stillMissing.length) {
+      this.aiInfoMessage = 'La IA detectó campos obligatorios pendientes';
+    } else if (appliedCount > 0) {
+      this.aiInfoMessage = '';
+    }
+  }
+
+  formatSuggestionValue(suggestion: FormFieldSuggestion): string {
+    if (suggestion.message && !suggestion.applicable) {
+      return suggestion.message;
+    }
+    if (suggestion.suggestedValue === null || suggestion.suggestedValue === '') {
+      return 'Sin sugerencia automática';
+    }
+    if (typeof suggestion.suggestedValue === 'boolean') {
+      return suggestion.suggestedValue ? 'Sí' : 'No';
+    }
+    return String(suggestion.suggestedValue);
   }
 
   private persistForm(complete: boolean): void {
