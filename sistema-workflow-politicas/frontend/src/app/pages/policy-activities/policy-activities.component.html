@@ -1,0 +1,53 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <a [routerLink]="['/policies', policyId]" class="back-link">← Volver al detalle</a>
+      <h1>Actividades del workflow</h1>
+      <p>{{ policyName || 'Política de negocio' }}</p>
+    </div>
+  </div>
+
+  <div class="dev-banner">
+    <i class="material-icons">construction</i>
+    <span>El diseñador visual avanzado estará disponible en una fase posterior. Aquí se listan las actividades base detectadas o configuradas.</span>
+  </div>
+
+  @if (error) { <div class="alert error">{{ error }}</div> }
+
+  <div class="data-card">
+    @if (loading) {
+      <div class="loading">Cargando actividades...</div>
+    } @else if (!activities.length) {
+      <div class="empty-state">Esta política aún no tiene actividades configuradas.</div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Orden</th>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Responsable</th>
+              <th>Tipo</th>
+              <th>Tiempo est.</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of activities; track a.id || a.name + a.order) {
+              <tr>
+                <td>{{ a.order ?? '—' }}</td>
+                <td>{{ a.name }}</td>
+                <td>{{ a.description || '—' }}</td>
+                <td>{{ a.responsible || '—' }}</td>
+                <td>{{ a.activityType || '—' }}</td>
+                <td>{{ a.estimatedMinutes ? a.estimatedMinutes + ' min' : '—' }}</td>
+                <td>{{ a.status || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

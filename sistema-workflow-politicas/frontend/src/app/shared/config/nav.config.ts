@@ -4,20 +4,21 @@ export interface NavItemConfig {
   path: string;
   label: string;
   icon: string;
-  /** Si se define, el usuario debe tener al menos uno de estos permisos */
   permissions?: string[];
-  /** Módulo visible pero no accesible todavía */
   pending?: boolean;
   pendingMessage?: string;
+  section?: 'workflow' | 'admin';
 }
 
+/** Menú orientado a workflow — Fase 2 */
 export const NAV_ITEMS: NavItemConfig[] = [
-  { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { path: '/dashboard', label: 'Dashboard', icon: 'dashboard', section: 'workflow' },
   {
     path: '/policies',
     label: 'Políticas de negocio',
     icon: 'description',
     permissions: ['POLICIES_MANAGE'],
+    section: 'workflow',
   },
   {
     path: '/workflow-designer',
@@ -26,54 +27,77 @@ export const NAV_ITEMS: NavItemConfig[] = [
     permissions: ['WORKFLOW_MANAGE'],
     pending: true,
     pendingMessage: 'Módulo en desarrollo',
+    section: 'workflow',
   },
   {
     path: '/tramites',
     label: 'Trámites',
     icon: 'assignment',
     permissions: ['TASKS_EXECUTE', 'POLICIES_MANAGE', 'MONITORING_VIEW', 'REPORTS_VIEW'],
+    section: 'workflow',
   },
   {
     path: '/mis-actividades',
     label: 'Mis tareas',
     icon: 'assignment_turned_in',
     permissions: ['TASKS_EXECUTE'],
+    section: 'workflow',
+  },
+  {
+    path: '/seguimiento',
+    label: 'Seguimiento de trámites',
+    icon: 'track_changes',
+    permissions: ['MONITORING_VIEW', 'REPORTS_VIEW', 'POLICIES_MANAGE'],
+    section: 'workflow',
   },
   {
     path: '/monitoring',
     label: 'Monitoreo',
     icon: 'timeline',
     permissions: ['MONITORING_VIEW'],
+    section: 'workflow',
   },
   {
     path: '/kpis',
-    label: 'KPIs',
+    label: 'KPIs / Cuellos de botella',
     icon: 'insert_chart',
     permissions: ['KPI_VIEW'],
+    section: 'workflow',
   },
   {
     path: '/users',
     label: 'Usuarios',
     icon: 'people',
     permissions: ['USERS_MANAGE'],
+    section: 'admin',
   },
   {
     path: '/roles',
     label: 'Roles',
     icon: 'security',
     permissions: ['ROLES_MANAGE'],
+    section: 'admin',
   },
   {
     path: '/departments',
     label: 'Departamentos',
     icon: 'business',
     permissions: ['DEPARTMENTS_MANAGE'],
+    section: 'admin',
   },
   {
     path: '/bitacora',
     label: 'Bitácora',
     icon: 'history',
     permissions: ['AUDIT_VIEW'],
+    section: 'admin',
+  },
+  {
+    path: '/settings',
+    label: 'Configuración',
+    icon: 'settings',
+    permissions: ['SETTINGS_MANAGE', 'USERS_MANAGE'],
+    section: 'admin',
   },
   {
     path: '/ai-assistant',
@@ -82,12 +106,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     permissions: ['AI_ASSIST'],
     pending: true,
     pendingMessage: 'Módulo en desarrollo',
-  },
-  {
-    path: '/settings',
-    label: 'Configuración',
-    icon: 'settings',
-    permissions: ['SETTINGS_MANAGE', 'USERS_MANAGE'],
+    section: 'workflow',
   },
 ];
 
@@ -105,8 +124,43 @@ export function getVisibleNavItems(auth: AuthService): VisibleNavItem[] {
 }
 
 export function canAccessRoute(auth: AuthService, path: string): boolean {
-  const item = NAV_ITEMS.find((nav) => nav.path === path || path.startsWith(nav.path + '/'));
+  if (path.startsWith('/policies/') && path.includes('/actividades')) {
+    return auth.hasPermission('POLICIES_MANAGE') || auth.hasPermission('WORKFLOW_MANAGE');
+  }
+  if (path.match(/^\/policies\/[^/]+$/)) {
+    return auth.hasPermission('POLICIES_MANAGE');
+  }
+  if (path.startsWith('/workflow-designer/')) {
+    return auth.hasPermission('WORKFLOW_MANAGE');
+  }
+  const item = NAV_ITEMS.find((nav) => nav.path === path || (nav.path !== '/dashboard' && path.startsWith(nav.path + '/')));
   if (!item) return true;
   if (item.pending) return false;
   return auth.hasAnyPermission(item.permissions ?? []);
+}
+
+export function getWelcomeMessage(roleName?: string | null): string {
+  const role = (roleName ?? '').toLowerCase();
+  if (role.includes('administrador')) {
+    return 'Panel de administración y control general del sistema workflow.';
+  }
+  if (role.includes('dueño') || role.includes('dueno') || role.includes('proceso')) {
+    return 'Gestiona políticas de negocio y prepara flujos de trabajo.';
+  }
+  if (role.includes('funcionario')) {
+    return 'Consulta y atiende tus tareas asignadas.';
+  }
+  if (role.includes('supervisor')) {
+    return 'Supervisa trámites, seguimiento y rendimiento del workflow.';
+  }
+  if (role.includes('atención') || role.includes('atencion') || role.includes('cliente')) {
+    return 'Gestiona trámites y el seguimiento de solicitudes de clientes.';
+  }
+  if (role.includes('técnico') || role.includes('tecnico')) {
+    return 'Atiende tus tareas técnicas dentro de los flujos de trabajo.';
+  }
+  if (role.includes('legal')) {
+    return 'Revisa documentación y tareas asignadas de cumplimiento normativo.';
+  }
+  return 'Bienvenido al sistema workflow para políticas de negocio.';
 }

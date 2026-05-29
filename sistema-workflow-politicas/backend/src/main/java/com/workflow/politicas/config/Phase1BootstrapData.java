@@ -28,7 +28,8 @@ public final class Phase1BootstrapData {
                             SystemPermissions.FORMS_MANAGE,
                             SystemPermissions.REPORTS_VIEW,
                             SystemPermissions.MONITORING_VIEW,
-                            SystemPermissions.KPI_VIEW
+                            SystemPermissions.KPI_VIEW,
+                            SystemPermissions.TASKS_EXECUTE
                     )
             ),
             new RoleSeed(
@@ -50,7 +51,7 @@ public final class Phase1BootstrapData {
             new RoleSeed(
                     "Atención al cliente",
                     "Atiende solicitudes y gestiona trámites de clientes",
-                    Set.of(SystemPermissions.TASKS_EXECUTE, SystemPermissions.REPORTS_VIEW)
+                    Set.of(SystemPermissions.TASKS_EXECUTE, SystemPermissions.REPORTS_VIEW, SystemPermissions.MONITORING_VIEW)
             ),
             new RoleSeed(
                     "Técnico",
@@ -63,7 +64,8 @@ public final class Phase1BootstrapData {
                     Set.of(
                             SystemPermissions.POLICIES_MANAGE,
                             SystemPermissions.AUDIT_VIEW,
-                            SystemPermissions.REPORTS_VIEW
+                            SystemPermissions.REPORTS_VIEW,
+                            SystemPermissions.TASKS_EXECUTE
                     )
             )
     );

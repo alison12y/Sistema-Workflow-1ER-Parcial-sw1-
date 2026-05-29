@@ -1,6 +1,8 @@
 package com.workflow.politicas.controller;
 
 import com.workflow.politicas.model.BusinessPolicy;
+import com.workflow.politicas.dto.PolicyDetailResponse;
+import com.workflow.politicas.dto.PolicySummaryResponse;
 import com.workflow.politicas.service.BusinessPolicyService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +23,21 @@ public class BusinessPolicyController {
             return businessPolicyService.search(search.trim());
         }
         return businessPolicyService.findAll();
+    }
+
+    @GetMapping("/summaries")
+    public List<PolicySummaryResponse> getPolicySummaries(@RequestParam(required = false) String search) {
+        if (search != null && !search.trim().isEmpty()) {
+            return businessPolicyService.searchSummaries(search.trim());
+        }
+        return businessPolicyService.findAllSummaries();
+    }
+
+    @GetMapping("/{id}/detail")
+    public ResponseEntity<PolicyDetailResponse> getPolicyDetail(@PathVariable String id) {
+        return businessPolicyService.getDetail(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/search")

@@ -1,37 +1,58 @@
-<div class="dashboard">
+<div class="dashboard workflow-dashboard">
   <header class="page-header">
-    <h1>Panel de control</h1>
-    <p>
-      Bienvenido{{ roleLabel ? ', ' + roleLabel : '' }}.
-      Seleccione un módulo disponible para su perfil.
-    </p>
+    <div>
+      <p class="role-tag">{{ roleLabel }}</p>
+      <h1>Panel workflow</h1>
+      <p class="welcome">{{ welcomeMessage }}</p>
+    </div>
   </header>
 
   @if (accessDenied) {
     <div class="alert error">No tiene permiso para acceder a esa sección.</div>
   }
 
-  @if (!cards.length) {
-    <div class="empty-state">No hay módulos disponibles para su rol actual.</div>
+  @if (error) {
+    <div class="alert warn">{{ error }}</div>
+  }
+
+  @if (loading) {
+    <div class="loading">Cargando indicadores del workflow...</div>
   } @else {
-    <div class="cards-grid">
-      @for (card of cards; track card.path) {
-        @if (card.disabled) {
-          <div class="nav-card nav-card--disabled" [class]="'accent-' + card.accent" [title]="card.disabledMessage">
-            <i class="material-icons card-icon">{{ card.icon }}</i>
-            <h3>{{ card.title }}</h3>
-            <p>{{ card.description }}</p>
-            <span class="card-link">{{ card.disabledMessage || 'Módulo en desarrollo' }}</span>
+    <section class="stats-grid">
+      @for (card of statCards; track card.label) {
+        <article class="stat-card" [class]="'accent-' + card.accent">
+          <div class="stat-icon"><i class="material-icons">{{ card.icon }}</i></div>
+          <div class="stat-body">
+            <span class="stat-value">{{ card.value }}</span>
+            <span class="stat-label">{{ card.label }}</span>
+            <span class="stat-hint">{{ card.hint }}</span>
           </div>
-        } @else {
-          <a [routerLink]="card.path" class="nav-card" [class]="'accent-' + card.accent">
-            <i class="material-icons card-icon">{{ card.icon }}</i>
-            <h3>{{ card.title }}</h3>
-            <p>{{ card.description }}</p>
-            <span class="card-link">Acceder al módulo →</span>
-          </a>
-        }
+        </article>
       }
-    </div>
+    </section>
+
+    @if (!hasAnyData()) {
+      <div class="empty-banner">
+        <i class="material-icons">info</i>
+        <div>
+          <strong>Aún no hay actividad registrada en el workflow.</strong>
+          <p>Cuando se creen políticas, trámites y tareas, los indicadores se actualizarán aquí.</p>
+        </div>
+      </div>
+    }
+
+    @if (visibleQuickLinks().length) {
+      <section class="quick-links">
+        <h2>Accesos rápidos</h2>
+        <div class="links-grid">
+          @for (link of visibleQuickLinks(); track link.path) {
+            <a [routerLink]="link.path" class="quick-link">
+              <i class="material-icons">{{ link.icon }}</i>
+              <span>{{ link.label }}</span>
+            </a>
+          }
+        </div>
+      </section>
+    }
   }
 </div>

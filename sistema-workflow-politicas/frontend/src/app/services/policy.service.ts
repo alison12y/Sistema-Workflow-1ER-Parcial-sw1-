@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { BusinessPolicy } from '../models/auth.model';
+import { PolicyDetail, PolicySummary } from '../models/workflow.model';
 
 @Injectable({ providedIn: 'root' })
 export class PolicyService {
@@ -18,6 +19,15 @@ export class PolicyService {
     return this.http.get<BusinessPolicy[]>(`${this.api}/search`, {
       params: { q: query.trim() },
     });
+  }
+
+  getSummaries(search?: string): Observable<PolicySummary[]> {
+    const params = search?.trim() ? { search: search.trim() } : undefined;
+    return this.http.get<PolicySummary[]>(`${this.api}/summaries`, { params });
+  }
+
+  getDetail(id: string): Observable<PolicyDetail> {
+    return this.http.get<PolicyDetail>(`${this.api}/${id}/detail`);
   }
 
   getById(id: string): Observable<BusinessPolicy> {

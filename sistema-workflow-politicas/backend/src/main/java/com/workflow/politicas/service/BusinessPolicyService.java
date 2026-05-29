@@ -1,7 +1,13 @@
 package com.workflow.politicas.service;
 
+import com.workflow.politicas.dto.PolicyDetailResponse;
+import com.workflow.politicas.dto.PolicySummaryResponse;
+import com.workflow.politicas.dto.TramiteSummaryResponse;
+import com.workflow.politicas.dto.WorkflowActivityResponse;
 import com.workflow.politicas.model.BusinessPolicy;
+import com.workflow.politicas.model.Tramite;
 import com.workflow.politicas.repository.BusinessPolicyRepository;
+import com.workflow.politicas.repository.TramiteRepository;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,15 +16,21 @@ import java.util.Optional;
 @Service
 public class BusinessPolicyService {
     private final BusinessPolicyRepository businessPolicyRepository;
+    private final TramiteRepository tramiteRepository;
+    private final WorkflowActivityService workflowActivityService;
     private final AuditLogService auditLogService;
     private final BitacoraService bitacoraService;
 
     public BusinessPolicyService(
             BusinessPolicyRepository businessPolicyRepository,
+            TramiteRepository tramiteRepository,
+            WorkflowActivityService workflowActivityService,
             AuditLogService auditLogService,
             BitacoraService bitacoraService
     ) {
         this.businessPolicyRepository = businessPolicyRepository;
+        this.tramiteRepository = tramiteRepository;
+        this.workflowActivityService = workflowActivityService;
         this.auditLogService = auditLogService;
         this.bitacoraService = bitacoraService;
     }
@@ -34,6 +46,74 @@ public class BusinessPolicyService {
         String term = query.trim();
         return businessPolicyRepository
                 .findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(term, term);
+    }
+
+    public List<PolicySummaryResponse> findAllSummaries() {
+        return businessPolicyRepository.findAll().stream().map(this::toSummary).toList();
+    }
+
+    public List<PolicySummaryResponse> searchSummaries(String query) {
+        return search(query).stream().map(this::toSummary).toList();
+    }
+
+    public Optional<PolicyDetailResponse> getDetail(String id) {
+        return businessPolicyRepository.findById(id).map(policy -> {
+            PolicyDetailResponse detail = new PolicyDetailResponse();
+            detail.setId(policy.getId());
+            detail.setName(policy.getName());
+            detail.setDescription(policy.getDescription());
+            detail.setType(policy.getType());
+            detail.setStatus(policy.getStatus());
+            detail.setVersion(policy.getVersion());
+            detail.setResponsible(policy.getResponsible());
+            detail.setCreatedBy(policy.getCreatedBy());
+            detail.setCreatedAt(policy.getCreatedAt());
+            detail.setUpdatedAt(policy.getUpdatedAt());
+
+            List<WorkflowActivityResponse> activities = workflowActivityService.findByPolicyId(id);
+            detail.setActivities(activities);
+            detail.setActivityCount(activities.size());
+
+            List<TramiteSummaryResponse> tramites = tramiteRepository.findByPolicyId(id).stream()
+                    .map(this::toTramiteSummary)
+                    .toList();
+            detail.setTramites(tramites);
+            detail.setTramiteCount(tramites.size());
+            return detail;
+        });
+    }
+
+    private PolicySummaryResponse toSummary(BusinessPolicy policy) {
+        PolicySummaryResponse summary = new PolicySummaryResponse();
+        summary.setId(policy.getId());
+        summary.setName(policy.getName());
+        summary.setDescription(policy.getDescription());
+        summary.setType(policy.getType());
+        summary.setStatus(policy.getStatus());
+        summary.setVersion(policy.getVersion());
+        summary.setResponsible(policy.getResponsible());
+        summary.setCreatedBy(policy.getCreatedBy());
+        summary.setCreatedAt(policy.getCreatedAt());
+        summary.setActivityCount(workflowActivityService.countByPolicyId(policy.getId()));
+        summary.setTramiteCount((int) tramiteRepository.countByPolicyId(policy.getId()));
+        return summary;
+    }
+
+    private TramiteSummaryResponse toTramiteSummary(Tramite tramite) {
+        TramiteSummaryResponse summary = new TramiteSummaryResponse();
+        summary.setId(tramite.getId());
+        summary.setCode(tramite.getCode());
+        summary.setPolicyName(tramite.getPolicyName());
+        summary.setDescription(tramite.getDescription());
+        summary.setRequesterName(
+                tramite.getRequesterName() != null ? tramite.getRequesterName() : tramite.getRequestedByName()
+        );
+        summary.setStatus(tramite.getStatus());
+        summary.setCurrentActivity(tramite.getCurrentActivity());
+        summary.setResponsible(tramite.getResponsible());
+        summary.setCreatedAt(tramite.getCreatedAt());
+        summary.setUpdatedAt(tramite.getUpdatedAt());
+        return summary;
     }
 
     public Optional<BusinessPolicy> findById(String id) {

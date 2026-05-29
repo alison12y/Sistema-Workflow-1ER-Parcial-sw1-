@@ -1,0 +1,45 @@
+.back-link {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.info-card .detail-list {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 0.65rem 1rem;
+  margin: 0;
+
+  dt { font-weight: 600; color: var(--color-muted); }
+  dd { margin: 0; }
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+
+  h2 { margin: 0; font-size: 1.05rem; }
+}
+
+.data-table.compact td,
+.data-table.compact th {
+  padding: 0.55rem 0.65rem;
+  font-size: 0.875rem;
+}

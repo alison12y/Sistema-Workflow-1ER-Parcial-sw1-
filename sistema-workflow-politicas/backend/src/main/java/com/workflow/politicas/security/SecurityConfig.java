@@ -50,6 +50,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/dev/migrate-phase1").permitAll()
+                        .requestMatchers("/api/dashboard/**").authenticated()
+                        .requestMatchers("/api/workflow-activities/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/policies/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/policies/**")
                                 .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")

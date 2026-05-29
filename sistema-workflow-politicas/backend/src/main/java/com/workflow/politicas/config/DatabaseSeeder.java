@@ -6,6 +6,7 @@ import com.workflow.politicas.repository.DepartmentRepository;
 import com.workflow.politicas.repository.RoleRepository;
 import com.workflow.politicas.repository.UserRepository;
 import com.workflow.politicas.service.Phase1MigrationService;
+import com.workflow.politicas.service.Phase2MigrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -23,24 +24,29 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final BusinessPolicyRepository businessPolicyRepository;
     private final Phase1MigrationService phase1MigrationService;
+    private final Phase2MigrationService phase2MigrationService;
 
     public DatabaseSeeder(
             RoleRepository roleRepository,
             DepartmentRepository departmentRepository,
             UserRepository userRepository,
             BusinessPolicyRepository businessPolicyRepository,
-            Phase1MigrationService phase1MigrationService
+            Phase1MigrationService phase1MigrationService,
+            Phase2MigrationService phase2MigrationService
     ) {
         this.roleRepository = roleRepository;
         this.departmentRepository = departmentRepository;
         this.userRepository = userRepository;
         this.businessPolicyRepository = businessPolicyRepository;
         this.phase1MigrationService = phase1MigrationService;
+        this.phase2MigrationService = phase2MigrationService;
     }
 
     @Override
     public void run(String... args) {
         phase1MigrationService.seedIfEmpty();
+        phase2MigrationService.syncRolePermissions();
+        phase2MigrationService.seedSamplePolicies();
         seedPolicies();
     }
 

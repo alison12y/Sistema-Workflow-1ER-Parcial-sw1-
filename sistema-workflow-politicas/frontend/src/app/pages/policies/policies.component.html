@@ -2,38 +2,28 @@
   <div class="page-toolbar">
     <div>
       <h1>Políticas de negocio</h1>
-      <p>Configuración de políticas y estados del ciclo de vida</p>
+      <p>Defina y administre las reglas que originan los flujos de trabajo del sistema</p>
     </div>
     <button type="button" class="btn btn-primary" (click)="openCreate()">+ Nueva política</button>
   </div>
 
   <div class="search-bar">
-    <input
-      type="search"
-      [(ngModel)]="searchTerm"
-      name="searchTerm"
-      placeholder="Buscar por nombre o descripción..."
-      (keyup.enter)="onSearch()"
-    />
+    <input type="search" [(ngModel)]="searchTerm" placeholder="Buscar política..." (keyup.enter)="onSearch()" />
     <button type="button" class="btn btn-secondary" (click)="onSearch()">Buscar</button>
     @if (searchTerm) {
       <button type="button" class="btn btn-secondary" (click)="clearSearch()">Limpiar</button>
     }
   </div>
 
-  @if (message) {
-    <div class="alert success">{{ message }}</div>
-  }
-  @if (error && !modalOpen) {
-    <div class="alert error">{{ error }}</div>
-  }
+  @if (message) { <div class="alert success">{{ message }}</div> }
+  @if (error && !modalOpen) { <div class="alert error">{{ error }}</div> }
 
   <div class="data-card">
     @if (loading) {
       <div class="loading">Cargando políticas...</div>
     } @else if (!policies.length) {
       <div class="empty-state">
-        {{ searchTerm ? 'No se encontraron políticas con ese criterio' : 'No hay políticas registradas' }}
+        {{ searchTerm ? 'No se encontraron políticas' : 'No hay políticas de negocio registradas. Cree la primera para iniciar un flujo de trabajo.' }}
       </div>
     } @else {
       <div class="table-wrap">
@@ -42,10 +32,11 @@
             <tr>
               <th>Nombre</th>
               <th>Descripción</th>
-              <th>Responsable</th>
               <th>Estado</th>
-              <th>Versión</th>
-              <th>Fecha</th>
+              <th>Responsable</th>
+              <th>Actividades</th>
+              <th>Trámites</th>
+              <th>Fecha creación</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -53,21 +44,21 @@
             @for (p of policies; track p.id) {
               <tr>
                 <td>{{ p.name }}</td>
-                <td>{{ p.description || '—' }}</td>
-                <td>{{ p.responsible || '—' }}</td>
-                <td>
-                  <span class="badge" [class]="statusBadgeClass(p.status)">
-                    {{ statusLabel(p.status) }}
-                  </span>
-                </td>
-                <td>{{ p.version || '1.0' }}</td>
+                <td class="desc-cell">{{ p.description || '—' }}</td>
+                <td><span class="badge" [class]="statusBadgeClass(p.status)">{{ statusLabel(p.status) }}</span></td>
+                <td>{{ p.responsible || p.createdBy || '—' }}</td>
+                <td>{{ p.activityCount ?? 0 }}</td>
+                <td>{{ p.tramiteCount ?? 0 }}</td>
                 <td>{{ (p.createdAt | date:'shortDate') || '—' }}</td>
                 <td class="actions">
-                  <button type="button" class="btn btn-secondary btn-sm" (click)="openView(p)">Ver</button>
+                  <a [routerLink]="['/policies', p.id]" class="btn btn-secondary btn-sm">Ver detalle</a>
+                  <button type="button" class="btn btn-secondary btn-sm" disabled title="Próximamente">Workflow</button>
+                  @if (p.status !== 'ACTIVE') {
+                    <button type="button" class="btn btn-primary btn-sm" (click)="activate(p)">Activar</button>
+                  } @else {
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="deactivate(p)">Desactivar</button>
+                  }
                   <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(p)">Editar</button>
-                  <a [routerLink]="['/workflow-designer', p.id]" class="btn btn-secondary btn-sm">Diagrama</a>
-                  <a [routerLink]="['/form-designer', p.id]" class="btn btn-secondary btn-sm">Formulario</a>
-                  <button type="button" class="btn btn-danger btn-sm" (click)="remove(p)">Eliminar</button>
                 </td>
               </tr>
             }
@@ -81,49 +72,26 @@
 @if (modalOpen) {
   <div class="modal-backdrop" (click)="closeModal()">
     <div class="modal-panel" (click)="$event.stopPropagation()">
-      <h2>{{ editingId ? 'Editar política' : 'Nueva política' }}</h2>
-      @if (error) {
-        <div class="alert error">{{ error }}</div>
-      }
+      <h2>{{ editingId ? 'Editar política' : 'Nueva política de negocio' }}</h2>
+      @if (error) { <div class="alert error">{{ error }}</div> }
       <div class="form-grid">
-        <label>
-          Nombre *
-          <input type="text" [(ngModel)]="form.name" name="name" minlength="3" />
-        </label>
-        <label>
-          Descripción *
-          <textarea [(ngModel)]="form.description" name="description"></textarea>
-        </label>
-        <label>
-          Tipo
-          <select [(ngModel)]="form.type" name="type">
-            <option value="GENERAL_REQUEST">Solicitud General</option>
-            <option value="PURCHASE_REQUEST">Solicitud de Compra</option>
-            <option value="LEAVE_REQUEST">Permiso de Ausencia</option>
-            <option value="DOCUMENT_APPROVAL">Aprobación de Documento</option>
-            <option value="CLAIM_ATTENTION">Atención de Reclamo</option>
+        <label>Nombre *<input type="text" [(ngModel)]="form.name" /></label>
+        <label class="full-width">Descripción *<textarea [(ngModel)]="form.description"></textarea></label>
+        <label>Tipo
+          <select [(ngModel)]="form.type">
+            <option value="GENERAL_REQUEST">Solicitud general</option>
+            <option value="CLAIM_ATTENTION">Reclamo de servicio</option>
+            <option value="DOCUMENT_APPROVAL">Aprobación documental</option>
+            <option value="LEAVE_REQUEST">Permiso de ausencia</option>
           </select>
         </label>
-        <label>
-          Responsable *
-          <input
-            type="text"
-            [(ngModel)]="form.responsible"
-            name="responsible"
-            placeholder="Ej: Responsable de Proceso"
-          />
-        </label>
-        <label>
-          Versión *
-          <input type="text" [(ngModel)]="form.version" name="version" placeholder="1.0" />
-        </label>
-        <label>
-          Estado
-          <select [(ngModel)]="form.status" name="status">
+        <label>Dueño de proceso / Responsable<input type="text" [(ngModel)]="form.responsible" /></label>
+        <label>Versión<input type="text" [(ngModel)]="form.version" /></label>
+        <label>Estado
+          <select [(ngModel)]="form.status">
             <option value="DRAFT">Borrador</option>
             <option value="ACTIVE">Activa</option>
             <option value="INACTIVE">Inactiva</option>
-            <option value="VERSIONED">Versionada</option>
           </select>
         </label>
       </div>
@@ -131,40 +99,6 @@
         <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancelar</button>
         <button type="button" class="btn btn-primary" [disabled]="saving" (click)="save()">
           {{ saving ? 'Guardando...' : 'Guardar' }}
-        </button>
-      </div>
-    </div>
-  </div>
-}
-
-@if (viewModalOpen && viewingPolicy) {
-  <div class="modal-backdrop" (click)="closeViewModal()">
-    <div class="modal-panel view-panel" (click)="$event.stopPropagation()">
-      <h2>Detalle de política</h2>
-      <dl class="detail-list">
-        <dt>Nombre</dt>
-        <dd>{{ viewingPolicy.name }}</dd>
-        <dt>Descripción</dt>
-        <dd>{{ viewingPolicy.description || '—' }}</dd>
-        <dt>Tipo</dt>
-        <dd>{{ typeLabel(viewingPolicy.type) }}</dd>
-        <dt>Responsable</dt>
-        <dd>{{ viewingPolicy.responsible || '—' }}</dd>
-        <dt>Estado</dt>
-        <dd>
-          <span class="badge" [class]="statusBadgeClass(viewingPolicy.status)">
-            {{ statusLabel(viewingPolicy.status) }}
-          </span>
-        </dd>
-        <dt>Versión</dt>
-        <dd>{{ viewingPolicy.version || '1.0' }}</dd>
-        <dt>Fecha de creación</dt>
-        <dd>{{ (viewingPolicy.createdAt | date:'medium') || '—' }}</dd>
-      </dl>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" (click)="closeViewModal()">Cerrar</button>
-        <button type="button" class="btn btn-primary" (click)="closeViewModal(); openEdit(viewingPolicy)">
-          Editar
         </button>
       </div>
     </div>

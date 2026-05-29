@@ -25,6 +25,24 @@ export const routes: Routes = [
         canActivate: [permissionGuard('POLICIES_MANAGE')],
       },
       {
+        path: 'policies/:id/actividades',
+        loadComponent: () =>
+          import('./pages/policy-activities/policy-activities.component').then((m) => m.PolicyActivitiesComponent),
+        canActivate: [permissionGuard('POLICIES_MANAGE', 'WORKFLOW_MANAGE')],
+      },
+      {
+        path: 'policies/:id',
+        loadComponent: () =>
+          import('./pages/policy-detail/policy-detail.component').then((m) => m.PolicyDetailComponent),
+        canActivate: [permissionGuard('POLICIES_MANAGE')],
+      },
+      {
+        path: 'seguimiento',
+        loadComponent: () =>
+          import('./pages/tramite-tracking/tramite-tracking.component').then((m) => m.TramiteTrackingComponent),
+        canActivate: [permissionGuard('MONITORING_VIEW', 'REPORTS_VIEW', 'POLICIES_MANAGE')],
+      },
+      {
         path: 'monitoring',
         loadComponent: () =>
           import('./pages/monitoring/monitoring.component').then((m) => m.MonitoringComponent),

@@ -1,5 +1,21 @@
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+.task-section {
+  margin-bottom: 1.25rem;
+
+  h2 {
+    margin: 0 0 1rem;
+    font-size: 1.05rem;
+    color: var(--color-accent);
+
+    .count {
+      font-weight: 400;
+      color: var(--color-muted);
+      font-size: 0.9rem;
+    }
+  }
+}
+
+.section-empty {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
 }

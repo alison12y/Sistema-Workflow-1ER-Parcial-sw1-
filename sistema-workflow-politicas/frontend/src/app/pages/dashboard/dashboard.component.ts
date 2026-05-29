@@ -1,124 +1,102 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { NAV_ITEMS, VisibleNavItem, getVisibleNavItems } from '../../shared/config/nav.config';
+import { DashboardService } from '../../services/dashboard.service';
+import { DashboardStats } from '../../models/workflow.model';
+import { getWelcomeMessage } from '../../shared/config/nav.config';
 
-interface DashCard {
-  title: string;
-  description: string;
-  path: string;
+interface StatCard {
+  label: string;
+  value: number;
   icon: string;
+  hint: string;
   accent: string;
-  disabled?: boolean;
-  disabledMessage?: string;
 }
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink],
+  imports: [CommonModule, RouterLink],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent implements OnInit {
   private readonly auth = inject(AuthService);
+  private readonly dashboardService = inject(DashboardService);
 
-  cards: DashCard[] = [];
   roleLabel = '';
+  welcomeMessage = '';
   accessDenied = false;
+  loading = true;
+  error = '';
+  stats: DashboardStats | null = null;
+  statCards: StatCard[] = [];
 
-  private readonly cardMeta: Record<string, Omit<DashCard, 'path'>> = {
-    '/dashboard': {
-      title: 'Resumen',
-      description: 'Vista general del sistema workflow',
-      icon: 'dashboard',
-      accent: 'primary',
-    },
-    '/policies': {
-      title: 'Políticas de Negocio',
-      description: 'Configurar políticas y reglas de negocio',
-      icon: 'description',
-      accent: 'primary',
-    },
-    '/tramites': {
-      title: 'Trámites',
-      description: 'Iniciar y gestionar trámites de procesos',
-      icon: 'assignment',
-      accent: 'blue',
-    },
-    '/mis-actividades': {
-      title: 'Mis tareas',
-      description: 'Actividades asignadas pendientes de ejecución',
-      icon: 'assignment_turned_in',
-      accent: 'blue',
-    },
-    '/monitoring': {
-      title: 'Monitoreo',
-      description: 'Seguimiento en tiempo real de trámites',
-      icon: 'timeline',
-      accent: 'blue',
-    },
-    '/kpis': {
-      title: 'KPIs e Indicadores',
-      description: 'Consultar tiempos promedio e indicadores',
-      icon: 'insert_chart',
-      accent: 'lavender',
-    },
-    '/users': {
-      title: 'Usuarios',
-      description: 'Administrar cuentas y asignación de roles',
-      icon: 'people',
-      accent: 'cream',
-    },
-    '/roles': {
-      title: 'Roles y Permisos',
-      description: 'Definir perfiles de acceso del sistema',
-      icon: 'security',
-      accent: 'violet',
-    },
-    '/departments': {
-      title: 'Departamentos',
-      description: 'Organizar la estructura y responsables',
-      icon: 'business',
-      accent: 'blue',
-    },
-    '/bitacora': {
-      title: 'Bitácora',
-      description: 'Historial de acciones y auditoría',
-      icon: 'history',
-      accent: 'violet',
-    },
-    '/settings': {
-      title: 'Configuración',
-      description: 'Parámetros generales del sistema',
-      icon: 'settings',
-      accent: 'cream',
-    },
-  };
+  quickLinks = [
+    { path: '/policies', label: 'Políticas de negocio', icon: 'description', permissions: ['POLICIES_MANAGE'] },
+    { path: '/tramites', label: 'Trámites', icon: 'assignment', permissions: ['TASKS_EXECUTE', 'POLICIES_MANAGE'] },
+    { path: '/mis-actividades', label: 'Mis tareas', icon: 'assignment_turned_in', permissions: ['TASKS_EXECUTE'] },
+    { path: '/seguimiento', label: 'Seguimiento', icon: 'track_changes', permissions: ['MONITORING_VIEW', 'REPORTS_VIEW'] },
+    { path: '/monitoring', label: 'Monitoreo', icon: 'timeline', permissions: ['MONITORING_VIEW'] },
+    { path: '/kpis', label: 'KPIs', icon: 'insert_chart', permissions: ['KPI_VIEW'] },
+  ];
 
   ngOnInit(): void {
-    this.roleLabel = this.auth.getRoleDisplayLabel();
-    this.buildCards();
+    const user = this.auth.getCurrentUser();
+    this.roleLabel = user?.roleName ?? this.auth.getRoleDisplayLabel();
+    this.welcomeMessage = getWelcomeMessage(this.roleLabel);
 
     const params = new URLSearchParams(window.location.search);
     this.accessDenied = params.get('acceso') === 'denegado';
+
+    this.loadStats();
   }
 
-  private buildCards(): void {
-    const navItems: VisibleNavItem[] = getVisibleNavItems(this.auth).filter((item) => item.path !== '/dashboard');
-    const result: DashCard[] = [];
+  visibleQuickLinks() {
+    return this.quickLinks.filter((l) => this.auth.hasAnyPermission(l.permissions));
+  }
 
-    for (const item of navItems) {
-      const meta = this.cardMeta[item.path];
-      if (!meta) continue;
-      result.push({
-        path: item.path,
-        ...meta,
-        disabled: item.disabled,
-        disabledMessage: item.pendingMessage,
-      });
-    }
+  loadStats(): void {
+    this.loading = true;
+    this.error = '';
+    this.dashboardService.getStats().subscribe({
+      next: (stats) => {
+        this.stats = stats;
+        this.buildStatCards(stats);
+        this.loading = false;
+      },
+      error: () => {
+        this.error = 'No se pudieron cargar las métricas del panel workflow.';
+        this.stats = {
+          politicasActivas: 0,
+          politicasBorrador: 0,
+          tramitesEnProceso: 0,
+          tareasPendientes: 0,
+          tareasFinalizadas: 0,
+          tramitesObservados: 0,
+          posiblesCuellosDeBotella: 0,
+        };
+        this.buildStatCards(this.stats);
+        this.loading = false;
+      },
+    });
+  }
 
-    this.cards = result;
+  hasAnyData(): boolean {
+    if (!this.stats) return false;
+    return Object.values(this.stats).some((v) => v > 0);
+  }
+
+  private buildStatCards(stats: DashboardStats): void {
+    this.statCards = [
+      { label: 'Políticas activas', value: stats.politicasActivas, icon: 'description', hint: 'Políticas en producción', accent: 'primary' },
+      { label: 'Políticas en borrador', value: stats.politicasBorrador, icon: 'edit_note', hint: 'Pendientes de activación', accent: 'draft' },
+      { label: 'Trámites en proceso', value: stats.tramitesEnProceso, icon: 'assignment', hint: 'Ejecuciones activas', accent: 'blue' },
+      { label: 'Tareas pendientes', value: stats.tareasPendientes, icon: 'pending_actions', hint: 'Por atender', accent: 'warning' },
+      { label: 'Tareas finalizadas', value: stats.tareasFinalizadas, icon: 'task_alt', hint: 'Completadas en trámites', accent: 'success' },
+      { label: 'Trámites observados', value: stats.tramitesObservados, icon: 'report_problem', hint: 'Con observaciones registradas', accent: 'orange' },
+      { label: 'Posibles cuellos de botella', value: stats.posiblesCuellosDeBotella, icon: 'speed', hint: 'Indicador preliminar', accent: 'violet' },
+    ];
   }
 }
