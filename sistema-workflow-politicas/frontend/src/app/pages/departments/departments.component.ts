@@ -57,7 +57,7 @@ export class DepartmentsComponent implements OnInit {
   getManagerName(managerId?: string): string {
     if (!managerId || managerId === 'INACTIVE') return '—';
     const user = this.users.find((u) => u.id === managerId);
-    return user ? (user.fullName || user.username) : managerId;
+    return user ? (user.fullName || user.username) : '—';
   }
 
   displayStatus(d: Department): string {

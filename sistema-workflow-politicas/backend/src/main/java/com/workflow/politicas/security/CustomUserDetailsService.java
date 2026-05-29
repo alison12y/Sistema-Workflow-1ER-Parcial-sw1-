@@ -4,6 +4,7 @@ import com.workflow.politicas.model.Role;
 import com.workflow.politicas.model.User;
 import com.workflow.politicas.repository.RoleRepository;
 import com.workflow.politicas.repository.UserRepository;
+import com.workflow.politicas.security.RoleReferenceResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -85,14 +86,9 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     private Optional<String> resolveRoleName(String roleIdOrName) {
-        Optional<Role> byId = roleRepository.findById(roleIdOrName);
-        if (byId.isPresent()) {
-            return Optional.ofNullable(byId.get().getName());
-        }
-
-        Optional<Role> byName = roleRepository.findByNameIgnoreCase(roleIdOrName);
-        if (byName.isPresent()) {
-            return Optional.ofNullable(byName.get().getName());
+        Optional<Role> resolved = RoleReferenceResolver.resolve(roleRepository, roleIdOrName);
+        if (resolved.isPresent()) {
+            return Optional.ofNullable(resolved.get().getName());
         }
 
         if (MONGO_OBJECT_ID.matcher(roleIdOrName).matches()) {
@@ -117,7 +113,7 @@ public class CustomUserDetailsService implements UserDetailsService {
             r = r.substring(5);
         }
 
-        if (r.equals("ADMINISTRADOR") || r.equals("ADMIN")) {
+        if (r.equals("ADMINISTRADOR") || r.equals("ADMIN") || r.contains("ADMINISTRADOR_DEL_SISTEMA")) {
             return "ROLE_ADMIN";
         }
         if (r.contains("DISENADOR") || r.contains("DESIGNER") || r.contains("POLITIC")
@@ -129,6 +125,18 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
         if (r.equals("ANALISTA") || r.equals("ANALYST")) {
             return "ROLE_ANALYST";
+        }
+        if (r.contains("DUENO") && r.contains("PROCESO")) {
+            return "ROLE_PROCESS_OWNER";
+        }
+        if (r.contains("ATENCION") && r.contains("CLIENTE")) {
+            return "ROLE_CUSTOMER_SERVICE";
+        }
+        if (r.equals("TECNICO")) {
+            return "ROLE_TECHNICIAN";
+        }
+        if (r.equals("LEGAL")) {
+            return "ROLE_LEGAL";
         }
         if (r.contains("RESPONSABLE") && r.contains("PROCESO")) {
             return "ROLE_PROCESS_OWNER";

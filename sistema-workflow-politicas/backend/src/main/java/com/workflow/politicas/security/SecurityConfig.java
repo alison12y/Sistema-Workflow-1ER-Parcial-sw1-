@@ -49,6 +49,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/dev/migrate-phase1").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/policies/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/policies/**")
                                 .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")
@@ -66,6 +67,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/my-activities/**").authenticated()
                         .requestMatchers("/api/form-submissions/**").authenticated()
                         .requestMatchers("/api/form-submissions/files/**").authenticated()
+                        .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/roles", "/api/roles/**").hasRole("ADMIN")
+                        .requestMatchers("/api/departments", "/api/departments/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

@@ -52,6 +52,7 @@ export class RolesComponent implements OnInit {
     { code: 'USERS_MANAGE', name: 'Gestionar usuarios' },
     { code: 'ROLES_MANAGE', name: 'Gestionar roles' },
     { code: 'DEPARTMENTS_MANAGE', name: 'Gestionar departamentos' },
+    { code: 'SETTINGS_MANAGE', name: 'Gestionar configuración' },
     { code: 'POLICIES_MANAGE', name: 'Gestionar políticas de negocio' },
     { code: 'WORKFLOW_MANAGE', name: 'Gestionar workflow' },
     { code: 'REPORTS_VIEW', name: 'Ver reportes' },

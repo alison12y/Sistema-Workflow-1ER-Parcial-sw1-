@@ -101,6 +101,10 @@ export class UsersComponent implements OnInit {
       this.error = 'El usuario debe tener al menos 3 caracteres';
       return;
     }
+    if (body.email && !this.isValidEmail(body.email)) {
+      this.error = 'Ingrese un correo electrónico válido';
+      return;
+    }
     if (!this.editingId && !body.password) {
       this.error = 'La contraseña es obligatoria al crear';
       return;
@@ -118,9 +122,9 @@ export class UsersComponent implements OnInit {
         this.modalOpen = false;
         this.loadAll();
       },
-      error: () => {
+      error: (err) => {
         this.saving = false;
-        this.error = 'Error al guardar el usuario';
+        this.error = err.error?.message || 'Error al guardar el usuario';
       },
     });
   }
@@ -158,6 +162,10 @@ export class UsersComponent implements OnInit {
     return getRoleDisplayName(name);
   }
 
+  get activeRoles(): Role[] {
+    return this.roles.filter((r) => r.active !== false);
+  }
+
   toggleRole(roleId: string): void {
     if (!this.form.roleIds) this.form.roleIds = [];
     const index = this.form.roleIds.indexOf(roleId);
@@ -182,5 +190,9 @@ export class UsersComponent implements OnInit {
       roleIds: [],
       active: true,
     };
+  }
+
+  private isValidEmail(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 }

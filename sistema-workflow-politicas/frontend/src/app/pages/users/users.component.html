@@ -25,10 +25,10 @@
           <thead>
             <tr>
               <th>Usuario</th>
-              <th>Nombre</th>
-              <th>Email</th>
+              <th>Nombre completo</th>
+              <th>Correo</th>
               <th>Departamento</th>
-              <th>Roles</th>
+              <th>Rol</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -98,7 +98,7 @@
         <label class="full-width">
           Roles
           <div class="roles-grid">
-            @for (r of roles; track r.id) {
+            @for (r of activeRoles; track r.id) {
               <div class="role-item">
                 <input type="checkbox" [checked]="isRoleSelected(r.id!)" (change)="toggleRole(r.id!)" [id]="'role-' + r.id" />
                 <label [for]="'role-' + r.id">{{ getPrettyRoleName(r.name) }}</label>

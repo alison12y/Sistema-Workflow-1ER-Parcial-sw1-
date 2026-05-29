@@ -1,6 +1,7 @@
 const ROLE_LABELS: Record<string, string> = {
-  ADMIN: 'Administrador',
-  ADMINISTRADOR: 'Administrador',
+  ADMIN: 'Administrador del sistema',
+  ADMINISTRADOR: 'Administrador del sistema',
+  ADMINISTRADOR_DEL_SISTEMA: 'Administrador del sistema',
   DESIGNER: 'Diseñador de Políticas',
   POLICY_DESIGNER: 'Diseñador de Políticas',
   DISENADOR: 'Diseñador de Políticas',
@@ -8,11 +9,17 @@ const ROLE_LABELS: Record<string, string> = {
   ANALISTA: 'Analista',
   ANALYST: 'Analista',
   AUDITOR: 'Auditor',
-  OFFICIAL: 'Usuario Operativo',
-  FUNCIONARIO: 'Usuario Operativo',
-  USUARIO_OPERATIVO: 'Usuario Operativo',
-  PROCESS_OWNER: 'Responsable de Proceso',
-  RESPONSABLE_DE_PROCESO: 'Responsable de Proceso',
+  OFFICIAL: 'Funcionario',
+  FUNCIONARIO: 'Funcionario',
+  USUARIO_OPERATIVO: 'Funcionario',
+  PROCESS_OWNER: 'Dueño de proceso',
+  DUENO_DE_PROCESO: 'Dueño de proceso',
+  RESPONSABLE_DE_PROCESO: 'Dueño de proceso',
+  ATENCION_AL_CLIENTE: 'Atención al cliente',
+  TECNICO: 'Técnico',
+  LEGAL: 'Legal',
+  CUSTOMER_SERVICE: 'Atención al cliente',
+  TECHNICIAN: 'Técnico',
 };
 
 function isMongoId(value: string): boolean {
@@ -32,6 +39,7 @@ export function getRoleDisplayName(name?: string | null): string {
     .replace(/Í/g, 'I')
     .replace(/Ó/g, 'O')
     .replace(/Ú/g, 'U')
+    .replace(/Ñ/g, 'N')
     .replace(/ /g, '_')
     .trim();
 
@@ -41,8 +49,14 @@ export function getRoleDisplayName(name?: string | null): string {
   if (normalized.includes('DISENADOR') || normalized.includes('DESIGNER') || normalized.includes('POLITIC')) {
     return 'Diseñador de Políticas';
   }
-  if (normalized.includes('RESPONSABLE') && normalized.includes('PROCESO')) {
-    return 'Responsable de Proceso';
+  if (normalized.includes('DUENO') && normalized.includes('PROCESO')) {
+    return 'Dueño de proceso';
+  }
+  if (normalized.includes('ADMINISTRADOR')) {
+    return 'Administrador del sistema';
+  }
+  if (normalized.includes('ATENCION') && normalized.includes('CLIENTE')) {
+    return 'Atención al cliente';
   }
 
   return name

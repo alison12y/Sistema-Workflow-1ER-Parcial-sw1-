@@ -15,7 +15,7 @@ public class User {
     private String fullName;
     private String departmentId;
     private Set<String> roleIds;
-    private boolean active;
+    private Boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -55,8 +55,13 @@ public class User {
     public Set<String> getRoleIds() { return roleIds; }
     public void setRoleIds(Set<String> roleIds) { this.roleIds = roleIds; }
 
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
+    public boolean isActive() {
+        return active == null || Boolean.TRUE.equals(active);
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

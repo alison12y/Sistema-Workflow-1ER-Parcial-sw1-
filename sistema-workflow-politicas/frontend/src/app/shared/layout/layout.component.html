@@ -6,10 +6,18 @@
     </div>
     <nav class="sidebar-nav">
       @for (item of navItems; track item.path) {
-        <a [routerLink]="item.path" routerLinkActive="active" class="nav-link">
-          <i class="material-icons nav-icon">{{ item.icon }}</i>
-          <span>{{ item.label }}</span>
-        </a>
+        @if (item.disabled) {
+          <span class="nav-link nav-link--disabled" [title]="item.tooltip">
+            <i class="material-icons nav-icon">{{ item.icon }}</i>
+            <span>{{ item.label }}</span>
+            <small class="nav-badge">Próximamente</small>
+          </span>
+        } @else {
+          <a [routerLink]="item.path" routerLinkActive="active" class="nav-link" [title]="item.tooltip">
+            <i class="material-icons nav-icon">{{ item.icon }}</i>
+            <span>{{ item.label }}</span>
+          </a>
+        }
       }
     </nav>
   </aside>
@@ -17,12 +25,15 @@
   <div class="main-area">
     <header class="top-header">
       <div class="header-title">
-        <h2>SISTEMA DE GESTIÓN DE POLÍTICAS DE NEGOCIO BASADO EN WORKFLOW</h2>
-        <p class="subtitle">Panel de Gestión Integral - 1er Parcial Ing. Software 1</p>
+        <h2>Sistema Workflow para Políticas de Negocio</h2>
+        <p class="subtitle">Panel de gestión integral — Fase 1: Base del sistema</p>
       </div>
       <div class="header-actions">
         @if (user) {
-          <span class="user-badge">{{ user.fullName || user.username }}</span>
+          <div class="user-info">
+            <span class="user-badge">{{ user.fullName || user.username }}</span>
+            <span class="role-badge">{{ roleLabel }}</span>
+          </div>
         }
         <button type="button" class="btn-ghost" (click)="logout()">Cerrar sesión</button>
       </div>

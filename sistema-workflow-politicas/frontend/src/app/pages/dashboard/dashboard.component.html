@@ -1,17 +1,37 @@
 <div class="dashboard">
   <header class="page-header">
-    <h1>Panel de Control</h1>
-    <p>Bienvenido al sistema de gestión de políticas basado en workflow. Seleccione un módulo para continuar.</p>
+    <h1>Panel de control</h1>
+    <p>
+      Bienvenido{{ roleLabel ? ', ' + roleLabel : '' }}.
+      Seleccione un módulo disponible para su perfil.
+    </p>
   </header>
 
-  <div class="cards-grid">
-    @for (card of cards; track card.path) {
-      <a [routerLink]="card.path" class="nav-card" [class]="'accent-' + card.accent">
-        <i class="material-icons card-icon">{{ card.icon }}</i>
-        <h3>{{ card.title }}</h3>
-        <p>{{ card.description }}</p>
-        <span class="card-link">Acceder al módulo →</span>
-      </a>
-    }
-  </div>
+  @if (accessDenied) {
+    <div class="alert error">No tiene permiso para acceder a esa sección.</div>
+  }
+
+  @if (!cards.length) {
+    <div class="empty-state">No hay módulos disponibles para su rol actual.</div>
+  } @else {
+    <div class="cards-grid">
+      @for (card of cards; track card.path) {
+        @if (card.disabled) {
+          <div class="nav-card nav-card--disabled" [class]="'accent-' + card.accent" [title]="card.disabledMessage">
+            <i class="material-icons card-icon">{{ card.icon }}</i>
+            <h3>{{ card.title }}</h3>
+            <p>{{ card.description }}</p>
+            <span class="card-link">{{ card.disabledMessage || 'Módulo en desarrollo' }}</span>
+          </div>
+        } @else {
+          <a [routerLink]="card.path" class="nav-card" [class]="'accent-' + card.accent">
+            <i class="material-icons card-icon">{{ card.icon }}</i>
+            <h3>{{ card.title }}</h3>
+            <p>{{ card.description }}</p>
+            <span class="card-link">Acceder al módulo →</span>
+          </a>
+        }
+      }
+    </div>
+  }
 </div>

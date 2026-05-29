@@ -44,4 +44,29 @@ export class AuthService {
   isLoggedIn(): boolean {
     return !!this.getToken();
   }
+
+  hasPermission(permission: string): boolean {
+    const user = this.getCurrentUser();
+    if (user?.role === 'ROLE_ADMIN') return true;
+    return user?.permissions?.includes(permission) ?? false;
+  }
+
+  hasAnyPermission(permissions: string[]): boolean {
+    if (!permissions.length) return true;
+    const user = this.getCurrentUser();
+    if (user?.role === 'ROLE_ADMIN') return true;
+    return permissions.some((p) => this.hasPermission(p));
+  }
+
+  isAdmin(): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === 'ROLE_ADMIN' || this.hasPermission('USERS_MANAGE');
+  }
+
+  getRoleDisplayLabel(): string {
+    const user = this.getCurrentUser();
+    if (user?.roleName) return user.roleName;
+    if (user?.roles?.length) return user.roles.join(', ');
+    return 'Usuario';
+  }
 }

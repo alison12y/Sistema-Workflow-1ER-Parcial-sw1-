@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -21,19 +22,23 @@ export class LoginComponent {
 
   onSubmit(): void {
     this.error = '';
-    if (!this.username || !this.password) {
+    if (!this.username.trim() || !this.password) {
       this.error = 'Ingrese usuario y contraseña';
       return;
     }
     this.loading = true;
-    this.auth.login({ username: this.username, password: this.password }).subscribe({
+    this.auth.login({ username: this.username.trim(), password: this.password }).subscribe({
       next: () => {
         this.loading = false;
         this.router.navigate(['/dashboard']);
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.loading = false;
-        this.error = 'Credenciales inválidas o servidor no disponible';
+        if (err.status === 0) {
+          this.error = 'No se pudo conectar con el servidor. Verifique que el backend esté activo.';
+        } else {
+          this.error = err.error?.message || 'Usuario o contraseña incorrectos';
+        }
       },
     });
   }

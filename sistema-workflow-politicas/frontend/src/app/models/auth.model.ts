@@ -8,6 +8,9 @@ export interface AuthResponse {
   username: string;
   fullName: string;
   role?: string;
+  roleName?: string;
+  roles?: string[];
+  permissions?: string[];
 }
 
 export interface User {

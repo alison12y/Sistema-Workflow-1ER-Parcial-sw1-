@@ -11,6 +11,7 @@ public class Role {
     private String name;
     private String description;
     private Set<String> permissionIds;
+    private Boolean active;
 
     public Role() {}
 
@@ -19,6 +20,7 @@ public class Role {
         this.name = name;
         this.description = description;
         this.permissionIds = permissionIds;
+        this.active = true;
     }
 
     public String getId() { return id; }
@@ -32,4 +34,12 @@ public class Role {
 
     public Set<String> getPermissionIds() { return permissionIds; }
     public void setPermissionIds(Set<String> permissionIds) { this.permissionIds = permissionIds; }
+
+    public boolean isActive() {
+        return active == null || Boolean.TRUE.equals(active);
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
 }

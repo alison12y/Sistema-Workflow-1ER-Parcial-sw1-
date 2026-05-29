@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, loginGuard } from './guards/auth.guard';
+import { authGuard, loginGuard, permissionGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -22,16 +22,19 @@ export const routes: Routes = [
         path: 'policies',
         loadComponent: () =>
           import('./pages/policies/policies.component').then((m) => m.PoliciesComponent),
+        canActivate: [permissionGuard('POLICIES_MANAGE')],
       },
       {
         path: 'monitoring',
         loadComponent: () =>
           import('./pages/monitoring/monitoring.component').then((m) => m.MonitoringComponent),
+        canActivate: [permissionGuard('MONITORING_VIEW')],
       },
       {
         path: 'kpis',
         loadComponent: () =>
           import('./pages/kpi/kpi.component').then((m) => m.KpiComponent),
+        canActivate: [permissionGuard('KPI_VIEW')],
       },
       {
         path: 'kpi',
@@ -42,59 +45,71 @@ export const routes: Routes = [
         path: 'workflow-designer/:id',
         loadComponent: () =>
           import('./pages/workflow-designer/workflow-designer.component').then((m) => m.WorkflowDesignerComponent),
+        canActivate: [permissionGuard('WORKFLOW_MANAGE')],
       },
       {
         path: 'form-designer/:id',
         loadComponent: () =>
           import('./pages/form-designer/form-designer.component').then((m) => m.FormDesignerComponent),
+        canActivate: [permissionGuard('FORMS_MANAGE')],
       },
       {
         path: 'users',
         loadComponent: () => import('./pages/users/users.component').then((m) => m.UsersComponent),
+        canActivate: [permissionGuard('USERS_MANAGE')],
       },
       {
         path: 'roles',
         loadComponent: () => import('./pages/roles/roles.component').then((m) => m.RolesComponent),
+        canActivate: [permissionGuard('ROLES_MANAGE')],
       },
       {
         path: 'departments',
         loadComponent: () =>
           import('./pages/departments/departments.component').then((m) => m.DepartmentsComponent),
+        canActivate: [permissionGuard('DEPARTMENTS_MANAGE')],
       },
       {
         path: 'bitacora',
         loadComponent: () =>
           import('./pages/bitacora/bitacora.component').then((m) => m.BitacoraComponent),
+        canActivate: [permissionGuard('AUDIT_VIEW')],
       },
       {
         path: 'tramites',
         loadComponent: () =>
           import('./pages/tramites/tramites.component').then((m) => m.TramitesComponent),
+        canActivate: [permissionGuard('TASKS_EXECUTE', 'POLICIES_MANAGE', 'MONITORING_VIEW', 'REPORTS_VIEW')],
       },
       {
         path: 'mis-actividades',
         loadComponent: () =>
           import('./pages/my-activities/my-activities.component').then((m) => m.MyActivitiesComponent),
+        canActivate: [permissionGuard('TASKS_EXECUTE')],
       },
       {
         path: 'mis-actividades/:tramiteId/form',
         loadComponent: () =>
           import('./pages/form-execution/form-execution.component').then((m) => m.FormExecutionComponent),
+        canActivate: [permissionGuard('TASKS_EXECUTE')],
       },
       {
         path: 'tramites/:id',
         loadComponent: () =>
           import('./pages/tramites/tramite-detail.component').then((m) => m.TramiteDetailComponent),
+        canActivate: [permissionGuard('TASKS_EXECUTE', 'POLICIES_MANAGE', 'MONITORING_VIEW', 'REPORTS_VIEW')],
       },
       {
         path: 'ai-assistant',
         loadComponent: () =>
           import('./pages/ai-assistant/ai-assistant.component').then((m) => m.AiAssistantComponent),
+        canActivate: [permissionGuard('AI_ASSIST')],
       },
       {
         path: 'settings',
         loadComponent: () =>
           import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
+        canActivate: [permissionGuard('SETTINGS_MANAGE', 'USERS_MANAGE')],
       },
     ],
   },
