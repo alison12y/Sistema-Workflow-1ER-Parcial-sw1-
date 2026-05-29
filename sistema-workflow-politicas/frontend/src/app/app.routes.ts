@@ -66,10 +66,15 @@ export const routes: Routes = [
         pathMatch: 'full',
       },
       {
+        path: 'workflow-designer',
+        redirectTo: 'policies',
+        pathMatch: 'full',
+      },
+      {
         path: 'workflow-designer/:id',
         loadComponent: () =>
           import('./pages/workflow-designer/workflow-designer.component').then((m) => m.WorkflowDesignerComponent),
-        canActivate: [permissionGuard('WORKFLOW_MANAGE')],
+        canActivate: [permissionGuard('WORKFLOW_MANAGE', 'WORKFLOW_DESIGN', 'WORKFLOW_VIEW', 'POLICIES_MANAGE')],
       },
       {
         path: 'form-designer/:id',

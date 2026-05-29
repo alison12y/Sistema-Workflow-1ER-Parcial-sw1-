@@ -32,6 +32,8 @@ export class PolicyDetailComponent implements OnInit {
   readonly activityTypeLabel = activityTypeLabel;
   readonly activityStatusLabel = activityStatusLabel;
   readonly canManageActivities = this.auth.canManageWorkflowActivities();
+  readonly canViewDesigner = this.auth.canViewWorkflowDesigner();
+  readonly canEditDesigner = this.auth.canEditWorkflowDesigner();
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {

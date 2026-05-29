@@ -27,6 +27,7 @@ export class PoliciesComponent implements OnInit {
   error = '';
 
   form = this.emptyForm();
+  readonly canViewDesigner = this.auth.canViewWorkflowDesigner();
 
   ngOnInit(): void {
     this.load();

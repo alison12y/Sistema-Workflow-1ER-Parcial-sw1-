@@ -44,7 +44,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String path = request.getRequestURI();
         final String authHeader = request.getHeader("Authorization");
         final boolean isWorkflowApiRequest = path.startsWith("/api/workflow-activities")
-                || path.startsWith("/api/workflow-transitions");
+                || path.startsWith("/api/workflow-transitions")
+                || path.startsWith("/api/workflow-designer");
 
         if (isWorkflowApiRequest) {
             log.debug("Workflow API request {} {} Authorization={}",
@@ -68,9 +69,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);
                         if (isWorkflowApiRequest) {
-                            String logLabel = path.startsWith("/api/workflow-transitions")
-                                    ? "WorkflowTransition"
-                                    : "WorkflowActivity";
+                            String logLabel = "WorkflowActivity";
+                            if (path.startsWith("/api/workflow-transitions")) {
+                                logLabel = "WorkflowTransition";
+                            } else if (path.startsWith("/api/workflow-designer")) {
+                                logLabel = "WorkflowDesigner";
+                            }
                             log.info("{} JWT OK user={} authorities={}",
                                     logLabel, username, userDetails.getAuthorities());
                         }

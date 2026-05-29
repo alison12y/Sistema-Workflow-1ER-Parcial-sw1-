@@ -108,6 +108,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         if ("ROLE_PROCESS_OWNER".equals(normalizedRole) || "ROLE_POLICY_DESIGNER".equals(normalizedRole)) {
             authorities.add(SystemPermissions.WORKFLOW_MANAGE);
             authorities.add(SystemPermissions.WORKFLOW_DESIGN);
+            authorities.add(SystemPermissions.WORKFLOW_VIEW);
             authorities.add(SystemPermissions.POLICIES_MANAGE);
         }
     }

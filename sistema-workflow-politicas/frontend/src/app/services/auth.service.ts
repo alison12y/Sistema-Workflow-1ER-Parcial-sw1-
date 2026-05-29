@@ -85,4 +85,23 @@ export class AuthService {
       this.hasPermission('POLICIES_MANAGE')
     );
   }
+
+  canViewWorkflowDesigner(): boolean {
+    return (
+      this.isAdmin() ||
+      this.hasPermission('WORKFLOW_VIEW') ||
+      this.hasPermission('WORKFLOW_MANAGE') ||
+      this.hasPermission('WORKFLOW_DESIGN') ||
+      this.hasPermission('POLICIES_MANAGE')
+    );
+  }
+
+  canEditWorkflowDesigner(): boolean {
+    return (
+      this.isAdmin() ||
+      this.hasPermission('WORKFLOW_MANAGE') ||
+      this.hasPermission('WORKFLOW_DESIGN') ||
+      this.hasPermission('POLICIES_MANAGE')
+    );
+  }
 }

@@ -24,9 +24,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     path: '/workflow-designer',
     label: 'Diseñador workflow',
     icon: 'account_tree',
-    permissions: ['WORKFLOW_MANAGE'],
-    pending: true,
-    pendingMessage: 'Módulo en desarrollo',
+    permissions: ['WORKFLOW_MANAGE', 'WORKFLOW_DESIGN', 'WORKFLOW_VIEW', 'POLICIES_MANAGE'],
     section: 'workflow',
   },
   {
@@ -134,8 +132,8 @@ export function canAccessRoute(auth: AuthService, path: string): boolean {
   if (path.match(/^\/policies\/[^/]+$/)) {
     return auth.hasPermission('POLICIES_MANAGE') || auth.hasPermission('WORKFLOW_VIEW');
   }
-  if (path.startsWith('/workflow-designer/')) {
-    return auth.hasPermission('WORKFLOW_MANAGE');
+  if (path.startsWith('/workflow-designer')) {
+    return auth.canViewWorkflowDesigner();
   }
   const item = NAV_ITEMS.find((nav) => nav.path === path || (nav.path !== '/dashboard' && path.startsWith(nav.path + '/')));
   if (!item) return true;

@@ -52,7 +52,9 @@
                 <td>{{ (p.createdAt | date:'shortDate') || '—' }}</td>
                 <td class="actions">
                   <a [routerLink]="['/policies', p.id]" class="btn btn-secondary btn-sm">Ver detalle</a>
-                  <button type="button" class="btn btn-secondary btn-sm" disabled title="Próximamente">Workflow</button>
+                  @if (canViewDesigner) {
+                    <a [routerLink]="['/workflow-designer', p.id]" class="btn btn-secondary btn-sm">Diseñar workflow</a>
+                  }
                   @if (p.status !== 'ACTIVE') {
                     <button type="button" class="btn btn-primary btn-sm" (click)="activate(p)">Activar</button>
                   } @else {

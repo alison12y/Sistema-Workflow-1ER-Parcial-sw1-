@@ -37,6 +37,12 @@ public class SecurityConfig {
             "/api/workflow-transitions/**"
     };
 
+    private static final String[] WORKFLOW_DESIGNER_PATHS = {
+            "/api/workflow-designer",
+            "/api/workflow-designer/**",
+            "/api/workflow-designer/policy/**"
+    };
+
     /** Permisos/roles que pueden leer actividades y conexiones workflow. */
     private static final String[] WORKFLOW_READ_AUTHORITIES = {
             "ROLE_ADMIN",
@@ -108,6 +114,10 @@ public class SecurityConfig {
                                 .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.DELETE, WORKFLOW_TRANSITION_PATHS)
                                 .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.GET, "/api/workflow-designer/policy/**")
+                                .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.GET, WORKFLOW_DESIGNER_PATHS)
+                                .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
                         .requestMatchers(HttpMethod.GET, "/api/policies/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/policies/**")
                                 .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")

@@ -109,3 +109,47 @@ export interface WorkflowFlowValidationResponse {
   warnings: string[];
   errors: string[];
 }
+
+export interface ActivityNode {
+  id?: string;
+  name: string;
+  description?: string;
+  responsibleName?: string;
+  activityType?: string;
+  activityTypeLabel?: string;
+  status?: string;
+  orderIndex?: number;
+  estimatedTimeHours?: number;
+  x?: number;
+  y?: number;
+}
+
+export interface TransitionEdge {
+  id?: string;
+  fromActivityId?: string;
+  fromActivityName?: string;
+  toActivityId?: string;
+  toActivityName?: string;
+  transitionType?: string;
+  transitionTypeLabel?: string;
+  conditionLabel?: string;
+  active?: boolean;
+}
+
+export interface WorkflowLane {
+  laneName: string;
+  responsibleType?: string;
+  activities: ActivityNode[];
+}
+
+export interface WorkflowDesignerData {
+  policyId?: string;
+  policyName: string;
+  policyDescription?: string;
+  policyStatus?: string;
+  activities: ActivityNode[];
+  transitions: TransitionEdge[];
+  lanes: WorkflowLane[];
+  flowPreview: string[];
+  flowValidation?: WorkflowFlowValidationResponse;
+}

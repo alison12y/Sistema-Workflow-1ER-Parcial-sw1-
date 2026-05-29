@@ -33,7 +33,8 @@ public class SecurityLoggingFilter extends OncePerRequestFilter {
                 && !path.startsWith("/api/form-fields")
                 && !path.startsWith("/api/tramites")
                 && !path.startsWith("/api/workflow-activities")
-                && !path.startsWith("/api/workflow-transitions")) {
+                && !path.startsWith("/api/workflow-transitions")
+                && !path.startsWith("/api/workflow-designer")) {
             return;
         }
 
