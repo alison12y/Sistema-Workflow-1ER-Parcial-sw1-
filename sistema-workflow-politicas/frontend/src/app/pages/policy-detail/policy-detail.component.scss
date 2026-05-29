@@ -53,6 +53,25 @@
   color: var(--color-muted);
 }
 
+.flow-preview {
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  padding: 0.65rem 0.85rem;
+  background: #f8f9fc;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+
+  &.compact .flow-line.connector {
+    color: var(--color-muted);
+    padding-left: 0.35rem;
+  }
+}
+
+.flow-line.connector {
+  color: var(--color-muted);
+}
+
 .data-table.compact td,
 .data-table.compact th {
   padding: 0.55rem 0.65rem;

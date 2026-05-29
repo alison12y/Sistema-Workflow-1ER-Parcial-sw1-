@@ -80,6 +80,7 @@ public class CustomUserDetailsService implements UserDetailsService {
             if (role.isActive() && role.getPermissionIds() != null) {
                 result.addAll(role.getPermissionIds());
             }
+            addWorkflowRoleAliases(normalized, result);
             return result;
         }
 
@@ -93,7 +94,22 @@ public class CustomUserDetailsService implements UserDetailsService {
         if ("ROLE_POLICY_DESIGNER".equals(normalized)) {
             result.add("ROLE_DESIGNER");
         }
+        addWorkflowRoleAliases(normalized, result);
         return result;
+    }
+
+    private void addWorkflowRoleAliases(String normalizedRole, Set<String> authorities) {
+        if ("ROLE_ADMIN".equals(normalizedRole)) {
+            authorities.add(SystemPermissions.WORKFLOW_MANAGE);
+            authorities.add(SystemPermissions.WORKFLOW_DESIGN);
+            authorities.add(SystemPermissions.WORKFLOW_VIEW);
+            authorities.add(SystemPermissions.POLICIES_MANAGE);
+        }
+        if ("ROLE_PROCESS_OWNER".equals(normalizedRole) || "ROLE_POLICY_DESIGNER".equals(normalizedRole)) {
+            authorities.add(SystemPermissions.WORKFLOW_MANAGE);
+            authorities.add(SystemPermissions.WORKFLOW_DESIGN);
+            authorities.add(SystemPermissions.POLICIES_MANAGE);
+        }
     }
 
     private String normalizeRole(String role) {

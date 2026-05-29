@@ -32,11 +32,29 @@ public class SecurityConfig {
             "/api/workflow-activities/**"
     };
 
-    /** Permisos/roles que pueden crear, editar o eliminar actividades workflow. */
-    private static final String[] WORKFLOW_ACTIVITY_MUTATION_AUTHORITIES = {
+    private static final String[] WORKFLOW_TRANSITION_PATHS = {
+            "/api/workflow-transitions",
+            "/api/workflow-transitions/**"
+    };
+
+    /** Permisos/roles que pueden leer actividades y conexiones workflow. */
+    private static final String[] WORKFLOW_READ_AUTHORITIES = {
+            "ROLE_ADMIN",
+            "ROLE_PROCESS_OWNER",
+            "ROLE_SUPERVISOR",
+            "ROLE_CUSTOMER_SERVICE",
+            SystemPermissions.WORKFLOW_VIEW,
+            SystemPermissions.WORKFLOW_MANAGE,
+            SystemPermissions.WORKFLOW_DESIGN,
+            SystemPermissions.POLICIES_MANAGE
+    };
+
+    /** Permisos/roles que pueden crear, editar o eliminar actividades y conexiones workflow. */
+    private static final String[] WORKFLOW_MUTATION_AUTHORITIES = {
             "ROLE_ADMIN",
             "ROLE_PROCESS_OWNER",
             SystemPermissions.WORKFLOW_MANAGE,
+            SystemPermissions.WORKFLOW_DESIGN,
             SystemPermissions.POLICIES_MANAGE
     };
 
@@ -66,15 +84,30 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/dev/migrate-phase1").permitAll()
                         .requestMatchers("/api/dashboard/**").authenticated()
-                        .requestMatchers(HttpMethod.GET, WORKFLOW_ACTIVITY_PATHS).authenticated()
-                        .requestMatchers(HttpMethod.POST, WORKFLOW_ACTIVITY_PATHS)
-                                .hasAnyAuthority(WORKFLOW_ACTIVITY_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.GET, WORKFLOW_ACTIVITY_PATHS)
+                                .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/workflow-activities")
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/workflow-activities/**")
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.PUT, WORKFLOW_ACTIVITY_PATHS)
-                                .hasAnyAuthority(WORKFLOW_ACTIVITY_MUTATION_AUTHORITIES)
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.PATCH, WORKFLOW_ACTIVITY_PATHS)
-                                .hasAnyAuthority(WORKFLOW_ACTIVITY_MUTATION_AUTHORITIES)
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.DELETE, WORKFLOW_ACTIVITY_PATHS)
-                                .hasAnyAuthority(WORKFLOW_ACTIVITY_MUTATION_AUTHORITIES)
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.GET, WORKFLOW_TRANSITION_PATHS)
+                                .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/workflow-transitions")
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/workflow-transitions/**")
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.PUT, WORKFLOW_TRANSITION_PATHS)
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.PATCH, WORKFLOW_TRANSITION_PATHS)
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.DELETE, WORKFLOW_TRANSITION_PATHS)
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.GET, "/api/policies/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/policies/**")
                                 .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")

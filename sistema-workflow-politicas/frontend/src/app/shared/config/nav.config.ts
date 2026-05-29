@@ -124,7 +124,7 @@ export function getVisibleNavItems(auth: AuthService): VisibleNavItem[] {
 }
 
 export function canAccessRoute(auth: AuthService, path: string): boolean {
-  if (path.startsWith('/policies/') && path.includes('/actividades')) {
+  if (path.startsWith('/policies/') && (path.includes('/actividades') || path.includes('/transiciones'))) {
     return (
       auth.hasPermission('POLICIES_MANAGE') ||
       auth.hasPermission('WORKFLOW_MANAGE') ||

@@ -4,7 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +19,8 @@ import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
@@ -40,48 +43,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         final String path = request.getRequestURI();
         final String authHeader = request.getHeader("Authorization");
-        final boolean isWorkflowActivityRequest = path.startsWith("/api/workflow-activities");
+        final boolean isWorkflowApiRequest = path.startsWith("/api/workflow-activities")
+                || path.startsWith("/api/workflow-transitions");
 
-        if (isWorkflowActivityRequest) {
-            org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
-                    .debug("WorkflowActivity request {} {} Authorization={}",
-                            request.getMethod(),
-                            path,
-                            authHeader != null && authHeader.startsWith("Bearer ") ? "Bearer present" : "missing");
+        if (isWorkflowApiRequest) {
+            log.debug("Workflow API request {} {} Authorization={}",
+                    request.getMethod(),
+                    path,
+                    authHeader != null && authHeader.startsWith("Bearer ") ? "Bearer present" : "missing");
         }
 
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-        final String jwt = authHeader.substring(7);
-        final String username = jwtService.extractUsername(jwt);
-        if (username != null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
-                );
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-                if (isWorkflowActivityRequest) {
-                    org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
-                            .info("WorkflowActivity JWT OK user={} authorities={}",
-                                    username,
-                                    userDetails.getAuthorities());
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                final String jwt = authHeader.substring(7);
+                final String username = jwtService.extractUsername(jwt);
+                if (username != null) {
+                    UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+                    if (jwtService.isTokenValid(jwt, userDetails)) {
+                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+                        if (isWorkflowApiRequest) {
+                            String logLabel = path.startsWith("/api/workflow-transitions")
+                                    ? "WorkflowTransition"
+                                    : "WorkflowActivity";
+                            log.info("{} JWT OK user={} authorities={}",
+                                    logLabel, username, userDetails.getAuthorities());
+                        }
+                    } else if (isWorkflowApiRequest) {
+                        log.warn("Workflow API JWT invalid for user={} path={}", username, path);
+                    }
+                } else if (isWorkflowApiRequest) {
+                    log.warn("Invalid JWT token received for {}", path);
                 }
-            } else if (isWorkflowActivityRequest) {
-                org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
-                        .warn("WorkflowActivity JWT invalid for user={}", username);
+            } catch (Exception ex) {
+                log.warn("JWT processing failed for {}: {}", path, ex.getMessage());
+                SecurityContextHolder.clearContext();
             }
-        } else if (isWorkflowActivityRequest) {
-            org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
-                    .warn("Invalid JWT token received for {}", request.getRequestURI());
         }
+
         filterChain.doFilter(request, response);
     }
 }

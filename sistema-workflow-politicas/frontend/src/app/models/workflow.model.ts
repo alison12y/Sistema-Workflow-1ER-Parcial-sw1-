@@ -19,12 +19,15 @@ export interface PolicySummary {
   createdBy?: string;
   createdAt?: string;
   activityCount?: number;
+  transitionCount?: number;
   tramiteCount?: number;
 }
 
 export interface PolicyDetail extends PolicySummary {
   updatedAt?: string;
   activities?: WorkflowActivity[];
+  transitions?: WorkflowTransition[];
+  flowPreview?: string[];
   tramites?: TramiteSummary[];
 }
 
@@ -70,4 +73,39 @@ export interface TramiteSummary {
   responsible?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface WorkflowTransition {
+  id?: string;
+  policyId?: string;
+  fromActivityId?: string;
+  fromActivityName?: string;
+  toActivityId?: string;
+  toActivityName?: string;
+  transitionType?: string;
+  transitionTypeLabel?: string;
+  conditionLabel?: string;
+  conditionExpression?: string;
+  orderIndex?: number;
+  active?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WorkflowTransitionRequest {
+  policyId?: string;
+  fromActivityId?: string;
+  toActivityId?: string;
+  transitionType?: string;
+  conditionLabel?: string;
+  conditionExpression?: string;
+  orderIndex?: number;
+  active?: boolean;
+}
+
+export interface WorkflowFlowValidationResponse {
+  valid: boolean;
+  message: string;
+  warnings: string[];
+  errors: string[];
 }

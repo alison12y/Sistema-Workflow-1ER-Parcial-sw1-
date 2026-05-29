@@ -25,6 +25,7 @@ public final class Phase1BootstrapData {
                     Set.of(
                             SystemPermissions.POLICIES_MANAGE,
                             SystemPermissions.WORKFLOW_MANAGE,
+                            SystemPermissions.WORKFLOW_DESIGN,
                             SystemPermissions.FORMS_MANAGE,
                             SystemPermissions.REPORTS_VIEW,
                             SystemPermissions.MONITORING_VIEW,

@@ -55,6 +55,7 @@ export class RolesComponent implements OnInit {
     { code: 'SETTINGS_MANAGE', name: 'Gestionar configuración' },
     { code: 'POLICIES_MANAGE', name: 'Gestionar políticas de negocio' },
     { code: 'WORKFLOW_MANAGE', name: 'Gestionar workflow' },
+    { code: 'WORKFLOW_DESIGN', name: 'Diseñar conexiones del workflow' },
     { code: 'WORKFLOW_VIEW', name: 'Ver actividades del workflow' },
     { code: 'REPORTS_VIEW', name: 'Ver reportes' },
     { code: 'AUDIT_VIEW', name: 'Ver auditoría' },

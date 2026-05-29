@@ -31,6 +31,12 @@ export const routes: Routes = [
         canActivate: [permissionGuard('POLICIES_MANAGE', 'WORKFLOW_MANAGE', 'WORKFLOW_VIEW')],
       },
       {
+        path: 'policies/:id/transiciones',
+        loadComponent: () =>
+          import('./pages/policy-transitions/policy-transitions.component').then((m) => m.PolicyTransitionsComponent),
+        canActivate: [permissionGuard('POLICIES_MANAGE', 'WORKFLOW_MANAGE', 'WORKFLOW_VIEW')],
+      },
+      {
         path: 'policies/:id',
         loadComponent: () =>
           import('./pages/policy-detail/policy-detail.component').then((m) => m.PolicyDetailComponent),

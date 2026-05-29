@@ -16,8 +16,11 @@ public class PolicyDetailResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private int activityCount;
+    private int transitionCount;
     private int tramiteCount;
     private List<WorkflowActivityResponse> activities = new ArrayList<>();
+    private List<WorkflowTransitionResponse> transitions = new ArrayList<>();
+    private List<String> flowPreview = new ArrayList<>();
     private List<TramiteSummaryResponse> tramites = new ArrayList<>();
 
     public String getId() { return id; }
@@ -53,11 +56,20 @@ public class PolicyDetailResponse {
     public int getActivityCount() { return activityCount; }
     public void setActivityCount(int activityCount) { this.activityCount = activityCount; }
 
+    public int getTransitionCount() { return transitionCount; }
+    public void setTransitionCount(int transitionCount) { this.transitionCount = transitionCount; }
+
     public int getTramiteCount() { return tramiteCount; }
     public void setTramiteCount(int tramiteCount) { this.tramiteCount = tramiteCount; }
 
     public List<WorkflowActivityResponse> getActivities() { return activities; }
     public void setActivities(List<WorkflowActivityResponse> activities) { this.activities = activities; }
+
+    public List<WorkflowTransitionResponse> getTransitions() { return transitions; }
+    public void setTransitions(List<WorkflowTransitionResponse> transitions) { this.transitions = transitions; }
+
+    public List<String> getFlowPreview() { return flowPreview; }
+    public void setFlowPreview(List<String> flowPreview) { this.flowPreview = flowPreview; }
 
     public List<TramiteSummaryResponse> getTramites() { return tramites; }
     public void setTramites(List<TramiteSummaryResponse> tramites) { this.tramites = tramites; }

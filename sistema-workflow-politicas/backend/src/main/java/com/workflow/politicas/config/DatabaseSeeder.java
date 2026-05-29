@@ -8,6 +8,7 @@ import com.workflow.politicas.repository.UserRepository;
 import com.workflow.politicas.service.Phase1MigrationService;
 import com.workflow.politicas.service.Phase2MigrationService;
 import com.workflow.politicas.service.Phase3MigrationService;
+import com.workflow.politicas.service.Phase4MigrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -27,6 +28,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final Phase1MigrationService phase1MigrationService;
     private final Phase2MigrationService phase2MigrationService;
     private final Phase3MigrationService phase3MigrationService;
+    private final Phase4MigrationService phase4MigrationService;
 
     public DatabaseSeeder(
             RoleRepository roleRepository,
@@ -35,7 +37,8 @@ public class DatabaseSeeder implements CommandLineRunner {
             BusinessPolicyRepository businessPolicyRepository,
             Phase1MigrationService phase1MigrationService,
             Phase2MigrationService phase2MigrationService,
-            Phase3MigrationService phase3MigrationService
+            Phase3MigrationService phase3MigrationService,
+            Phase4MigrationService phase4MigrationService
     ) {
         this.roleRepository = roleRepository;
         this.departmentRepository = departmentRepository;
@@ -44,6 +47,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         this.phase1MigrationService = phase1MigrationService;
         this.phase2MigrationService = phase2MigrationService;
         this.phase3MigrationService = phase3MigrationService;
+        this.phase4MigrationService = phase4MigrationService;
     }
 
     @Override
@@ -52,6 +56,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         phase2MigrationService.syncRolePermissions();
         phase2MigrationService.seedSamplePolicies();
         phase3MigrationService.seedSampleActivities();
+        phase4MigrationService.seedSampleTransitions();
         seedPolicies();
     }
 

@@ -4,6 +4,7 @@ import com.workflow.politicas.dto.PolicyDetailResponse;
 import com.workflow.politicas.dto.PolicySummaryResponse;
 import com.workflow.politicas.dto.TramiteSummaryResponse;
 import com.workflow.politicas.dto.WorkflowActivityResponse;
+import com.workflow.politicas.dto.WorkflowTransitionResponse;
 import com.workflow.politicas.model.BusinessPolicy;
 import com.workflow.politicas.model.Tramite;
 import com.workflow.politicas.repository.BusinessPolicyRepository;
@@ -18,6 +19,7 @@ public class BusinessPolicyService {
     private final BusinessPolicyRepository businessPolicyRepository;
     private final TramiteRepository tramiteRepository;
     private final WorkflowActivityService workflowActivityService;
+    private final WorkflowTransitionService workflowTransitionService;
     private final AuditLogService auditLogService;
     private final BitacoraService bitacoraService;
 
@@ -25,12 +27,14 @@ public class BusinessPolicyService {
             BusinessPolicyRepository businessPolicyRepository,
             TramiteRepository tramiteRepository,
             WorkflowActivityService workflowActivityService,
+            WorkflowTransitionService workflowTransitionService,
             AuditLogService auditLogService,
             BitacoraService bitacoraService
     ) {
         this.businessPolicyRepository = businessPolicyRepository;
         this.tramiteRepository = tramiteRepository;
         this.workflowActivityService = workflowActivityService;
+        this.workflowTransitionService = workflowTransitionService;
         this.auditLogService = auditLogService;
         this.bitacoraService = bitacoraService;
     }
@@ -73,6 +77,11 @@ public class BusinessPolicyService {
             List<WorkflowActivityResponse> activities = workflowActivityService.findByPolicyId(id);
             detail.setActivities(activities);
             detail.setActivityCount(activities.size());
+
+            List<WorkflowTransitionResponse> transitions = workflowTransitionService.findByPolicyId(id);
+            detail.setTransitions(transitions);
+            detail.setTransitionCount(transitions.size());
+            detail.setFlowPreview(workflowTransitionService.buildFlowPreview(id));
 
             List<TramiteSummaryResponse> tramites = tramiteRepository.findByPolicyId(id).stream()
                     .map(this::toTramiteSummary)

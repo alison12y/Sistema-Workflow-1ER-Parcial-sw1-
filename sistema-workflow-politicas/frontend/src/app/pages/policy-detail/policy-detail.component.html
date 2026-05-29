@@ -83,7 +83,27 @@
       </section>
 
       <section class="data-card">
-        <h2>Trámites iniciados con esta política</h2>
+        <div class="section-head">
+          <h2>Conexiones del workflow</h2>
+          <span class="count-badge">{{ policy.transitionCount ?? policy.transitions?.length ?? 0 }} conexiones</span>
+          @if (canManageActivities) {
+            <a [routerLink]="['/policies', policy.id, 'transiciones']" class="btn btn-primary btn-sm">Gestionar conexiones</a>
+          } @else {
+            <a [routerLink]="['/policies', policy.id, 'transiciones']" class="btn btn-secondary btn-sm">Ver conexiones</a>
+          }
+        </div>
+        @if (!policy.transitions?.length) {
+          <div class="empty-state">Esta política aún no tiene conexiones entre actividades.</div>
+        } @else {
+          <div class="flow-preview compact">
+            @for (line of policy.flowPreview ?? []; track line + $index) {
+              <div class="flow-line" [class.connector]="line === '↓' || line.startsWith('├─')">{{ line }}</div>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="data-card">
         @if (!policy.tramites?.length) {
           <div class="empty-state">Aún no existen trámites iniciados con esta política.</div>
         } @else {

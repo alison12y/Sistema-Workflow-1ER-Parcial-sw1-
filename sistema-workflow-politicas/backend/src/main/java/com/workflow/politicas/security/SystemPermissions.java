@@ -13,6 +13,7 @@ public final class SystemPermissions {
     public static final String DEPARTMENTS_MANAGE = "DEPARTMENTS_MANAGE";
     public static final String POLICIES_MANAGE = "POLICIES_MANAGE";
     public static final String WORKFLOW_MANAGE = "WORKFLOW_MANAGE";
+    public static final String WORKFLOW_DESIGN = "WORKFLOW_DESIGN";
     public static final String WORKFLOW_VIEW = "WORKFLOW_VIEW";
     public static final String REPORTS_VIEW = "REPORTS_VIEW";
     public static final String AUDIT_VIEW = "AUDIT_VIEW";
@@ -29,6 +30,7 @@ public final class SystemPermissions {
             DEPARTMENTS_MANAGE,
             POLICIES_MANAGE,
             WORKFLOW_MANAGE,
+            WORKFLOW_DESIGN,
             WORKFLOW_VIEW,
             REPORTS_VIEW,
             AUDIT_VIEW,

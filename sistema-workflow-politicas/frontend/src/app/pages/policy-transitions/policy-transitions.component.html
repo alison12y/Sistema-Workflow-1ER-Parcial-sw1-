@@ -1,0 +1,195 @@
+<div class="page-crud">
+  <div class="page-toolbar">
+    <div>
+      <a [routerLink]="['/policies', policyId]" class="back-link">← Volver al detalle</a>
+      <h1>Conexiones del workflow</h1>
+      @if (policy) {
+        <p class="policy-meta">
+          <strong>{{ policy.name }}</strong>
+          · {{ policyStatusText(policy.status) }}
+        </p>
+      }
+    </div>
+    <div class="toolbar-actions">
+      <button type="button" class="btn btn-secondary" [disabled]="validating" (click)="validateFlow()">
+        {{ validating ? 'Validando...' : 'Validar flujo' }}
+      </button>
+      @if (canManage) {
+        <button type="button" class="btn btn-primary" (click)="openCreate()">+ Nueva conexión</button>
+      }
+    </div>
+  </div>
+
+  @if (message) { <div class="alert success">{{ message }}</div> }
+  @if (error && !modalOpen) { <div class="alert error">{{ error }}</div> }
+
+  @if (validation) {
+    <div class="data-card validation-card" [class.valid]="validation.valid" [class.warning]="!validation.valid">
+      <h2>{{ validation.message }}</h2>
+      @if (validation.errors.length) {
+        <ul class="validation-list error-list">
+          @for (e of validation.errors; track e) { <li>{{ e }}</li> }
+        </ul>
+      }
+      @if (validation.warnings.length) {
+        <p class="validation-subtitle">Advertencias:</p>
+        <ul class="validation-list warning-list">
+          @for (w of validation.warnings; track w) { <li>{{ w }}</li> }
+        </ul>
+      }
+    </div>
+  }
+
+  <div class="layout-grid">
+    <section class="data-card">
+      <h2>Vista del flujo</h2>
+      @if (!flowPreview.length) {
+        <div class="empty-state">Esta política aún no tiene conexiones entre actividades.</div>
+      } @else {
+        <div class="flow-preview">
+          @for (line of flowPreview; track line + $index) {
+            <div class="flow-line" [class.connector]="line === '↓' || line.startsWith('├─')">{{ line }}</div>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="data-card">
+      <h2>Actividades ({{ activities.length }})</h2>
+      @if (!activities.length) {
+        <div class="empty-state">No hay actividades configuradas.</div>
+      } @else {
+        <ul class="activity-list">
+          @for (a of activities; track a.id || a.name) {
+            <li>{{ a.orderIndex }}. {{ a.name }}</li>
+          }
+        </ul>
+        <a [routerLink]="['/policies', policyId, 'actividades']" class="link-inline">Gestionar actividades</a>
+      }
+    </section>
+  </div>
+
+  <div class="data-card">
+    <h2>Conexiones ({{ transitions.length }})</h2>
+    @if (loading) {
+      <div class="loading">Cargando conexiones...</div>
+    } @else if (!transitions.length) {
+      <div class="empty-state">Esta política aún no tiene conexiones entre actividades.</div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Origen</th>
+              <th>Destino</th>
+              <th>Tipo</th>
+              <th>Condición</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of transitions; track t.id || t.fromActivityName + t.toActivityName) {
+              <tr>
+                <td>{{ t.fromActivityName || '—' }}</td>
+                <td>{{ t.toActivityName || '—' }}</td>
+                <td>{{ transitionTypeLabel(t.transitionType, t.transitionTypeLabel) }}</td>
+                <td>{{ t.conditionLabel || '—' }}</td>
+                <td>
+                  <span class="badge" [class]="transitionStatusClass(t.active)">
+                    {{ transitionStatusLabel(t.active) }}
+                  </span>
+                </td>
+                <td class="actions">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="openView(t)">Ver</button>
+                  @if (canManage) {
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(t)">Editar</button>
+                    @if (t.active !== false) {
+                      <button type="button" class="btn btn-secondary btn-sm" (click)="toggleActive(t)">Desactivar</button>
+                    } @else {
+                      <button type="button" class="btn btn-primary btn-sm" (click)="toggleActive(t)">Activar</button>
+                    }
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="remove(t)">Eliminar</button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+@if (modalOpen) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>{{ editingId ? 'Editar conexión' : 'Nueva conexión' }}</h2>
+      @if (error) { <div class="alert error">{{ error }}</div> }
+      <div class="form-grid">
+        <label>Actividad origen *
+          <select [(ngModel)]="form.fromActivityId">
+            <option value="">Seleccione...</option>
+            @for (a of activities; track a.id) {
+              <option [value]="a.id">{{ a.name }}</option>
+            }
+          </select>
+        </label>
+        <label>Actividad destino *
+          <select [(ngModel)]="form.toActivityId">
+            <option value="">Seleccione...</option>
+            @for (a of activities; track a.id) {
+              <option [value]="a.id">{{ a.name }}</option>
+            }
+          </select>
+        </label>
+        <label>Tipo de conexión
+          <select [(ngModel)]="form.transitionType">
+            @for (opt of transitionTypeOptions; track opt.value) {
+              <option [value]="opt.value" [disabled]="!opt.enabled">
+                {{ opt.label }}{{ !opt.enabled ? ' (Próximamente)' : '' }}
+              </option>
+            }
+          </select>
+        </label>
+        @if (isConditionalType()) {
+          <label>Condición / etiqueta *
+            <input type="text" [(ngModel)]="form.conditionLabel" placeholder="Ej. Aprobado, Observado" />
+          </label>
+        }
+        <label class="full-width">Expresión de condición (opcional)
+          <input type="text" [(ngModel)]="form.conditionExpression" placeholder="Expresión técnica opcional" />
+        </label>
+        <label>Orden
+          <input type="number" min="1" [(ngModel)]="form.orderIndex" placeholder="Automático si se deja vacío" />
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving" (click)="save()">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (viewModalOpen && viewingTransition) {
+  <div class="modal-backdrop" (click)="closeViewModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>Detalle de conexión</h2>
+      <dl class="detail-list">
+        <dt>Origen</dt><dd>{{ viewingTransition.fromActivityName || '—' }}</dd>
+        <dt>Destino</dt><dd>{{ viewingTransition.toActivityName || '—' }}</dd>
+        <dt>Tipo</dt>
+        <dd>{{ transitionTypeLabel(viewingTransition.transitionType, viewingTransition.transitionTypeLabel) }}</dd>
+        <dt>Condición</dt><dd>{{ viewingTransition.conditionLabel || '—' }}</dd>
+        <dt>Expresión</dt><dd>{{ viewingTransition.conditionExpression || '—' }}</dd>
+        <dt>Estado</dt><dd>{{ transitionStatusLabel(viewingTransition.active) }}</dd>
+      </dl>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeViewModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}

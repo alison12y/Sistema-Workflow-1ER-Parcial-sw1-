@@ -16,6 +16,7 @@
     @if (canManage) {
       <button type="button" class="btn btn-primary" (click)="openCreate()">+ Nueva actividad</button>
     }
+    <a [routerLink]="['/policies', policyId, 'transiciones']" class="btn btn-secondary">Gestionar conexiones</a>
   </div>
 
   @if (message) { <div class="alert success">{{ message }}</div> }

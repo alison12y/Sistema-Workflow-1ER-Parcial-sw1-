@@ -1,0 +1,287 @@
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { WorkflowTransitionService } from '../../services/workflow-transition.service';
+import { WorkflowActivityService } from '../../services/workflow-activity.service';
+import { PolicyService } from '../../services/policy.service';
+import { AuthService } from '../../services/auth.service';
+import {
+  PolicyDetail,
+  WorkflowActivity,
+  WorkflowFlowValidationResponse,
+  WorkflowTransition,
+  WorkflowTransitionRequest,
+} from '../../models/workflow.model';
+import {
+  TRANSITION_TYPE_OPTIONS,
+  transitionStatusClass,
+  transitionStatusLabel,
+  transitionTypeLabel,
+} from '../../utils/transition-display.util';
+
+@Component({
+  selector: 'app-policy-transitions',
+  standalone: true,
+  imports: [CommonModule, FormsModule, RouterLink],
+  templateUrl: './policy-transitions.component.html',
+  styleUrl: './policy-transitions.component.scss',
+})
+export class PolicyTransitionsComponent implements OnInit {
+  private readonly route = inject(ActivatedRoute);
+  private readonly transitionService = inject(WorkflowTransitionService);
+  private readonly activityService = inject(WorkflowActivityService);
+  private readonly policyService = inject(PolicyService);
+  private readonly auth = inject(AuthService);
+
+  policyId = '';
+  policy: PolicyDetail | null = null;
+  activities: WorkflowActivity[] = [];
+  transitions: WorkflowTransition[] = [];
+  flowPreview: string[] = [];
+  validation: WorkflowFlowValidationResponse | null = null;
+
+  loading = true;
+  saving = false;
+  validating = false;
+  error = '';
+  message = '';
+
+  modalOpen = false;
+  viewModalOpen = false;
+  editingId: string | null = null;
+  viewingTransition: WorkflowTransition | null = null;
+
+  form: WorkflowTransitionRequest = this.emptyForm();
+
+  readonly canManage = this.auth.canManageWorkflowActivities();
+  readonly transitionTypeOptions = TRANSITION_TYPE_OPTIONS;
+  readonly transitionTypeLabel = transitionTypeLabel;
+  readonly transitionStatusLabel = transitionStatusLabel;
+  readonly transitionStatusClass = transitionStatusClass;
+
+  ngOnInit(): void {
+    this.route.paramMap.subscribe((params) => {
+      this.policyId = params.get('id') ?? '';
+      if (this.policyId) {
+        this.loadPolicy();
+        this.loadActivities();
+        this.loadTransitions();
+      }
+    });
+  }
+
+  private emptyForm(): WorkflowTransitionRequest {
+    return {
+      policyId: this.policyId,
+      fromActivityId: '',
+      toActivityId: '',
+      transitionType: 'SEQUENTIAL',
+      conditionLabel: '',
+      conditionExpression: '',
+      orderIndex: undefined,
+      active: true,
+    };
+  }
+
+  loadPolicy(): void {
+    this.policyService.getDetail(this.policyId).subscribe({
+      next: (p) => {
+        this.policy = p;
+        this.flowPreview = p.flowPreview ?? [];
+      },
+      error: () => {
+        this.error = 'La política seleccionada no existe.';
+      },
+    });
+  }
+
+  loadActivities(): void {
+    this.activityService.getByPolicy(this.policyId).subscribe({
+      next: (data) => (this.activities = data),
+    });
+  }
+
+  loadTransitions(): void {
+    this.loading = true;
+    this.error = '';
+    this.transitionService.getByPolicy(this.policyId).subscribe({
+      next: (data) => {
+        this.transitions = data;
+        this.loading = false;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.error = this.resolveError(err, 'No se pudieron cargar las conexiones.');
+        this.loading = false;
+      },
+    });
+  }
+
+  openCreate(): void {
+    if (!this.canManage) {
+      this.error = 'No tienes permiso para modificar conexiones.';
+      return;
+    }
+    this.editingId = null;
+    this.form = this.emptyForm();
+    this.modalOpen = true;
+    this.error = '';
+  }
+
+  openEdit(transition: WorkflowTransition): void {
+    if (!this.canManage) {
+      this.error = 'No tienes permiso para modificar conexiones.';
+      return;
+    }
+    this.editingId = transition.id ?? null;
+    this.form = {
+      policyId: this.policyId,
+      fromActivityId: transition.fromActivityId,
+      toActivityId: transition.toActivityId,
+      transitionType: transition.transitionType ?? 'SEQUENTIAL',
+      conditionLabel: transition.conditionLabel ?? '',
+      conditionExpression: transition.conditionExpression ?? '',
+      orderIndex: transition.orderIndex,
+      active: transition.active !== false,
+    };
+    this.modalOpen = true;
+    this.error = '';
+  }
+
+  openView(transition: WorkflowTransition): void {
+    this.viewingTransition = transition;
+    this.viewModalOpen = true;
+  }
+
+  closeModal(): void {
+    this.modalOpen = false;
+    this.error = '';
+  }
+
+  closeViewModal(): void {
+    this.viewModalOpen = false;
+    this.viewingTransition = null;
+  }
+
+  save(): void {
+    if (!this.canManage) {
+      this.error = 'No tienes permiso para modificar conexiones.';
+      return;
+    }
+    if (!this.form.fromActivityId || !this.form.toActivityId) {
+      this.error = 'Debe seleccionar actividad origen y destino.';
+      return;
+    }
+    if (this.form.fromActivityId === this.form.toActivityId) {
+      this.error = 'La actividad origen y destino no pueden ser iguales.';
+      return;
+    }
+    if (this.form.transitionType === 'CONDITIONAL' && !this.form.conditionLabel?.trim()) {
+      this.error = 'Debe indicar una condición para conexiones condicionales.';
+      return;
+    }
+
+    this.saving = true;
+    this.error = '';
+    const payload: WorkflowTransitionRequest = {
+      ...this.form,
+      policyId: this.policyId,
+      conditionLabel: this.form.conditionLabel?.trim() || undefined,
+      conditionExpression: this.form.conditionExpression?.trim() || undefined,
+    };
+
+    const request$ = this.editingId
+      ? this.transitionService.update(this.editingId, payload)
+      : this.transitionService.create(payload);
+
+    request$.subscribe({
+      next: () => {
+        this.message = this.editingId ? 'Conexión actualizada correctamente.' : 'Conexión creada correctamente.';
+        this.modalOpen = false;
+        this.saving = false;
+        this.validation = null;
+        this.loadTransitions();
+        this.loadPolicy();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.error = this.resolveError(err, 'No se pudo guardar la conexión.');
+        this.saving = false;
+      },
+    });
+  }
+
+  toggleActive(transition: WorkflowTransition): void {
+    if (!this.canManage || !transition.id) return;
+    const action$ = transition.active !== false
+      ? this.transitionService.deactivate(transition.id)
+      : this.transitionService.activate(transition.id);
+
+    action$.subscribe({
+      next: () => {
+        this.message = transition.active !== false
+          ? 'Conexión desactivada correctamente.'
+          : 'Conexión activada correctamente.';
+        this.loadTransitions();
+        this.loadPolicy();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.error = this.resolveError(err, 'No se pudo cambiar el estado de la conexión.');
+      },
+    });
+  }
+
+  remove(transition: WorkflowTransition): void {
+    if (!this.canManage || !transition.id) return;
+    if (!confirm(`¿Eliminar la conexión de "${transition.fromActivityName}" hacia "${transition.toActivityName}"?`)) return;
+
+    this.transitionService.delete(transition.id).subscribe({
+      next: () => {
+        this.message = 'Conexión eliminada correctamente.';
+        this.validation = null;
+        this.loadTransitions();
+        this.loadPolicy();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.error = this.resolveError(err, 'No se pudo eliminar la conexión.');
+      },
+    });
+  }
+
+  validateFlow(): void {
+    this.validating = true;
+    this.validation = null;
+    this.transitionService.validatePolicyFlow(this.policyId).subscribe({
+      next: (result) => {
+        this.validation = result;
+        this.validating = false;
+      },
+      error: () => {
+        this.error = 'No se pudo validar el flujo.';
+        this.validating = false;
+      },
+    });
+  }
+
+  activityName(id?: string): string {
+    return this.activities.find((a) => a.id === id)?.name ?? '—';
+  }
+
+  policyStatusText(status?: string): string {
+    const s = (status ?? '').toUpperCase();
+    if (s === 'ACTIVE') return 'Activa';
+    if (s === 'INACTIVE') return 'Inactiva';
+    if (s === 'DRAFT' || s === 'BORRADOR') return 'Borrador';
+    return s || '—';
+  }
+
+  isConditionalType(): boolean {
+    return (this.form.transitionType ?? '').toUpperCase() === 'CONDITIONAL';
+  }
+
+  private resolveError(err: HttpErrorResponse, fallback: string): string {
+    if (err.status === 403) return 'No tienes permiso para modificar conexiones.';
+    if (err.status === 404) return 'La política seleccionada no existe.';
+    return err.error?.message ?? fallback;
+  }
+}
