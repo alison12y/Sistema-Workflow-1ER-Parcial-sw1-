@@ -40,12 +40,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         final String path = request.getRequestURI();
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String username;
+        final boolean isWorkflowActivityRequest = path.startsWith("/api/workflow-activities");
 
-        if (path.startsWith("/api/tramites")) {
+        if (isWorkflowActivityRequest) {
             org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
-                    .debug("Tramites request {} {} Authorization={}",
+                    .debug("WorkflowActivity request {} {} Authorization={}",
                             request.getMethod(),
                             path,
                             authHeader != null && authHeader.startsWith("Bearer ") ? "Bearer present" : "missing");
@@ -55,9 +54,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        jwt = authHeader.substring(7);
-        username = jwtService.extractUsername(jwt);
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        final String jwt = authHeader.substring(7);
+        final String username = jwtService.extractUsername(jwt);
+        if (username != null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
             if (jwtService.isTokenValid(jwt, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
@@ -69,17 +68,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         new WebAuthenticationDetailsSource().buildDetails(request)
                 );
                 SecurityContextHolder.getContext().setAuthentication(authToken);
-                if (path.startsWith("/api/tramites")) {
+                if (isWorkflowActivityRequest) {
                     org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
-                            .info("Tramites JWT OK user={} authorities={}",
+                            .info("WorkflowActivity JWT OK user={} authorities={}",
                                     username,
                                     userDetails.getAuthorities());
                 }
-            } else if (path.startsWith("/api/tramites")) {
+            } else if (isWorkflowActivityRequest) {
                 org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
-                        .warn("Tramites JWT invalid for user={}", username);
+                        .warn("WorkflowActivity JWT invalid for user={}", username);
             }
-        } else if (username == null && authHeader != null) {
+        } else if (isWorkflowActivityRequest) {
             org.slf4j.LoggerFactory.getLogger(JwtAuthenticationFilter.class)
                     .warn("Invalid JWT token received for {}", request.getRequestURI());
         }

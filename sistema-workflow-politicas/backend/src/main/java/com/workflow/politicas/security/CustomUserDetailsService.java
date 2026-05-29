@@ -69,33 +69,31 @@ public class CustomUserDetailsService implements UserDetailsService {
             return result;
         }
 
-        Optional<String> roleName = resolveRoleName(roleIdOrName);
-        if (roleName.isEmpty()) {
+        Optional<Role> roleOpt = RoleReferenceResolver.resolve(roleRepository, roleIdOrName);
+        if (roleOpt.isPresent()) {
+            Role role = roleOpt.get();
+            String normalized = normalizeRole(role.getName());
+            result.add(normalized);
+            if ("ROLE_POLICY_DESIGNER".equals(normalized)) {
+                result.add("ROLE_DESIGNER");
+            }
+            if (role.isActive() && role.getPermissionIds() != null) {
+                result.addAll(role.getPermissionIds());
+            }
+            return result;
+        }
+
+        if (MONGO_OBJECT_ID.matcher(roleIdOrName).matches()) {
             log.warn("Could not resolve role reference '{}' for user authorities", roleIdOrName);
             return result;
         }
 
-        String normalized = normalizeRole(roleName.get());
+        String normalized = normalizeRole(roleIdOrName);
         result.add(normalized);
-
         if ("ROLE_POLICY_DESIGNER".equals(normalized)) {
             result.add("ROLE_DESIGNER");
         }
-
         return result;
-    }
-
-    private Optional<String> resolveRoleName(String roleIdOrName) {
-        Optional<Role> resolved = RoleReferenceResolver.resolve(roleRepository, roleIdOrName);
-        if (resolved.isPresent()) {
-            return Optional.ofNullable(resolved.get().getName());
-        }
-
-        if (MONGO_OBJECT_ID.matcher(roleIdOrName).matches()) {
-            return Optional.empty();
-        }
-
-        return Optional.of(roleIdOrName);
     }
 
     private String normalizeRole(String role) {

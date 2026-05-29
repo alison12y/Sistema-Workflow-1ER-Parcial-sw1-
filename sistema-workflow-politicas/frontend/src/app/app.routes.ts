@@ -28,13 +28,13 @@ export const routes: Routes = [
         path: 'policies/:id/actividades',
         loadComponent: () =>
           import('./pages/policy-activities/policy-activities.component').then((m) => m.PolicyActivitiesComponent),
-        canActivate: [permissionGuard('POLICIES_MANAGE', 'WORKFLOW_MANAGE')],
+        canActivate: [permissionGuard('POLICIES_MANAGE', 'WORKFLOW_MANAGE', 'WORKFLOW_VIEW')],
       },
       {
         path: 'policies/:id',
         loadComponent: () =>
           import('./pages/policy-detail/policy-detail.component').then((m) => m.PolicyDetailComponent),
-        canActivate: [permissionGuard('POLICIES_MANAGE')],
+        canActivate: [permissionGuard('POLICIES_MANAGE', 'WORKFLOW_VIEW')],
       },
       {
         path: 'seguimiento',

@@ -21,9 +21,24 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.workflow.politicas.security.SystemPermissions;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private static final String[] WORKFLOW_ACTIVITY_PATHS = {
+            "/api/workflow-activities",
+            "/api/workflow-activities/**"
+    };
+
+    /** Permisos/roles que pueden crear, editar o eliminar actividades workflow. */
+    private static final String[] WORKFLOW_ACTIVITY_MUTATION_AUTHORITIES = {
+            "ROLE_ADMIN",
+            "ROLE_PROCESS_OWNER",
+            SystemPermissions.WORKFLOW_MANAGE,
+            SystemPermissions.POLICIES_MANAGE
+    };
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final CustomUserDetailsService userDetailsService;
@@ -51,7 +66,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/dev/migrate-phase1").permitAll()
                         .requestMatchers("/api/dashboard/**").authenticated()
-                        .requestMatchers("/api/workflow-activities/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, WORKFLOW_ACTIVITY_PATHS).authenticated()
+                        .requestMatchers(HttpMethod.POST, WORKFLOW_ACTIVITY_PATHS)
+                                .hasAnyAuthority(WORKFLOW_ACTIVITY_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.PUT, WORKFLOW_ACTIVITY_PATHS)
+                                .hasAnyAuthority(WORKFLOW_ACTIVITY_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.PATCH, WORKFLOW_ACTIVITY_PATHS)
+                                .hasAnyAuthority(WORKFLOW_ACTIVITY_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.DELETE, WORKFLOW_ACTIVITY_PATHS)
+                                .hasAnyAuthority(WORKFLOW_ACTIVITY_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.GET, "/api/policies/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/policies/**")
                                 .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")

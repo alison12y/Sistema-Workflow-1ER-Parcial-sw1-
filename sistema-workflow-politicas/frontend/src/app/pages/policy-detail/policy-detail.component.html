@@ -47,7 +47,12 @@
       <section class="data-card">
         <div class="section-head">
           <h2>Actividades del workflow</h2>
-          <a [routerLink]="['/policies', policy.id, 'actividades']" class="btn btn-secondary btn-sm">Ver actividades</a>
+          <span class="count-badge">{{ policy.activityCount ?? policy.activities?.length ?? 0 }} actividades</span>
+          @if (canManageActivities) {
+            <a [routerLink]="['/policies', policy.id, 'actividades']" class="btn btn-primary btn-sm">Gestionar actividades</a>
+          } @else {
+            <a [routerLink]="['/policies', policy.id, 'actividades']" class="btn btn-secondary btn-sm">Ver actividades</a>
+          }
         </div>
         @if (!policy.activities?.length) {
           <div class="empty-state">Esta política aún no tiene actividades configuradas.</div>
@@ -55,21 +60,25 @@
           <div class="table-wrap">
             <table class="data-table compact">
               <thead>
-                <tr><th>Orden</th><th>Actividad</th><th>Responsable</th><th>Tipo</th><th>Estado</th></tr>
+                <tr><th>Orden</th><th>Actividad</th><th>Responsable</th><th>Tipo</th><th>Tiempo est.</th><th>Estado</th></tr>
               </thead>
               <tbody>
-                @for (a of policy.activities; track a.id || a.name + a.order) {
+                @for (a of previewActivities; track a.id || a.name + a.orderIndex) {
                   <tr>
-                    <td>{{ a.order ?? '—' }}</td>
+                    <td>{{ a.orderIndex ?? '—' }}</td>
                     <td>{{ a.name }}</td>
-                    <td>{{ a.responsible || '—' }}</td>
-                    <td>{{ a.activityType || '—' }}</td>
-                    <td>{{ a.status || '—' }}</td>
+                    <td>{{ a.responsibleName || '—' }}</td>
+                    <td>{{ activityTypeLabel(a.activityType) }}</td>
+                    <td>{{ a.estimatedTimeHours ? a.estimatedTimeHours + ' h' : '—' }}</td>
+                    <td>{{ activityStatusLabel(a.status) }}</td>
                   </tr>
                 }
               </tbody>
             </table>
           </div>
+          @if ((policy.activityCount ?? policy.activities?.length ?? 0) > 3) {
+            <p class="more-hint">Mostrando las primeras 3 actividades del flujo.</p>
+          }
         }
       </section>
 

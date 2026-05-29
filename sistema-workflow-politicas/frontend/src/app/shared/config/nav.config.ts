@@ -125,10 +125,14 @@ export function getVisibleNavItems(auth: AuthService): VisibleNavItem[] {
 
 export function canAccessRoute(auth: AuthService, path: string): boolean {
   if (path.startsWith('/policies/') && path.includes('/actividades')) {
-    return auth.hasPermission('POLICIES_MANAGE') || auth.hasPermission('WORKFLOW_MANAGE');
+    return (
+      auth.hasPermission('POLICIES_MANAGE') ||
+      auth.hasPermission('WORKFLOW_MANAGE') ||
+      auth.hasPermission('WORKFLOW_VIEW')
+    );
   }
   if (path.match(/^\/policies\/[^/]+$/)) {
-    return auth.hasPermission('POLICIES_MANAGE');
+    return auth.hasPermission('POLICIES_MANAGE') || auth.hasPermission('WORKFLOW_VIEW');
   }
   if (path.startsWith('/workflow-designer/')) {
     return auth.hasPermission('WORKFLOW_MANAGE');

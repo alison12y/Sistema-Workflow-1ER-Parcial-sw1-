@@ -8,7 +8,9 @@ import java.util.List;
 
 @Repository
 public interface WorkflowActivityRepository extends MongoRepository<WorkflowActivity, String> {
-    List<WorkflowActivity> findByPolicyIdOrderByOrderAsc(String policyId);
+    List<WorkflowActivity> findByPolicyIdOrderByOrderIndexAsc(String policyId);
 
     long countByPolicyId(String policyId);
+
+    List<WorkflowActivity> findByPolicyId(String policyId);
 }

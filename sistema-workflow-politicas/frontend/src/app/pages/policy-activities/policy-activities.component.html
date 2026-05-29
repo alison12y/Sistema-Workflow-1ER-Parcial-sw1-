@@ -3,16 +3,23 @@
     <div>
       <a [routerLink]="['/policies', policyId]" class="back-link">← Volver al detalle</a>
       <h1>Actividades del workflow</h1>
-      <p>{{ policyName || 'Política de negocio' }}</p>
+      @if (policy) {
+        <p class="policy-meta">
+          <strong>{{ policy.name }}</strong>
+          · {{ policyStatusText(policy.status) }}
+        </p>
+        <p class="policy-desc">{{ policy.description || 'Sin descripción' }}</p>
+      } @else {
+        <p>Política de negocio</p>
+      }
     </div>
+    @if (canManage) {
+      <button type="button" class="btn btn-primary" (click)="openCreate()">+ Nueva actividad</button>
+    }
   </div>
 
-  <div class="dev-banner">
-    <i class="material-icons">construction</i>
-    <span>El diseñador visual avanzado estará disponible en una fase posterior. Aquí se listan las actividades base detectadas o configuradas.</span>
-  </div>
-
-  @if (error) { <div class="alert error">{{ error }}</div> }
+  @if (message) { <div class="alert success">{{ message }}</div> }
+  @if (error && !modalOpen) { <div class="alert error">{{ error }}</div> }
 
   <div class="data-card">
     @if (loading) {
@@ -31,18 +38,35 @@
               <th>Tipo</th>
               <th>Tiempo est.</th>
               <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            @for (a of activities; track a.id || a.name + a.order) {
+            @for (a of activities; track a.id || a.name + a.orderIndex) {
               <tr>
-                <td>{{ a.order ?? '—' }}</td>
+                <td>{{ a.orderIndex ?? '—' }}</td>
                 <td>{{ a.name }}</td>
-                <td>{{ a.description || '—' }}</td>
-                <td>{{ a.responsible || '—' }}</td>
-                <td>{{ a.activityType || '—' }}</td>
-                <td>{{ a.estimatedMinutes ? a.estimatedMinutes + ' min' : '—' }}</td>
-                <td>{{ a.status || '—' }}</td>
+                <td>{{ shortDescription(a.description) }}</td>
+                <td>{{ a.responsibleName || '—' }}</td>
+                <td>{{ activityTypeLabel(a.activityType) }}</td>
+                <td>{{ a.estimatedTimeHours ? a.estimatedTimeHours + ' h' : '—' }}</td>
+                <td>
+                  <span class="badge" [class]="activityStatusClass(a.status)">
+                    {{ activityStatusLabel(a.status) }}
+                  </span>
+                </td>
+                <td class="actions">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="openView(a)">Ver</button>
+                  @if (canManage) {
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(a)">Editar</button>
+                    @if (a.status === 'ACTIVA' && a.active !== false) {
+                      <button type="button" class="btn btn-secondary btn-sm" (click)="toggleActive(a)">Desactivar</button>
+                    } @else {
+                      <button type="button" class="btn btn-primary btn-sm" (click)="toggleActive(a)">Activar</button>
+                    }
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="remove(a)">Eliminar</button>
+                  }
+                </td>
               </tr>
             }
           </tbody>
@@ -51,3 +75,81 @@
     }
   </div>
 </div>
+
+@if (modalOpen) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>{{ editingId ? 'Editar actividad' : 'Nueva actividad' }}</h2>
+      @if (error) { <div class="alert error">{{ error }}</div> }
+      <div class="form-grid">
+        <label>Nombre *
+          <input type="text" [(ngModel)]="form.name" />
+        </label>
+        <label class="full-width">Descripción
+          <textarea [(ngModel)]="form.description" rows="3"></textarea>
+        </label>
+        <label>Tipo de responsable
+          <select [(ngModel)]="form.responsibleType">
+            @for (opt of responsibleTypeOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+        <label>Responsable
+          <select [(ngModel)]="form.responsibleName">
+            <option value="">Seleccione...</option>
+            @for (r of responsibleOptions; track r) {
+              <option [value]="r">{{ r }}</option>
+            }
+          </select>
+        </label>
+        <label>Tipo de actividad
+          <select [(ngModel)]="form.activityType">
+            @for (opt of activityTypeOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+        <label>Orden
+          <input type="number" min="1" [(ngModel)]="form.orderIndex" placeholder="Automático si se deja vacío" />
+        </label>
+        <label>Tiempo estimado (horas)
+          <input type="number" min="1" [(ngModel)]="form.estimatedTimeHours" />
+        </label>
+        <label>Estado
+          <select [(ngModel)]="form.status">
+            @for (opt of activityStatusOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving" (click)="save()">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (viewModalOpen && viewingActivity) {
+  <div class="modal-backdrop" (click)="closeViewModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>{{ viewingActivity.name }}</h2>
+      <dl class="detail-list">
+        <dt>Orden</dt><dd>{{ viewingActivity.orderIndex ?? '—' }}</dd>
+        <dt>Descripción</dt><dd>{{ viewingActivity.description || '—' }}</dd>
+        <dt>Responsable</dt><dd>{{ viewingActivity.responsibleName || '—' }}</dd>
+        <dt>Tipo de actividad</dt><dd>{{ activityTypeLabel(viewingActivity.activityType) }}</dd>
+        <dt>Tiempo estimado</dt>
+        <dd>{{ viewingActivity.estimatedTimeHours ? viewingActivity.estimatedTimeHours + ' horas' : '—' }}</dd>
+        <dt>Estado</dt><dd>{{ activityStatusLabel(viewingActivity.status) }}</dd>
+      </dl>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeViewModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}

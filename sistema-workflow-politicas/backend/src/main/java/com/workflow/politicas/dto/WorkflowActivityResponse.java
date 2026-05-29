@@ -1,20 +1,29 @@
 package com.workflow.politicas.dto;
 
+import java.time.LocalDateTime;
+
 public class WorkflowActivityResponse {
     private String id;
+    private String policyId;
     private String name;
     private String description;
-    private String policyId;
-    private String responsible;
     private String responsibleType;
+    private String responsibleId;
+    private String responsibleName;
     private String activityType;
-    private int order;
-    private Integer estimatedMinutes;
     private String status;
+    private int orderIndex;
+    private Integer estimatedTimeHours;
     private String formId;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private boolean active;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public String getPolicyId() { return policyId; }
+    public void setPolicyId(String policyId) { this.policyId = policyId; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -22,27 +31,36 @@ public class WorkflowActivityResponse {
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
-    public String getPolicyId() { return policyId; }
-    public void setPolicyId(String policyId) { this.policyId = policyId; }
-
-    public String getResponsible() { return responsible; }
-    public void setResponsible(String responsible) { this.responsible = responsible; }
-
     public String getResponsibleType() { return responsibleType; }
     public void setResponsibleType(String responsibleType) { this.responsibleType = responsibleType; }
+
+    public String getResponsibleId() { return responsibleId; }
+    public void setResponsibleId(String responsibleId) { this.responsibleId = responsibleId; }
+
+    public String getResponsibleName() { return responsibleName; }
+    public void setResponsibleName(String responsibleName) { this.responsibleName = responsibleName; }
 
     public String getActivityType() { return activityType; }
     public void setActivityType(String activityType) { this.activityType = activityType; }
 
-    public int getOrder() { return order; }
-    public void setOrder(int order) { this.order = order; }
-
-    public Integer getEstimatedMinutes() { return estimatedMinutes; }
-    public void setEstimatedMinutes(Integer estimatedMinutes) { this.estimatedMinutes = estimatedMinutes; }
-
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
+    public int getOrderIndex() { return orderIndex; }
+    public void setOrderIndex(int orderIndex) { this.orderIndex = orderIndex; }
+
+    public Integer getEstimatedTimeHours() { return estimatedTimeHours; }
+    public void setEstimatedTimeHours(Integer estimatedTimeHours) { this.estimatedTimeHours = estimatedTimeHours; }
+
     public String getFormId() { return formId; }
     public void setFormId(String formId) { this.formId = formId; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
 }

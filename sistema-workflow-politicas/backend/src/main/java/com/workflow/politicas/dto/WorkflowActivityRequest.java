@@ -1,34 +1,17 @@
-package com.workflow.politicas.model;
+package com.workflow.politicas.dto;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-
-import java.time.LocalDateTime;
-
-@Document(collection = "workflow_activities")
-public class WorkflowActivity {
-    @Id
-    private String id;
+public class WorkflowActivityRequest {
     private String policyId;
     private String name;
     private String description;
-    /** ROLE, DEPARTMENT, USER */
     private String responsibleType;
     private String responsibleId;
     private String responsibleName;
-    /** START, TASK, DECISION, END */
     private String activityType;
-    /** BORRADOR, ACTIVA, INACTIVA */
     private String status;
-    private int orderIndex;
+    private Integer orderIndex;
     private Integer estimatedTimeHours;
     private String formId;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    private Boolean active;
-
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
 
     public String getPolicyId() { return policyId; }
     public void setPolicyId(String policyId) { this.policyId = policyId; }
@@ -54,26 +37,12 @@ public class WorkflowActivity {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    public int getOrderIndex() { return orderIndex; }
-    public void setOrderIndex(int orderIndex) { this.orderIndex = orderIndex; }
+    public Integer getOrderIndex() { return orderIndex; }
+    public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
 
     public Integer getEstimatedTimeHours() { return estimatedTimeHours; }
     public void setEstimatedTimeHours(Integer estimatedTimeHours) { this.estimatedTimeHours = estimatedTimeHours; }
 
     public String getFormId() { return formId; }
     public void setFormId(String formId) { this.formId = formId; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-
-    public boolean isActive() {
-        return active == null || Boolean.TRUE.equals(active);
-    }
-
-    public void setActive(boolean active) {
-        this.active = active;
-    }
 }

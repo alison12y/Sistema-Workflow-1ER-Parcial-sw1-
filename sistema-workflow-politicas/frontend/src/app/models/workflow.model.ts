@@ -33,13 +33,30 @@ export interface WorkflowActivity {
   name: string;
   description?: string;
   policyId?: string;
-  responsible?: string;
   responsibleType?: string;
+  responsibleId?: string;
+  responsibleName?: string;
   activityType?: string;
-  order?: number;
-  estimatedMinutes?: number;
+  orderIndex?: number;
+  estimatedTimeHours?: number;
   status?: string;
   formId?: string;
+  active?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WorkflowActivityRequest {
+  policyId?: string;
+  name: string;
+  description?: string;
+  responsibleType?: string;
+  responsibleId?: string;
+  responsibleName?: string;
+  activityType?: string;
+  status?: string;
+  orderIndex?: number;
+  estimatedTimeHours?: number;
 }
 
 export interface TramiteSummary {

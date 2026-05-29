@@ -31,7 +31,8 @@ public class SecurityLoggingFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         if (!path.startsWith("/api/forms")
                 && !path.startsWith("/api/form-fields")
-                && !path.startsWith("/api/tramites")) {
+                && !path.startsWith("/api/tramites")
+                && !path.startsWith("/api/workflow-activities")) {
             return;
         }
 

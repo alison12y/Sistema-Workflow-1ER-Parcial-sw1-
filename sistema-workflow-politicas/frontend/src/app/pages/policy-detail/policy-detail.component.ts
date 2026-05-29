@@ -2,8 +2,13 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { PolicyService } from '../../services/policy.service';
+import { AuthService } from '../../services/auth.service';
 import { PolicyDetail } from '../../models/workflow.model';
 import { tramiteStatusLabel } from '../../utils/tramite-display.util';
+import {
+  activityStatusLabel,
+  activityTypeLabel,
+} from '../../utils/workflow-display.util';
 
 @Component({
   selector: 'app-policy-detail',
@@ -15,6 +20,7 @@ import { tramiteStatusLabel } from '../../utils/tramite-display.util';
 export class PolicyDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly policyService = inject(PolicyService);
+  private readonly auth = inject(AuthService);
 
   policy: PolicyDetail | null = null;
   loading = true;
@@ -23,6 +29,9 @@ export class PolicyDetailComponent implements OnInit {
   actionLoading = false;
 
   readonly tramiteStatusLabel = tramiteStatusLabel;
+  readonly activityTypeLabel = activityTypeLabel;
+  readonly activityStatusLabel = activityStatusLabel;
+  readonly canManageActivities = this.auth.canManageWorkflowActivities();
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
@@ -59,6 +68,10 @@ export class PolicyDetailComponent implements OnInit {
     if (s === 'ACTIVE') return 'active';
     if (s === 'INACTIVE') return 'inactive';
     return 'draft';
+  }
+
+  get previewActivities() {
+    return (this.policy?.activities ?? []).slice(0, 3);
   }
 
   activate(): void {

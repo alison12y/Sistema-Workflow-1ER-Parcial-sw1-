@@ -45,13 +45,19 @@ public final class Phase1BootstrapData {
                             SystemPermissions.MONITORING_VIEW,
                             SystemPermissions.KPI_VIEW,
                             SystemPermissions.REPORTS_VIEW,
-                            SystemPermissions.AUDIT_VIEW
+                            SystemPermissions.AUDIT_VIEW,
+                            SystemPermissions.WORKFLOW_VIEW
                     )
             ),
             new RoleSeed(
                     "Atención al cliente",
                     "Atiende solicitudes y gestiona trámites de clientes",
-                    Set.of(SystemPermissions.TASKS_EXECUTE, SystemPermissions.REPORTS_VIEW, SystemPermissions.MONITORING_VIEW)
+                    Set.of(
+                            SystemPermissions.TASKS_EXECUTE,
+                            SystemPermissions.REPORTS_VIEW,
+                            SystemPermissions.MONITORING_VIEW,
+                            SystemPermissions.WORKFLOW_VIEW
+                    )
             ),
             new RoleSeed(
                     "Técnico",

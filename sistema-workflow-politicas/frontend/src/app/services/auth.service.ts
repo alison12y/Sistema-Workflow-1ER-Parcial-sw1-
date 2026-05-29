@@ -28,7 +28,11 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
+    const raw = localStorage.getItem(TOKEN_KEY);
+    if (!raw) return null;
+    const token = raw.trim();
+    if (!token || token === 'undefined' || token === 'null') return null;
+    return token;
   }
 
   getCurrentUser(): AuthResponse | null {
@@ -68,5 +72,17 @@ export class AuthService {
     if (user?.roleName) return user.roleName;
     if (user?.roles?.length) return user.roles.join(', ');
     return 'Usuario';
+  }
+
+  canManageWorkflowActivities(): boolean {
+    return this.isAdmin() || this.hasPermission('WORKFLOW_MANAGE');
+  }
+
+  canViewWorkflowActivities(): boolean {
+    return (
+      this.canManageWorkflowActivities() ||
+      this.hasPermission('WORKFLOW_VIEW') ||
+      this.hasPermission('POLICIES_MANAGE')
+    );
   }
 }
