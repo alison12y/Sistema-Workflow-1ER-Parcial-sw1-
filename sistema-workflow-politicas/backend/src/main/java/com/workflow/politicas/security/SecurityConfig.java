@@ -37,6 +37,16 @@ public class SecurityConfig {
             "/api/workflow-transitions/**"
     };
 
+    private static final String[] WORKFLOW_TRANSITION_DEDUPE_PATHS = {
+            "/api/workflow-transitions/deduplicate",
+            "/api/workflow-transitions/policy/*/deduplicate"
+    };
+
+    private static final String[] WORKFLOW_TRANSITION_CLEANUP_PATHS = {
+            "/api/workflow-transitions/cleanup",
+            "/api/workflow-transitions/policy/*/cleanup"
+    };
+
     private static final String[] WORKFLOW_DESIGNER_PATHS = {
             "/api/workflow-designer",
             "/api/workflow-designer/**",
@@ -104,6 +114,10 @@ public class SecurityConfig {
                                 .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.GET, WORKFLOW_TRANSITION_PATHS)
                                 .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, WORKFLOW_TRANSITION_DEDUPE_PATHS)
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, WORKFLOW_TRANSITION_CLEANUP_PATHS)
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.POST, "/api/workflow-transitions")
                                 .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.POST, "/api/workflow-transitions/**")

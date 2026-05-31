@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, ChangeDetectorRef, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -16,6 +16,7 @@ import {
   activityStatusLabel,
   activityTypeLabel,
 } from '../../utils/workflow-display.util';
+import { isVisibleActivity } from '../../utils/workflow-visibility.util';
 
 @Component({
   selector: 'app-policy-activities',
@@ -29,6 +30,7 @@ export class PolicyActivitiesComponent implements OnInit {
   private readonly activityService = inject(WorkflowActivityService);
   private readonly policyService = inject(PolicyService);
   private readonly auth = inject(AuthService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   policyId = '';
   policy: PolicyDetail | null = null;
@@ -87,17 +89,21 @@ export class PolicyActivitiesComponent implements OnInit {
     });
   }
 
-  loadActivities(): void {
-    this.loading = true;
+  loadActivities(options?: { silent?: boolean }): void {
+    if (!options?.silent) {
+      this.loading = true;
+    }
     this.error = '';
     this.activityService.getByPolicy(this.policyId).subscribe({
       next: (data) => {
-        this.activities = data;
+        this.activities = [...data];
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (err: HttpErrorResponse) => {
         this.error = this.resolveError(err, 'No se pudieron cargar las actividades.');
         this.loading = false;
+        this.cdr.detectChanges();
       },
     });
   }
@@ -177,8 +183,7 @@ export class PolicyActivitiesComponent implements OnInit {
         this.message = this.editingId ? 'Actividad actualizada correctamente.' : 'Actividad creada correctamente.';
         this.modalOpen = false;
         this.saving = false;
-        this.loadActivities();
-        this.loadPolicy();
+        this.refreshActivitiesView();
       },
       error: (err: HttpErrorResponse) => {
         this.error = this.resolveError(err, 'No se pudo guardar la actividad.');
@@ -198,8 +203,8 @@ export class PolicyActivitiesComponent implements OnInit {
         this.message = activity.status === 'ACTIVA'
           ? 'Actividad desactivada correctamente.'
           : 'Actividad activada correctamente.';
-        this.loadActivities();
-        this.loadPolicy();
+        this.patchActivityActiveState(activity.id!, activity.status === 'ACTIVA');
+        this.refreshActivitiesView();
       },
       error: (err: HttpErrorResponse) => {
         this.error = this.resolveError(err, 'No se pudo cambiar el estado de la actividad.');
@@ -207,15 +212,26 @@ export class PolicyActivitiesComponent implements OnInit {
     });
   }
 
+  get visibleActivities(): WorkflowActivity[] {
+    return this.activities.filter(isVisibleActivity);
+  }
+
   remove(activity: WorkflowActivity): void {
     if (!this.canManage || !activity.id) return;
-    if (!confirm(`¿Eliminar la actividad "${activity.name}"?`)) return;
+    if (
+      !confirm(
+        '¿Está seguro de eliminar esta actividad? También puede afectar conexiones asociadas.',
+      )
+    ) {
+      return;
+    }
 
     this.activityService.delete(activity.id).subscribe({
-      next: () => {
-        this.message = 'Actividad eliminada correctamente.';
-        this.loadActivities();
+      next: (result) => {
+        this.message = result.message || 'Actividad eliminada correctamente.';
+        this.patchActivityRemoved(activity.id!);
         this.loadPolicy();
+        this.loadActivities({ silent: true });
       },
       error: (err: HttpErrorResponse) => {
         this.error = this.resolveError(err, 'No se pudo eliminar la actividad.');
@@ -234,6 +250,29 @@ export class PolicyActivitiesComponent implements OnInit {
   shortDescription(text?: string): string {
     if (!text) return '—';
     return text.length > 80 ? `${text.slice(0, 80)}…` : text;
+  }
+
+  private refreshActivitiesView(): void {
+    this.loadActivities({ silent: true });
+    this.loadPolicy();
+  }
+
+  private patchActivityRemoved(id: string): void {
+    this.activities = this.activities.filter((activity) => activity.id !== id);
+    this.cdr.detectChanges();
+  }
+
+  private patchActivityActiveState(id: string, wasActive: boolean): void {
+    this.activities = this.activities.map((activity) =>
+      activity.id === id
+        ? {
+            ...activity,
+            active: !wasActive,
+            status: wasActive ? 'INACTIVA' : 'ACTIVA',
+          }
+        : activity,
+    );
+    this.cdr.detectChanges();
   }
 
   private resolveError(err: HttpErrorResponse, fallback: string): string {

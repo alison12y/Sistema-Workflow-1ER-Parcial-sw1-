@@ -14,11 +14,10 @@ import java.util.*;
 @Service
 public class WorkflowDesignerService {
 
-    private static final int LANE_HEIGHT = 140;
-    private static final int LANE_LABEL_WIDTH = 180;
-    private static final int NODE_WIDTH = 200;
-    private static final int NODE_HORIZONTAL_GAP = 48;
-    private static final int NODE_TOP_PADDING = 36;
+    private static final int LANE_HEIGHT = 200;
+    private static final int LANE_LABEL_WIDTH = 200;
+    private static final int NODE_HORIZONTAL_MIN = 220;
+    private static final int NODE_TOP_PADDING = 50;
 
     private static final Map<String, String> ACTIVITY_TYPE_LABELS = Map.of(
             "START", "Inicio",
@@ -65,21 +64,35 @@ public class WorkflowDesignerService {
 
         List<WorkflowActivity> allActivities = workflowActivityRepository
                 .findByPolicyIdOrderByOrderIndexAsc(policyId);
-        List<WorkflowActivity> activeActivities = allActivities.stream()
-                .filter(WorkflowActivity::isActive)
-                .toList();
-
         List<WorkflowTransition> allTransitions = workflowTransitionRepository
                 .findByPolicyIdOrderByOrderIndexAsc(policyId);
         List<WorkflowTransition> activeTransitions = allTransitions.stream()
                 .filter(WorkflowTransition::isActive)
                 .toList();
 
-        List<LaneResponse> lanes = buildLanes(activeActivities);
-        List<ActivityNodeResponse> activityNodes = buildActivityNodes(lanes);
+        Set<String> referencedActivityIds = new LinkedHashSet<>();
+        for (WorkflowTransition transition : activeTransitions) {
+            if (transition.getFromActivityId() != null && !transition.getFromActivityId().isBlank()) {
+                referencedActivityIds.add(transition.getFromActivityId());
+            }
+            if (transition.getToActivityId() != null && !transition.getToActivityId().isBlank()) {
+                referencedActivityIds.add(transition.getToActivityId());
+            }
+        }
+
+        List<WorkflowActivity> canvasActivities = allActivities.stream()
+                .filter(activity -> activity.isActive() || referencedActivityIds.contains(activity.getId()))
+                .toList();
+
+        List<LaneResponse> lanes = buildLanes(canvasActivities);
+        Map<String, WorkflowActivity> activityById = new LinkedHashMap<>();
+        for (WorkflowActivity activity : canvasActivities) {
+            activityById.put(activity.getId(), activity);
+        }
         List<TransitionEdgeResponse> transitionEdges = activeTransitions.stream()
                 .map(this::toTransitionEdge)
                 .toList();
+        List<ActivityNodeResponse> activityNodes = buildActivityNodes(lanes, activeTransitions, activityById);
 
         WorkflowDesignerResponse response = new WorkflowDesignerResponse();
         response.setPolicyId(policy.getId());
@@ -89,7 +102,7 @@ public class WorkflowDesignerService {
         response.setActivities(activityNodes);
         response.setTransitions(transitionEdges);
         response.setLanes(lanes);
-        response.setFlowPreview(buildNumberedFlowPreview(activeActivities, activeTransitions));
+        response.setFlowPreview(buildNumberedFlowPreview(canvasActivities, activeTransitions));
         response.setFlowValidation(workflowTransitionService.validateFlow(policyId));
         return response;
     }
@@ -120,23 +133,69 @@ public class WorkflowDesignerService {
         return lanes;
     }
 
-    private List<ActivityNodeResponse> buildActivityNodes(List<LaneResponse> lanes) {
+    private List<ActivityNodeResponse> buildActivityNodes(
+            List<LaneResponse> lanes,
+            List<WorkflowTransition> activeTransitions,
+            Map<String, WorkflowActivity> activityById
+    ) {
+        Map<String, Integer> incoming = new HashMap<>();
+        Map<String, Integer> outgoing = new HashMap<>();
+        Map<String, Integer> outgoingConditional = new HashMap<>();
+
+        for (WorkflowTransition transition : activeTransitions) {
+            String fromId = transition.getFromActivityId();
+            String toId = transition.getToActivityId();
+            outgoing.merge(fromId, 1, Integer::sum);
+            incoming.merge(toId, 1, Integer::sum);
+            if ("CONDITIONAL".equalsIgnoreCase(transition.getTransitionType())) {
+                outgoingConditional.merge(fromId, 1, Integer::sum);
+            }
+        }
+
+        Map<String, Integer> laneIndexByName = new HashMap<>();
+        for (int i = 0; i < lanes.size(); i++) {
+            laneIndexByName.put(lanes.get(i).getLaneName(), i);
+        }
+
         List<ActivityNodeResponse> nodes = new ArrayList<>();
-        int laneIndex = 0;
         for (LaneResponse lane : lanes) {
-            int y = laneIndex * LANE_HEIGHT + NODE_TOP_PADDING;
-            int x = LANE_LABEL_WIDTH;
-            int indexInLane = 0;
+            int laneIndex = laneIndexByName.getOrDefault(lane.getLaneName(), 0);
             for (ActivityNodeResponse base : lane.getActivities()) {
                 ActivityNodeResponse node = copyNode(base);
-                node.setX(x + indexInLane * (NODE_WIDTH + NODE_HORIZONTAL_GAP));
-                node.setY(y);
+                WorkflowActivity sourceActivity = activityById.get(node.getId());
+                if (hasSavedPosition(sourceActivity)) {
+                    node.setX(sourceActivity.getPositionX());
+                    node.setY(sourceActivity.getPositionY());
+                } else {
+                    int orderIndex = Math.max(1, node.getOrderIndex());
+                    node.setX(LANE_LABEL_WIDTH + (orderIndex - 1) * NODE_HORIZONTAL_MIN);
+                    node.setY(laneIndex * LANE_HEIGHT + NODE_TOP_PADDING);
+                }
+                String nodeId = node.getId();
+                int inCount = incoming.getOrDefault(nodeId, 0);
+                int outCount = outgoing.getOrDefault(nodeId, 0);
+                int condOut = outgoingConditional.getOrDefault(nodeId, 0);
+                node.setIncomingCount(inCount);
+                node.setOutgoingCount(outCount);
+                node.setOutgoingConditionalCount(condOut);
+                node.setDecisionNode(isDecisionNode(node.getActivityType(), condOut));
                 nodes.add(node);
-                indexInLane++;
             }
-            laneIndex++;
         }
         return nodes;
+    }
+
+    private boolean hasSavedPosition(WorkflowActivity activity) {
+        return activity != null
+                && activity.getPositionX() != null
+                && activity.getPositionY() != null;
+    }
+
+    private boolean isDecisionNode(String activityType, int outgoingConditionalCount) {
+        if ("DECISION".equalsIgnoreCase(activityType)) {
+            return true;
+        }
+        return outgoingConditionalCount > 1;
     }
 
     private ActivityNodeResponse copyNode(ActivityNodeResponse source) {
@@ -152,6 +211,10 @@ public class WorkflowDesignerService {
         node.setEstimatedTimeHours(source.getEstimatedTimeHours());
         node.setX(source.getX());
         node.setY(source.getY());
+        node.setDecisionNode(source.isDecisionNode());
+        node.setOutgoingConditionalCount(source.getOutgoingConditionalCount());
+        node.setIncomingCount(source.getIncomingCount());
+        node.setOutgoingCount(source.getOutgoingCount());
         return node;
     }
 
@@ -201,7 +264,7 @@ public class WorkflowDesignerService {
             if ("CONDITIONAL".equalsIgnoreCase(transition.getTransitionType())
                     && transition.getConditionLabel() != null
                     && !transition.getConditionLabel().isBlank()) {
-                arrow += " si " + transition.getConditionLabel();
+                arrow += " [" + transition.getConditionLabel().trim() + "]";
             } else if (!"SEQUENTIAL".equalsIgnoreCase(transition.getTransitionType())) {
                 arrow += " (" + transitionTypeLabel(transition.getTransitionType()) + ")";
             }

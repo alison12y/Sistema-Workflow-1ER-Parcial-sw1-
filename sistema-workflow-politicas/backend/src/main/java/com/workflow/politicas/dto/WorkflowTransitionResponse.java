@@ -17,6 +17,8 @@ public class WorkflowTransitionResponse {
     private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** true cuando create reactivó una conexión inactiva existente. */
+    private boolean reactivated;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -59,4 +61,7 @@ public class WorkflowTransitionResponse {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public boolean isReactivated() { return reactivated; }
+    public void setReactivated(boolean reactivated) { this.reactivated = reactivated; }
 }

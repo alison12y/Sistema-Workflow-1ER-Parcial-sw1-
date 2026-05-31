@@ -1,6 +1,9 @@
 package com.workflow.politicas.controller;
 
+import com.workflow.politicas.dto.WorkflowDeleteResponse;
 import com.workflow.politicas.dto.WorkflowFlowValidationResponse;
+import com.workflow.politicas.dto.WorkflowTransitionCleanupResponse;
+import com.workflow.politicas.dto.WorkflowTransitionDedupeResponse;
 import com.workflow.politicas.dto.WorkflowTransitionRequest;
 import com.workflow.politicas.dto.WorkflowTransitionResponse;
 import com.workflow.politicas.service.WorkflowTransitionService;
@@ -51,9 +54,8 @@ public class WorkflowTransitionController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
-        workflowTransitionService.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<WorkflowDeleteResponse> delete(@PathVariable String id) {
+        return ResponseEntity.ok(workflowTransitionService.delete(id));
     }
 
     @PatchMapping("/{id}/activate")
@@ -64,5 +66,15 @@ public class WorkflowTransitionController {
     @PatchMapping("/{id}/deactivate")
     public ResponseEntity<WorkflowTransitionResponse> deactivate(@PathVariable String id) {
         return ResponseEntity.ok(workflowTransitionService.deactivate(id));
+    }
+
+    @PostMapping("/policy/{policyId}/deduplicate")
+    public ResponseEntity<WorkflowTransitionDedupeResponse> deduplicate(@PathVariable String policyId) {
+        return ResponseEntity.ok(workflowTransitionService.deduplicateByPolicyId(policyId));
+    }
+
+    @PostMapping("/policy/{policyId}/cleanup")
+    public ResponseEntity<WorkflowTransitionCleanupResponse> cleanup(@PathVariable String policyId) {
+        return ResponseEntity.ok(workflowTransitionService.cleanupTransitions(policyId));
     }
 }

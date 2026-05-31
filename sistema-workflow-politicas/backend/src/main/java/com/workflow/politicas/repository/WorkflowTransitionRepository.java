@@ -17,4 +17,10 @@ public interface WorkflowTransitionRepository extends MongoRepository<WorkflowTr
     long countByPolicyId(String policyId);
 
     boolean existsByPolicyIdAndFromActivityIdAndToActivityId(String policyId, String fromActivityId, String toActivityId);
+
+    List<WorkflowTransition> findByPolicyIdAndFromActivityIdAndToActivityId(
+            String policyId,
+            String fromActivityId,
+            String toActivityId
+    );
 }

@@ -4,12 +4,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -20,43 +22,53 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
-        return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+        return error(HttpStatus.BAD_REQUEST, "No se pudo completar la operación.", ex.getMessage());
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> handleUnreadable(HttpMessageNotReadableException ex) {
+        return error(HttpStatus.BAD_REQUEST, "Solicitud inválida.", "Revise los datos enviados.");
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, String>> handleBadCredentials(BadCredentialsException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("message", "Usuario o contraseña incorrectos"));
+        return error(HttpStatus.UNAUTHORIZED, "Usuario o contraseña incorrectos", null);
     }
 
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<Map<String, String>> handleDisabled(DisabledException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("message", "Su cuenta está inactiva. Contacte al administrador."));
+        return error(HttpStatus.UNAUTHORIZED, "Su cuenta está inactiva. Contacte al administrador.", null);
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, String>> handleAuthentication(AuthenticationException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(Map.of("message", "No se pudo iniciar sesión. Verifique sus credenciales."));
+        return error(HttpStatus.UNAUTHORIZED, "No se pudo iniciar sesión. Verifique sus credenciales.", null);
     }
 
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<Map<String, String>> handleNoSuchElement(NoSuchElementException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(Map.of("message", "Recurso no encontrado"));
+        return error(HttpStatus.NOT_FOUND, "Recurso no encontrado", ex.getMessage());
     }
 
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, String>> handleRuntime(RuntimeException ex) {
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleException(Exception ex) {
         if (ex instanceof AuthenticationException authenticationException) {
             return handleAuthentication(authenticationException);
         }
-        log.error("Unhandled runtime exception", ex);
-        if (ex.getMessage() != null && ex.getMessage().toLowerCase().contains("not found")) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+        log.error("Unhandled exception", ex);
+        String details = ex.getMessage() != null ? ex.getMessage() : "Error inesperado.";
+        if (details.toLowerCase().contains("not found")) {
+            return error(HttpStatus.NOT_FOUND, "Recurso no encontrado", details);
         }
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("message", "Error interno del servidor"));
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "No se pudo completar la operación.", details);
+    }
+
+    private ResponseEntity<Map<String, String>> error(HttpStatus status, String message, String details) {
+        Map<String, String> body = new LinkedHashMap<>();
+        body.put("message", message);
+        if (details != null && !details.isBlank()) {
+            body.put("details", details);
+        }
+        return ResponseEntity.status(status).body(body);
     }
 }

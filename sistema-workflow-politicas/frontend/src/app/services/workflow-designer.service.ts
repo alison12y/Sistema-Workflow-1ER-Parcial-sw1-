@@ -10,6 +10,8 @@ export class WorkflowDesignerService {
   private readonly api = `${environment.apiUrl}/api/workflow-designer`;
 
   getByPolicy(policyId: string): Observable<WorkflowDesignerData> {
-    return this.http.get<WorkflowDesignerData>(`${this.api}/policy/${policyId}`);
+    return this.http.get<WorkflowDesignerData>(`${this.api}/policy/${policyId}`, {
+      params: { _: Date.now().toString() },
+    });
   }
 }

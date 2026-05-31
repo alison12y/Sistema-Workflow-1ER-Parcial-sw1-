@@ -1,297 +1,1283 @@
-<div class="designer-container">
-  <aside class="toolbox">
-    <div class="toolbox-header">
-      <h3>Herramientas UML 2.5</h3>
-      <p>Seleccione para agregar al lienzo</p>
-    </div>
-
-    <div class="toolbox-scroll">
-      <div class="tool-list">
-        @for (tool of tools; track tool.type) {
-          <button type="button" class="tool-item" (click)="addNode(tool.type)">
-            <i class="material-icons">{{ tool.icon }}</i>
-            <span>{{ tool.label }}</span>
-          </button>
-        }
-      </div>
-
-      <div class="usage-guide">
-        <h4>Instrucciones</h4>
-        <ol>
-          <li>Agregue nodos UML desde el panel.</li>
-          <li>Arrastre nodos para posicionarlos.</li>
-          <li>Edite etiqueta y responsable del nodo seleccionado.</li>
-          <li>Use <strong>Conectar</strong> para crear flujos de control.</li>
-          <li>Edite condiciones en conexiones de decisiones.</li>
-          <li>Guarde el diagrama asociado a la política.</li>
-        </ol>
-        <button type="button" class="btn btn-ai btn-block" (click)="openAiModal()">
-          <i class="material-icons">auto_awesome</i>
-          Sugerir con IA
-        </button>
-        <button type="button" class="btn btn-secondary btn-block" (click)="loadExampleTemplate()">
-          Cargar plantilla de ejemplo
-        </button>
-        <button type="button" class="btn btn-secondary btn-block" (click)="clearCanvas()">
-          Limpiar lienzo
-        </button>
-      </div>
-
-      <div class="lanes-panel">
-        <h4>Calles / Carriles UML</h4>
-        <div class="lane-add">
-          <input type="text" [(ngModel)]="newLaneName" placeholder="Nuevo carril..." (keyup.enter)="addLane()" />
-          <button type="button" class="btn btn-secondary btn-sm" (click)="addLane()">+</button>
+<div class="page-crud designer-page">
+  <header class="designer-page-header">
+    <div class="header-main">
+      <div class="header-nav-group">
+        <button type="button" class="back-link" (click)="goBack()">← Volver al detalle</button>
+        <div class="header-titles">
+          <h1>Diagrama de actividades UML 2.5</h1>
+          @if (data) {
+            <p class="subtitle">{{ data.policyName }}</p>
+          }
         </div>
-        @for (lane of lanes; track lane; let i = $index) {
-          <div class="lane-item">
-            @if (editingLaneIndex === i) {
-              <input type="text" [(ngModel)]="editingLaneName" (keyup.enter)="saveEditLane()" />
-              <button type="button" class="btn-icon" (click)="saveEditLane()" title="Guardar">
-                <i class="material-icons">check</i>
-              </button>
-              <button type="button" class="btn-icon" (click)="cancelEditLane()" title="Cancelar">
-                <i class="material-icons">close</i>
-              </button>
-            } @else {
-              <span class="lane-name">{{ lane }}</span>
-              <div class="lane-actions">
-                @if (i > 0) {
-                  <button type="button" class="btn-icon" (click)="moveLaneUp(i)" title="Subir">
-                    <i class="material-icons">arrow_upward</i>
-                  </button>
-                }
-                @if (i < lanes.length - 1) {
-                  <button type="button" class="btn-icon" (click)="moveLaneDown(i)" title="Bajar">
-                    <i class="material-icons">arrow_downward</i>
-                  </button>
-                }
-                <button type="button" class="btn-icon" (click)="startEditLane(i)" title="Editar">
-                  <i class="material-icons">edit</i>
-                </button>
-                <button type="button" class="btn-icon danger" (click)="removeLane(i)" title="Eliminar">
-                  <i class="material-icons">delete</i>
-                </button>
-              </div>
-            }
-          </div>
-        }
       </div>
-
-      @if (selectedNode(); as node) {
-        <div class="inspector">
-          <h4>Editar nodo</h4>
-          <label>
-            Tipo
-            <input type="text" [value]="nodeTypeLabel(node.type)" disabled />
-          </label>
-          <label>
-            Etiqueta *
-            <input type="text" [(ngModel)]="node.label" />
-          </label>
-          <label>
-            Responsable / Carril
-            <select [(ngModel)]="node.lane" (ngModelChange)="onNodeLaneChange(node)">
-              @for (lane of lanes; track lane) {
-                <option [value]="lane">{{ lane }}</option>
-              }
-            </select>
-          </label>
-          <div class="inspector-actions">
-            <button type="button" class="btn btn-secondary btn-sm" (click)="startConnect(node.id, $event)">
-              Conectar
-            </button>
-            <button type="button" class="btn btn-danger btn-sm" (click)="removeSelectedNode()">Eliminar</button>
-          </div>
-        </div>
-      }
-
-      @if (selectedEdge(); as edge) {
-        <div class="inspector">
-          <h4>Editar conexión</h4>
-          <label>
-            Condición / Etiqueta
-            <input type="text" [(ngModel)]="edge.label" placeholder="Ej: [Sí], [No], [Aprobado]" />
-          </label>
-          <button type="button" class="btn btn-danger btn-sm" (click)="removeSelectedEdge()">Eliminar conexión</button>
+      @if (data) {
+        <div class="header-meta">
+          <span class="badge" [class]="policyStatusClass()">{{ data.policyStatus }}</span>
+          @if (canEdit) {
+            <a [routerLink]="['/policies', policyId, 'actividades']" class="btn btn-secondary btn-sm">Actividades</a>
+            <a [routerLink]="['/policies', policyId, 'transiciones']" class="btn btn-secondary btn-sm">Conexiones</a>
+          }
         </div>
       }
     </div>
-  </aside>
+  </header>
 
-  <main class="canvas-area">
-    <header class="canvas-header">
-      <div class="header-main">
-        <h1>Diagrama de Actividades UML 2.5</h1>
-        <p class="policy-line">
-          <span class="policy-label">Política:</span>
-          <span class="policy-name" [title]="policy?.name || ''">{{ policy?.name || 'Cargando...' }}</span>
+  @if (message) {
+    <div class="alert success">{{ message }}</div>
+  }
+
+  @if (error) {
+    <div class="alert error">{{ error }}</div>
+  }
+
+  @if (loading) {
+    <div class="loading">Cargando diagrama UML...</div>
+  } @else if (data) {
+    @if (data.policyDescription) {
+      <p class="policy-desc">{{ data.policyDescription }}</p>
+    }
+
+    @if (!hasActivities && displayLaneNames.length === 0) {
+      <div class="data-card guided-empty guided-empty-centered">
+        <h2>Comience diseñando el flujo</h2>
+        <p class="guided-intro">
+          Agregue la primera actividad o cree un flujo rápido para generar el diagrama inicial.
         </p>
+        @if (canEdit) {
+          <div class="guided-empty-actions">
+            <button type="button" class="btn btn-primary" (click)="openFirstActivityGuided()">
+              Crear primera actividad
+            </button>
+            <button type="button" class="btn btn-secondary" (click)="openQuickFlowWizard()">
+              Crear flujo rápido
+            </button>
+            <button type="button" class="btn btn-secondary" (click)="openAddLaneModal()">
+              + Agregar carril
+            </button>
+          </div>
+        } @else {
+          <p class="guided-readonly">Solo lectura: no tiene permiso para crear actividades.</p>
+        }
       </div>
-      <div class="header-toolbar">
-        <div class="toolbar-group">
-          <button type="button" class="btn btn-ai btn-sm" (click)="openAiModal()">
-            <i class="material-icons">auto_awesome</i>
-            Sugerir con IA
-          </button>
-          <button type="button" class="btn btn-secondary btn-sm" (click)="showFullDiagram()">Ver completo</button>
-          <button type="button" class="btn btn-secondary btn-sm" (click)="centerDiagram()">Centrar</button>
-        </div>
-        <div class="toolbar-group">
-          <button type="button" class="btn btn-secondary btn-sm" (click)="cancel()">Volver</button>
-          <button type="button" class="btn btn-primary btn-sm" [disabled]="saving || loading" (click)="save()">
-            {{ saving ? 'Guardando...' : 'Guardar' }}
-          </button>
-        </div>
-      </div>
-    </header>
-
-    @if (message) {
-      <div class="alert success">{{ message }}</div>
-    }
-    @if (error) {
-      <div class="alert error">{{ error }}</div>
     }
 
-    <div #canvasViewport class="canvas-wrapper">
-      @if (loading) {
-        <div class="loading-state">Cargando diagrama...</div>
-      } @else {
-        <div
-          class="canvas-content"
-          [style.width.px]="canvasWidth"
-          [style.height.px]="canvasHeight"
-          (click)="selectedNodeId = null; selectedEdgeId = null"
-        >
-          <div class="swimlanes" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight">
-            @for (lane of lanes; track lane; let i = $index) {
-              <div class="swimlane" [style.top.px]="i * 120" [style.width.px]="canvasWidth">
-                <span class="lane-label">{{ lane }}</span>
-              </div>
+    @if (showDesignerWorkspace) {
+      <div class="designer-action-bar data-card">
+        <div class="action-group action-group-edit">
+          <span class="group-label">Edición</span>
+          @if (canEdit) {
+            @if (editMode) {
+              <span class="edit-mode-badge">Modo edición</span>
+              <button type="button" class="btn btn-primary btn-sm" (click)="openCreateActivity()">+ Actividad</button>
+              <button type="button" class="btn btn-primary btn-sm" (click)="openCreateTransition()">+ Conexión</button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="toggleEditMode()">Desactivar edición</button>
+            } @else {
+              <button type="button" class="btn btn-primary btn-sm" (click)="toggleEditMode()">Activar edición</button>
             }
+          }
+        </div>
+        <div class="action-group action-group-tools">
+          <span class="group-label">Lienzo</span>
+          @if (editMode && canEdit) {
+            <button type="button" class="btn btn-secondary btn-sm" (click)="autoArrangeNodes()">Autoacomodar</button>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              [disabled]="!hasPendingVisualChanges || savingVisual"
+              (click)="saveVisualChanges()"
+            >
+              {{ savingVisual ? 'Guardando...' : 'Guardar cambios visuales' }}
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="resetPositions()">Restablecer posiciones</button>
+          }
+          <button type="button" class="btn btn-secondary btn-sm" (click)="zoomOut()" title="Alejar">−</button>
+          <span class="zoom-label">{{ zoomLabel }}</span>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="zoomIn()" title="Acercar">+</button>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="resetZoom()">100%</button>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="centerCanvas()">Centrar</button>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="fitToFlow()">Ajustar</button>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            [disabled]="validating"
+            (click)="validateFlow()"
+          >
+            {{ validating ? "Validando..." : "Validar flujo" }}
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="togglePropertiesPanel()">
+            {{ propertiesPanelVisible ? "Ocultar propiedades" : "Mostrar propiedades" }}
+          </button>
+        </div>
+      </div>
+
+      <button type="button" class="help-toggle" (click)="helpPanelOpen = !helpPanelOpen">
+        Cómo construir el flujo {{ helpPanelOpen ? "▲" : "▼" }}
+      </button>
+      @if (helpPanelOpen) {
+        <section class="help-card compact-help">
+          <ol>
+            <li>Agregue actividades.</li>
+            <li>Asigne un responsable o carril.</li>
+            <li>Conecte los pasos.</li>
+            <li>Use decisión cuando existan caminos alternativos.</li>
+            <li>Valide el flujo.</li>
+          </ol>
+        </section>
+      }
+
+      <div class="designer-workspace" [class.properties-hidden]="!propertiesPanelVisible">
+        <aside class="toolbox-column">
+          <div class="toolbox-panel data-card">
+          <h2 class="panel-title">Elementos UML</h2>
+          <ul class="toolbox-list">
+            @for (item of primaryToolboxItems; track item.id) {
+              <li>
+                <button
+                  type="button"
+                  class="toolbox-item"
+                  [disabled]="!item.enabled || !canEdit"
+                  (click)="onToolboxClick(item)"
+                >
+                  <span class="toolbox-symbol" [ngClass]="'sym-' + item.symbol"></span>
+                  <span class="toolbox-label">{{ item.label }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+          @if (soonToolboxItems.length) {
+            <p class="toolbox-soon-line">Fork · Join — Próximamente</p>
+          }
           </div>
 
-          <svg class="connections" [attr.width]="canvasWidth" [attr.height]="canvasHeight">
-            <defs>
-              <marker id="uml-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" fill="#7c6fbe" />
-              </marker>
-            </defs>
-            @for (edge of edges; track edge.id) {
-              <path
-                [attr.d]="getEdgePath(edge)"
-                fill="none"
-                stroke="#7c6fbe"
-                stroke-width="2"
-                marker-end="url(#uml-arrow)"
-                [class.selected]="selectedEdgeId === edge.id"
-                (click)="selectEdge(edge.id, $event)"
-              />
-              @if (edge.label) {
-                <text
-                  [attr.x]="getEdgeLabelPosition(edge).x"
-                  [attr.y]="getEdgeLabelPosition(edge).y"
-                  class="edge-label"
-                >
-                  {{ edge.label }}
-                </text>
-              }
-            }
-          </svg>
-
-          @for (node of nodes; track node.id) {
-            <div
-              class="node"
-              [ngClass]="nodeClass(node.type)"
-              [class.selected]="selectedNodeId === node.id"
-              [style.left.px]="node.x"
-              [style.top.px]="node.y"
-              (mousedown)="onNodeMouseDown($event, node)"
-              (click)="selectNode(node.id, $event)"
-            >
-              @if (node.type === 'INITIAL') {
-                <div class="uml-initial"></div>
-              } @else if (node.type === 'FINAL') {
-                <div class="uml-final"><span></span></div>
-              } @else if (node.type === 'DECISION' || node.type === 'MERGE') {
-                <div class="uml-diamond"><span>{{ node.label }}</span></div>
-              } @else if (node.type === 'FORK_JOIN') {
-                <div class="uml-fork"></div>
-                <span class="node-caption">{{ node.label }}</span>
-              } @else {
-                <div class="uml-action">
-                  <span>{{ node.label }}</span>
-                </div>
-                @if (node.lane) {
-                  <span class="node-lane">{{ node.lane }}</span>
+          <div class="lanes-sidebar-panel data-card">
+            <h2 class="panel-title">Carriles / Swimlanes</h2>
+            @if (displayLaneNames.length) {
+              <ul class="lanes-sidebar-list">
+                @for (lane of displayLaneNames; track lane) {
+                  <li class="lanes-sidebar-row">
+                    <span class="lane-name">{{ lane }}</span>
+                    <span class="lane-count">({{ activitiesInLane(lane) }})</span>
+                  </li>
                 }
+              </ul>
+            } @else {
+              <p class="panel-hint">Los carriles agrupan actividades por responsable.</p>
+            }
+            @if (canEdit && editMode) {
+              <button type="button" class="btn btn-secondary btn-sm btn-block" (click)="openAddLaneModal()">
+                + Agregar carril
+              </button>
+            } @else if (canEdit) {
+              <p class="panel-hint">Active modo edición para agregar carriles.</p>
+            }
+          </div>
+        </aside>
+
+        <div class="canvas-column">
+          <section class="data-card diagram-card canvas-card">
+            @if (!hasTransitions) {
+              <div class="alert info">{{ emptyTransitionsMessage }}</div>
+            }
+            <div class="diagram-viewport" #diagramViewport>
+              <div
+                class="diagram-zoom-wrap"
+                [style.transform]="'scale(' + zoomScale + ')'"
+                [style.width.px]="canvasWidth"
+                [style.height.px]="canvasHeight"
+              >
+                <div
+                  class="diagram-canvas"
+                  [class.edit-mode]="editMode && canEdit"
+                  [style.width.px]="canvasWidth"
+                  [style.height.px]="canvasHeight"
+                >
+            @for (
+              lane of displayLanes;
+              track trackLane($index, lane);
+              let li = $index
+            ) {
+              <div
+                class="swimlane"
+                [class.lane-alt]="li % 2 === 1"
+                [class.lane-empty]="isLaneEmpty(lane.laneName)"
+                [style.top.px]="laneTop(li)"
+                [style.height.px]="LANE_HEIGHT"
+                [style.width.px]="canvasWidth"
+              >
+                <div class="lane-header" [style.width.px]="LANE_LABEL_WIDTH">
+                  <span class="lane-title">{{ lane.laneName }}</span>
+                </div>
+
+                <div class="lane-body">
+                  @if (isLaneEmpty(lane.laneName)) {
+                    <div class="lane-empty-state">
+                      <span class="lane-empty-text">Sin actividades todavía</span>
+                      @if (canEdit && editMode) {
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          (click)="openCreateActivityInLane(lane.laneName)"
+                        >
+                          + Agregar actividad aquí
+                        </button>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <svg
+              class="edges-layer"
+              [attr.width]="canvasWidth"
+              [attr.height]="canvasHeight"
+            >
+              <defs>
+                <marker
+                  id="uml-arrowhead"
+                  markerWidth="10"
+                  markerHeight="8"
+                  refX="9"
+                  refY="4"
+                  orient="auto"
+                >
+                  <polygon points="0 0, 10 4, 0 8" class="arrow-fill" />
+                </marker>
+              </defs>
+
+              @for (edge of canvasActiveTransitions; track trackEdge($index, edge)) {
+                @if (edge.active !== false && canDrawTransition(edge)) {
+                  <path
+                    class="edge-path"
+                    [class.selected]="isEdgeSelected(edge)"
+                    [attr.d]="getEdgePath(edge)"
+                    marker-end="url(#uml-arrowhead)"
+                  />
+
+                  @if (edgeLabel(edge); as label) {
+                    <g class="edge-label-group">
+                      <rect
+                        class="edge-label-bg"
+                        [attr.x]="
+                          getEdgeLabelPosition(edge).x -
+                          edgeLabelWidth(label) / 2
+                        "
+                        [attr.y]="getEdgeLabelPosition(edge).y - 10"
+                        [attr.width]="edgeLabelWidth(label)"
+                        height="18"
+                        rx="4"
+                      />
+
+                      <text
+                        class="edge-label"
+                        [attr.x]="getEdgeLabelPosition(edge).x"
+                        [attr.y]="getEdgeLabelPosition(edge).y"
+                        text-anchor="middle"
+                      >
+                        {{ label }}
+                      </text>
+                    </g>
+                  }
+                }
+              }
+            </svg>
+
+            @for (node of data.activities; track trackActivity($index, node)) {
+              <div
+                class="uml-node"
+                [ngClass]="nodeClass(node)"
+                [style.left.px]="nodeLeft(node)"
+                [style.top.px]="nodeTop(node)"
+                [style.width.px]="nodeSize(node).width"
+                [style.height.px]="nodeSize(node).height"
+                (click)="selectNode(node)"
+                (mousedown)="onNodePointerDown($event, node)"
+              >
+                @switch (visualType(node)) {
+                  @case ("START") {
+                    <div class="uml-initial-symbol" aria-hidden="true"></div>
+
+                    <p class="uml-node-caption">{{ node.name }}</p>
+                  }
+
+                  @case ("END") {
+                    <div class="uml-final-symbol" aria-hidden="true">
+                      <span></span>
+                    </div>
+
+                    <p class="uml-node-caption">{{ node.name }}</p>
+                  }
+
+                  @case ("DECISION") {
+                    <div class="uml-diamond" aria-hidden="true">
+                      <span class="uml-diamond-label">{{ node.name }}</span>
+                    </div>
+
+                    @if (
+                      node.activityType?.toUpperCase() !== "DECISION" &&
+                      node.decisionNode
+                    ) {
+                      <span class="uml-decision-badge">Decisión</span>
+                    }
+                  }
+
+                  @default {
+                    <div class="uml-action">
+                      <span class="uml-action-name">{{ node.name }}</span>
+
+                      <span class="uml-action-meta">
+                        {{ node.responsibleName }}
+
+                        @if (node.estimatedTimeHours) {
+                          · {{ node.estimatedTimeHours }} h
+                        }
+                      </span>
+
+                      <span
+                        class="badge sm"
+                        [class]="activityStatusClass(node.status)"
+                        >{{ activityStatusLabel(node.status) }}</span
+                      >
+                    </div>
+                  }
+                }
+
+              </div>
+            }
+                </div>
+              </div>
+            </div>
+            <p class="diagram-hint">{{ diagramHint }}</p>
+          </section>
+        </div>
+
+        @if (propertiesPanelVisible) {
+        <aside class="properties-panel data-card">
+          <div class="properties-header">
+            <h2 class="panel-title">Propiedades</h2>
+            <button type="button" class="btn-link" (click)="togglePropertiesPanel()">Ocultar</button>
+          </div>
+          @if (!selectedNodeId && !selectedEdgeId) {
+            <p class="properties-empty">Seleccione una actividad o conexión para ver sus propiedades.</p>
+          }
+          @if (propertiesActivityForm && selectedNodeId) {
+            <div class="properties-form">
+              <label>Nombre<input type="text" [(ngModel)]="propertiesActivityForm.name" [readonly]="!canEditProperties()" /></label>
+              <label>Descripción<textarea rows="2" [(ngModel)]="propertiesActivityForm.description" [readonly]="!canEditProperties()"></textarea></label>
+              <label>Tipo
+                <select [(ngModel)]="propertiesActivityForm.activityType" [disabled]="!canEditProperties()">
+                  @for (opt of guidedActivityTypeOptions; track opt.value) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                  }
+                </select>
+              </label>
+              <label>Responsable / Carril
+                <input
+                  type="text"
+                  [(ngModel)]="propertiesActivityForm.responsibleName"
+                  [readonly]="!canEditProperties()"
+                  list="properties-lane-options"
+                  placeholder="Ej. Funcionario, Recursos Humanos"
+                />
+                <datalist id="properties-lane-options">
+                  @for (lane of displayLaneNames; track lane) {
+                    <option [value]="lane"></option>
+                  }
+                  @for (r of responsibleOptions; track r) {
+                    <option [value]="r"></option>
+                  }
+                </datalist>
+                <span class="field-hint">El carril define dónde aparece la actividad en el diagrama.</span>
+              </label>
+              <label>Orden<input type="number" min="1" [(ngModel)]="propertiesActivityForm.orderIndex" [readonly]="!canEditProperties()" /></label>
+              @if (propertiesPositionX != null && propertiesPositionY != null) {
+                <div class="properties-position-row">
+                  <label>X
+                    <input
+                      type="number"
+                      min="0"
+                      [(ngModel)]="propertiesPositionX"
+                      [readonly]="!canEditProperties()"
+                      (ngModelChange)="onPropertiesPositionChange()"
+                    />
+                  </label>
+                  <label>Y
+                    <input
+                      type="number"
+                      min="0"
+                      [(ngModel)]="propertiesPositionY"
+                      [readonly]="!canEditProperties()"
+                      (ngModelChange)="onPropertiesPositionChange()"
+                    />
+                  </label>
+                </div>
+              }
+              <label>Tiempo (h)<input type="number" min="1" [(ngModel)]="propertiesActivityForm.estimatedTimeHours" [readonly]="!canEditProperties()" /></label>
+              <label>Estado
+                <select [(ngModel)]="propertiesActivityForm.status" [disabled]="!canEditProperties()">
+                  @for (opt of activityStatusOptions; track opt.value) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                  }
+                </select>
+              </label>
+              @if (canEditProperties()) {
+                <div class="properties-actions properties-actions-primary">
+                  <button type="button" class="btn btn-primary btn-sm" [disabled]="propertiesSaving" (click)="savePropertiesPanel()">
+                    {{ propertiesSaving ? "Guardando..." : "Guardar" }}
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="cancelPropertiesPanel()">Cancelar</button>
+                </div>
+                <div class="properties-actions properties-actions-secondary">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="openConnectFromSelectedNode()">Conectar</button>
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="deactivateActivityNode(selectedNode!)">Desactivar</button>
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="removeActivityNode(selectedNode!)">Eliminar</button>
+                </div>
               }
             </div>
           }
+          @if (propertiesTransitionForm && selectedEdgeId) {
+            <div class="properties-form">
+              <label>Desde
+                <select [(ngModel)]="propertiesTransitionForm.fromActivityId" [disabled]="!canEditProperties()">
+                  @for (a of activityOptionsForSelect(); track a.id) {
+                    <option [value]="a.id">{{ a.name }}</option>
+                  }
+                </select>
+              </label>
+              <label>Hacia
+                <select [(ngModel)]="propertiesTransitionForm.toActivityId" [disabled]="!canEditProperties()">
+                  @for (a of activityOptionsForSelect(); track a.id) {
+                    <option [value]="a.id">{{ a.name }}</option>
+                  }
+                </select>
+              </label>
+              <label>Tipo
+                <select [(ngModel)]="propertiesTransitionForm.transitionType" [disabled]="!canEditProperties()">
+                  @for (opt of guidedTransitionTypeOptions; track opt.value) {
+                    @if (opt.enabled) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  }
+                </select>
+              </label>
+              @if (propertiesTransitionForm.transitionType === 'CONDITIONAL') {
+                <label>Condición<input type="text" [(ngModel)]="propertiesTransitionForm.conditionLabel" [readonly]="!canEditProperties()" /></label>
+              }
+              <label>Estado
+                <select [(ngModel)]="propertiesTransitionForm.active" [disabled]="!canEditProperties()">
+                  <option [ngValue]="true">Activa</option>
+                  <option [ngValue]="false">Inactiva</option>
+                </select>
+              </label>
+              @if (canEditProperties()) {
+                <div class="properties-actions properties-actions-primary">
+                  <button type="button" class="btn btn-primary btn-sm" [disabled]="propertiesSaving" (click)="savePropertiesPanel()">Guardar</button>
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="cancelPropertiesPanel()">Cancelar</button>
+                </div>
+              }
+            </div>
+          }
+        </aside>
+        }
+      </div>
+
+      <div class="designer-bottom-panels">
+        <section class="data-card collapsible-panel">
+          <button type="button" class="collapsible-toggle" (click)="connectionsPanelOpen = !connectionsPanelOpen">
+            <span class="collapsible-title">Conexiones del flujo</span>
+            <span class="collapsible-summary">{{ connectionsCountLabel }}</span>
+            <span class="collapsible-chevron">{{ connectionsPanelOpen ? "▼" : "▶" }}</span>
+          </button>
+          @if (connectionsPanelOpen) {
+            @if (!connectionsPanelRows.length) {
+              <p class="panel-empty">{{ emptyTransitionsMessage }}</p>
+              @if (editMode && canEdit) {
+                <button type="button" class="btn btn-primary btn-sm" (click)="openCreateTransition()">+ Nueva conexión</button>
+              }
+            } @else {
+              @if (hasDuplicateActivityNames) {
+                <p class="panel-hint" style="color: #8a6d1f;">
+                  Existen actividades con nombres similares. Revise la lista de actividades.
+                </p>
+              }
+              <div class="table-wrap table-compact">
+                <table class="data-table data-table-compact">
+              <thead>
+                <tr>
+                  <th>Origen</th>
+
+                  <th>Destino</th>
+
+                  <th>Tipo</th>
+
+                  <th>Condición</th>
+
+                  <th>Estado</th>
+
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                @for (
+                  t of connectionsPanelRows;
+                  track trackTransition($index, t)
+                ) {
+                  <tr
+                    [class.row-selected]="isTransitionRowSelected(t)"
+                    (click)="
+                      selectEdge({
+                        id: t.id,
+                        fromActivityId: t.fromActivityId,
+                        toActivityId: t.toActivityId,
+                      })
+                    "
+                  >
+                    <td>{{ t.fromActivityName || "—" }}</td>
+
+                    <td>{{ t.toActivityName || "—" }}</td>
+
+                    <td>
+                      {{
+                        transitionTypeLabel(
+                          t.transitionType,
+                          t.transitionTypeLabel
+                        )
+                      }}
+                    </td>
+
+                    <td>{{ t.conditionLabel || "—" }}</td>
+
+                    <td>
+                      <span
+                        class="badge"
+                        [class]="transitionStatusClass(t.active)"
+                      >
+                        {{ transitionStatusLabel(t.active) }}
+                      </span>
+                    </td>
+
+                    <td class="actions" (click)="$event.stopPropagation()">
+                      <button
+                        type="button"
+                        class="btn btn-secondary btn-sm"
+                        (click)="openViewTransition(t)"
+                      >
+                        Ver
+                      </button>
+
+                      @if (editMode && canEdit) {
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          (click)="openEditTransition(t)"
+                        >
+                          Editar
+                        </button>
+
+                        @if (t.active !== false) {
+                          <button
+                            type="button"
+                            class="btn btn-secondary btn-sm"
+                            (click)="deactivateTransition(t)"
+                          >
+                            Desactivar
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            (click)="deactivateTransition(t)"
+                          >
+                            Activar
+                          </button>
+                        }
+
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          (click)="removeTransition(t)"
+                        >
+                          Eliminar
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                  @if (getTransitionDrawWarning(t); as drawWarning) {
+                    <tr>
+                      <td colspan="6">
+                        <span class="panel-hint" style="color: #8a6d1f;">{{ drawWarning }}</span>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (editMode && canEdit) {
+            <div class="connections-panel-actions">
+              @if (duplicateConnectionsCount > 0) {
+                <p class="panel-hint">
+                  Se detectaron {{ duplicateConnectionsCount }} conexión(es) duplicada(s) en el historial.
+                </p>
+              }
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                [disabled]="cleaningDuplicates"
+                (click)="cleanDuplicateConnections()"
+              >
+                {{ cleaningDuplicates ? 'Limpiando...' : 'Limpiar duplicados' }}
+              </button>
+            </div>
+          }
+
+            }
+          }
+        </section>
+
+        <section class="data-card collapsible-panel">
+          <button type="button" class="collapsible-toggle" (click)="lanesPanelOpen = !lanesPanelOpen">
+            <span class="collapsible-title">Carriles / Swimlanes</span>
+            <span class="collapsible-summary">{{ lanesCountLabel }}</span>
+            <span class="collapsible-chevron">{{ lanesPanelOpen ? "▼" : "▶" }}</span>
+          </button>
+          @if (lanesPanelOpen) {
+            <ul class="lanes-list lanes-list-compact">
+              @for (lane of displayLaneNames; track lane) {
+                <li class="lane-row">
+                  <span class="lane-name">{{ lane }}</span>
+                  <span class="lane-count">{{ activitiesInLane(lane) }}</span>
+                  @if (canEdit && editMode) {
+                    <button type="button" class="btn-link" (click)="removeCustomLane(lane)">Quitar</button>
+                  }
+                </li>
+              }
+            </ul>
+            @if (canEdit && editMode) {
+              <button type="button" class="btn btn-secondary btn-sm" (click)="openAddLaneModal()">+ Agregar carril</button>
+            }
+          }
+        </section>
+
+        <section class="data-card collapsible-panel">
+          <button type="button" class="collapsible-toggle" (click)="flowTextPanelOpen = !flowTextPanelOpen">
+            <span class="collapsible-title">Vista textual del flujo</span>
+            <span class="collapsible-summary">{{ hasTransitions ? (data.flowPreview?.length ?? 0) + " pasos" : "Sin conexiones" }}</span>
+            <span class="collapsible-chevron">{{ flowTextPanelOpen ? "▼" : "▶" }}</span>
+          </button>
+          @if (flowTextPanelOpen) {
+            @if (!hasTransitions) {
+              <p class="panel-empty">{{ emptyTransitionsMessage }}</p>
+            } @else {
+              <ol class="flow-text-list flow-text-compact">
+                @for (line of data.flowPreview; track line) {
+                  <li>{{ line }}</li>
+                }
+              </ol>
+            }
+          }
+        </section>
+      </div>
+    }
+  }
+
+  @if (showValidation && validationResult) {
+    <div class="modal-overlay" (click)="closeValidation()">
+      <div class="modal validation-modal" (click)="$event.stopPropagation()">
+        <h2>Validación del flujo</h2>
+
+        <p
+          class="validation-message"
+          [class.valid]="validationResult.valid"
+          [class.invalid]="!validationResult.valid"
+        >
+          {{ validationResult.message }}
+        </p>
+
+        @if (validationResult.errors?.length) {
+          <div class="validation-block errors">
+            <h3>Errores</h3>
+
+            <ul>
+              @for (e of validationResult.errors; track e) {
+                <li>{{ friendlyValidationMessage(e) }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (validationResult.warnings?.length) {
+          <div class="validation-block warnings">
+            <h3>Advertencias</h3>
+
+            <ul>
+              @for (w of validationResult.warnings; track w) {
+                <li>{{ friendlyValidationMessage(w) }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (validationResult.valid) {
+          <p class="validation-ok">
+            El flujo cumple las reglas básicas de inicio, fin y conexiones.
+          </p>
+        }
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="closeValidation()"
+          >
+            Cerrar
+          </button>
         </div>
-      }
+      </div>
     </div>
-  </main>
+  }
 </div>
 
-@if (showAiModal) {
-  <div class="modal-overlay" (click)="closeAiModal()">
-    <div class="modal-card ai-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2><i class="material-icons">auto_awesome</i> Sugerir con IA</h2>
-        <button type="button" class="btn-icon" (click)="closeAiModal()">
-          <i class="material-icons">close</i>
+@if (laneModalOpen) {
+  <div class="modal-backdrop" (click)="closeAddLaneModal()">
+    <div class="modal-panel lane-modal" (click)="$event.stopPropagation()">
+      <h2>Agregar carril</h2>
+      @if (modalError) {
+        <div class="alert error">{{ modalError }}</div>
+      }
+      <label class="full-width"
+        >Nombre del carril
+        <input
+          type="text"
+          [(ngModel)]="laneModalName"
+          placeholder="Ej. Recursos Humanos"
+          (keyup.enter)="saveAddLaneModal()"
+        />
+      </label>
+      <p class="field-hint">El carril representa un responsable o área en el diagrama UML.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeAddLaneModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="saveAddLaneModal()">Guardar</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (laneRemoveBlockedOpen && laneActionTarget) {
+  <div class="modal-backdrop" (click)="closeLaneRemoveBlockedModal()">
+    <div class="modal-panel lane-modal" (click)="$event.stopPropagation()">
+      <h2>No se puede quitar el carril</h2>
+      <p class="lane-blocked-message">
+        No puede quitar este carril porque tiene actividades asignadas. Mueva o reasigne las actividades antes de quitarlo.
+      </p>
+      <p class="lane-blocked-detail">
+        <strong>{{ laneActionTarget }}</strong>
+        <span>— {{ laneActionActivityCount }} actividad(es)</span>
+      </p>
+      @if (modalError) {
+        <div class="alert error">{{ modalError }}</div>
+      }
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeLaneRemoveBlockedModal()">Cerrar</button>
+        <button type="button" class="btn btn-primary" (click)="openLaneReassignModal()">
+          Reasignar actividades
         </button>
       </div>
-      <p class="modal-subtitle">Asistente IA local basado en reglas para generar diagramas UML 2.5 con carriles.</p>
+    </div>
+  </div>
+}
 
-      <label>
-        Tipo de proceso
-        <select [(ngModel)]="aiProcessType">
-          @for (opt of processTypeOptions; track opt) {
-            <option [value]="opt">{{ opt }}</option>
+@if (laneReassignModalOpen && laneActionTarget) {
+  <div class="modal-backdrop" (click)="closeLaneReassignModal()">
+    <div class="modal-panel lane-modal" (click)="$event.stopPropagation()">
+      <h2>Reasignar actividades</h2>
+      <p class="wizard-hint">
+        Mover las {{ laneActionActivityCount }} actividad(es) de
+        <strong>{{ laneActionTarget }}</strong> a otro carril.
+      </p>
+      @if (modalError) {
+        <div class="alert error">{{ modalError }}</div>
+      }
+      <label class="full-width"
+        >Carril destino
+        <select [(ngModel)]="laneReassignTarget">
+          @for (lane of laneReassignTargetOptions; track lane) {
+            <option [value]="lane">{{ lane }}</option>
           }
         </select>
       </label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeLaneReassignModal()">Cancelar</button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="reassigningLane || !laneReassignTargetOptions.length"
+          (click)="confirmLaneReassign()"
+        >
+          {{ reassigningLane ? 'Reasignando...' : 'Reasignar y continuar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
 
-      @if (aiError) {
-        <div class="alert error">{{ aiError }}</div>
+@if (activityModalOpen) {
+  <div class="modal-backdrop" (click)="closeActivityModal()">
+    <div class="modal-panel modal-panel-wide" (click)="$event.stopPropagation()">
+      <h2>
+        {{
+          editingActivityId
+            ? "Editar actividad"
+            : activityModalGuided
+              ? "Crear primera actividad"
+              : "Nueva actividad"
+        }}
+      </h2>
+
+      @if (modalError) {
+        <div class="alert error">{{ modalError }}</div>
       }
 
-      @if (aiGenerating) {
-        <div class="ai-loading-inline">Generando sugerencia...</div>
-      }
+      <div class="form-grid">
+        <label class="full-width"
+          >Nombre de la actividad *
+          <input type="text" [(ngModel)]="activityForm.name" placeholder="Ej. Revisar solicitud" />
+        </label>
 
-      @if (aiSuggestion) {
-        <div class="ai-preview">
-          <h4>Vista previa del flujo sugerido</h4>
-          <p><strong>Carriles:</strong> {{ aiSuggestion.lanes.join(', ') }}</p>
-          <ol>
-            @for (node of aiSuggestion.nodes; track node.id) {
-              @if (node.type === 'ACTION' || node.type === 'DECISION' || node.type === 'INITIAL' || node.type === 'FINAL') {
-                <li>
-                  {{ node.label }}
-                  @if (node.lane) { <span class="lane-tag">[{{ node.lane }}]</span> }
-                </li>
-              }
+        <label
+          >Responsable / Carril
+          <input
+            type="text"
+            [(ngModel)]="activityForm.responsibleName"
+            list="activity-lane-options"
+            placeholder="Ej. Funcionario, Recursos Humanos"
+          />
+          <datalist id="activity-lane-options">
+            @for (lane of displayLaneNames; track lane) {
+              <option [value]="lane"></option>
             }
-          </ol>
+            @for (r of responsibleOptions; track r) {
+              <option [value]="r"></option>
+            }
+            @for (s of suggestedLaneNames; track s) {
+              <option [value]="s"></option>
+            }
+          </datalist>
+          <span class="field-hint">Seleccione un carril existente o escriba uno nuevo.</span>
+        </label>
+
+        <label
+          >Tipo de actividad
+          <select [(ngModel)]="activityForm.activityType">
+            @for (opt of guidedActivityTypeOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+          <span class="field-hint">{{ activityTypeHelpText() }}</span>
+        </label>
+
+        <label
+          >Tiempo estimado (horas)
+          <input type="number" min="1" [(ngModel)]="activityForm.estimatedTimeHours" />
+          <span class="field-hint">Servirá después para medir retrasos y cuellos de botella.</span>
+        </label>
+
+        <label class="full-width"
+          >Descripción
+          <textarea [(ngModel)]="activityForm.description" rows="3"></textarea>
+        </label>
+
+        @if (!activityModalGuided) {
+          <label
+            >Orden
+            <input
+              type="number"
+              min="1"
+              [(ngModel)]="activityForm.orderIndex"
+              placeholder="Automático si se deja vacío"
+            />
+            <span class="field-hint">Define la posición aproximada de la actividad en el diagrama.</span>
+          </label>
+
+          <label
+            >Estado
+            <select [(ngModel)]="activityForm.status">
+              @for (opt of activityStatusOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </label>
+        }
+      </div>
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="closeActivityModal()"
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="saving"
+          (click)="saveActivity()"
+        >
+          {{ saving ? "Guardando..." : "Guardar" }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (activityViewOpen && viewingActivity) {
+  <div class="modal-backdrop" (click)="closeActivityView()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>{{ viewingActivity.name }}</h2>
+
+      <dl class="detail-list">
+        <dt>Orden</dt>
+        <dd>{{ viewingActivity.orderIndex ?? "—" }}</dd>
+
+        <dt>Descripción</dt>
+        <dd>{{ viewingActivity.description || "—" }}</dd>
+
+        <dt>Responsable</dt>
+        <dd>{{ viewingActivity.responsibleName || "—" }}</dd>
+
+        <dt>Tipo de actividad</dt>
+        <dd>{{ activityTypeLabel(viewingActivity.activityType) }}</dd>
+
+        <dt>Tiempo estimado</dt>
+
+        <dd>
+          {{
+            viewingActivity.estimatedTimeHours
+              ? viewingActivity.estimatedTimeHours + " horas"
+              : "—"
+          }}
+        </dd>
+
+        <dt>Estado</dt>
+        <dd>{{ activityStatusLabel(viewingActivity.status) }}</dd>
+      </dl>
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="closeActivityView()"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (transitionModalOpen) {
+  <div class="modal-backdrop" (click)="closeTransitionModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>{{ editingTransitionId ? "Editar conexión" : "Nueva conexión" }}</h2>
+
+      @if (modalError) {
+        <div class="alert error">{{ modalError }}</div>
+      }
+
+      <div class="form-grid">
+        <label
+          >Conectar desde
+          <select [(ngModel)]="transitionForm.fromActivityId">
+            <option value="">Seleccione...</option>
+            @for (a of activityOptionsForSelect(); track a.id) {
+              <option [value]="a.id">{{ a.name }}</option>
+            }
+          </select>
+        </label>
+
+        <label
+          >Conectar hacia
+          <select [(ngModel)]="transitionForm.toActivityId">
+            <option value="">Seleccione...</option>
+            @for (a of activityOptionsForSelect(); track a.id) {
+              <option [value]="a.id">{{ a.name }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="full-width"
+          >Tipo de conexión
+          <select [(ngModel)]="transitionForm.transitionType">
+            @for (opt of guidedTransitionTypeOptions; track opt.value) {
+              <option [value]="opt.value" [disabled]="!opt.enabled">
+                {{ opt.label }}{{ !opt.enabled ? " (Próximamente)" : "" }}
+              </option>
+            }
+          </select>
+          @if (transitionForm.transitionType === 'SEQUENTIAL') {
+            <span class="field-hint">Pasa directamente a la siguiente actividad.</span>
+          }
+          @if (isConditionalTransitionType()) {
+            <span class="field-hint">Depende de una respuesta como Aprobado, Observado o Rechazado.</span>
+          }
+        </label>
+
+        @if (isConditionalTransitionType()) {
+          <label class="full-width"
+            >Etiqueta de condición *
+            <input
+              type="text"
+              [(ngModel)]="transitionForm.conditionLabel"
+              placeholder="Ej. Aprobado, Observado, Rechazado"
+            />
+            <span class="field-hint">Ejemplos: {{ conditionLabelExamples.join(', ') }}</span>
+          </label>
+        }
+
+        @if (!editingTransitionId) {
+          <label
+            >Orden
+            <input
+              type="number"
+              min="1"
+              [(ngModel)]="transitionForm.orderIndex"
+              placeholder="Automático si se deja vacío"
+            />
+          </label>
+        }
+      </div>
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="closeTransitionModal()"
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="saving"
+          (click)="saveTransition()"
+        >
+          {{ saving ? "Guardando..." : "Guardar" }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (transitionViewOpen && viewingTransition) {
+  <div class="modal-backdrop" (click)="closeTransitionView()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>Detalle de conexión</h2>
+
+      <dl class="detail-list">
+        <dt>Origen</dt>
+        <dd>{{ viewingTransition.fromActivityName || "—" }}</dd>
+
+        <dt>Destino</dt>
+        <dd>{{ viewingTransition.toActivityName || "—" }}</dd>
+
+        <dt>Tipo</dt>
+
+        <dd>
+          {{
+            transitionTypeLabel(
+              viewingTransition.transitionType,
+              viewingTransition.transitionTypeLabel
+            )
+          }}
+        </dd>
+
+        <dt>Condición</dt>
+        <dd>{{ viewingTransition.conditionLabel || "—" }}</dd>
+
+        <dt>Expresión</dt>
+        <dd>{{ viewingTransition.conditionExpression || "—" }}</dd>
+
+        <dt>Estado</dt>
+        <dd>{{ transitionStatusLabel(viewingTransition.active) }}</dd>
+      </dl>
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          (click)="closeTransitionView()"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (quickFlowOpen) {
+  <div class="modal-backdrop" (click)="closeQuickFlowWizard()">
+    <div class="modal-panel modal-panel-wide" (click)="$event.stopPropagation()">
+      <h2>Asistente: crear flujo rápido</h2>
+      <p class="wizard-step-label">Paso {{ quickFlowStep }} de 4</p>
+      @if (modalError) { <div class="alert error">{{ modalError }}</div> }
+
+      @if (quickFlowStep === 1) {
+        <label class="full-width"
+          >Nombre del flujo o trámite
+          <input type="text" [(ngModel)]="quickFlowName" placeholder="Ej. Solicitud de permiso laboral" />
+        </label>
+      }
+
+      @if (quickFlowStep === 2) {
+        <p class="wizard-hint">Agregue las actividades en el orden en que ocurren.</p>
+            <div class="table-wrap">
+          <table class="data-table wizard-table">
+            <thead>
+              <tr>
+                <th>Orden</th>
+                <th>Nombre</th>
+                <th>Responsable</th>
+                <th>Tipo</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of quickFlowRows; track row.orderIndex; let i = $index) {
+                <tr>
+                  <td><input type="number" min="1" [(ngModel)]="row.orderIndex" class="input-sm" /></td>
+                  <td><input type="text" [(ngModel)]="row.name" class="input-sm" /></td>
+                  <td>
+                    <select [(ngModel)]="row.responsible" class="input-sm">
+                      @for (r of responsibleOptions; track r) {
+                        <option [value]="r">{{ r }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td>
+                    <select [(ngModel)]="row.activityType" class="input-sm">
+                      @for (opt of guidedActivityTypeOptions; track opt.value) {
+                        <option [value]="opt.value">{{ opt.label }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td>
+                    <button type="button" class="btn-link" (click)="removeQuickFlowRow(i)">Quitar</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
         </div>
+        <button type="button" class="btn btn-secondary btn-sm-top" (click)="addQuickFlowRow()">+ Agregar fila</button>
+      }
+
+      @if (quickFlowStep === 3) {
+        <p class="wizard-hint">Se generarán conexiones secuenciales en este orden:</p>
+        <ul class="preview-list">
+          @for (line of quickFlowPreviewLines; track line) {
+            <li>{{ line }}</li>
+          }
+        </ul>
+      }
+
+      @if (quickFlowStep === 4) {
+        <p class="wizard-hint"><strong>{{ quickFlowName }}</strong> — confirme para crear actividades y conexiones.</p>
+        <ul class="preview-list">
+          @for (row of quickFlowRows; track row.orderIndex) {
+            <li>{{ row.orderIndex }}. {{ row.name }} — {{ row.responsible }} — {{ guidedActivityLabel(row.activityType) }}</li>
+          }
+        </ul>
       }
 
       <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" (click)="closeAiModal()">Cancelar</button>
-        <button type="button" class="btn btn-primary" [disabled]="aiGenerating" (click)="generateAiSuggestion()">
-          {{ aiGenerating ? 'Generando...' : 'Generar sugerencia' }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-ai"
-          [disabled]="!aiSuggestion"
-          (click)="insertAiSuggestion()"
-        >
-          Insertar en diagrama
-        </button>
+        <button type="button" class="btn btn-secondary" (click)="closeQuickFlowWizard()">Cancelar</button>
+        @if (quickFlowStep > 1) {
+          <button type="button" class="btn btn-secondary" (click)="quickFlowPrevStep()">Anterior</button>
+        }
+        @if (quickFlowStep < 4) {
+          <button type="button" class="btn btn-primary" (click)="quickFlowNextStep()">Siguiente</button>
+        } @else {
+          <button type="button" class="btn btn-primary" [disabled]="saving" (click)="confirmQuickFlow()">
+            {{ saving ? 'Creando...' : 'Confirmar y crear' }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+@if (transitionWizardOpen) {
+  <div class="modal-backdrop" (click)="closeTransitionWizard()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>Asistente de transición</h2>
+      <p class="wizard-step-label">Paso {{ transitionWizardStep }} de 5</p>
+      @if (modalError) { <div class="alert error">{{ modalError }}</div> }
+
+      @if (transitionWizardStep === 1) {
+        <label class="full-width">Actividad origen
+          <select [(ngModel)]="transitionWizardForm.fromActivityId">
+            <option value="">Seleccione...</option>
+            @for (a of activityOptionsForSelect(); track a.id) {
+              <option [value]="a.id">{{ a.name }}</option>
+            }
+          </select>
+        </label>
+      }
+      @if (transitionWizardStep === 2) {
+        <label class="full-width">Actividad destino
+          <select [(ngModel)]="transitionWizardForm.toActivityId">
+            <option value="">Seleccione...</option>
+            @for (a of activityOptionsForSelect(); track a.id) {
+              <option [value]="a.id">{{ a.name }}</option>
+            }
+          </select>
+        </label>
+      }
+      @if (transitionWizardStep === 3) {
+        <label class="full-width">Tipo de conexión
+          <select [(ngModel)]="transitionWizardForm.transitionType">
+            @for (opt of guidedTransitionTypeOptions; track opt.value) {
+              @if (opt.enabled) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            }
+          </select>
+          <span class="field-hint">{{ transitionWizardForm.transitionType === 'CONDITIONAL' ? 'Depende de una respuesta.' : 'Pasa a la siguiente actividad.' }}</span>
+        </label>
+      }
+      @if (transitionWizardStep === 4) {
+        <label class="full-width">Etiqueta de condición *
+          <input type="text" [(ngModel)]="transitionWizardForm.conditionLabel" placeholder="Ej. Aprobado" />
+        </label>
+      }
+      @if (transitionWizardStep === 5) {
+        <p class="wizard-hint">Revise y confirme la nueva conexión.</p>
+        <dl class="detail-list compact-dl">
+          <dt>Desde</dt><dd>{{ activityNameById(transitionWizardForm.fromActivityId) }}</dd>
+          <dt>Hacia</dt><dd>{{ activityNameById(transitionWizardForm.toActivityId) }}</dd>
+          <dt>Tipo</dt><dd>{{ transitionTypeLabel(transitionWizardForm.transitionType) }}</dd>
+          @if (transitionWizardForm.conditionLabel) {
+            <dt>Condición</dt><dd>{{ transitionWizardForm.conditionLabel }}</dd>
+          }
+        </dl>
+      }
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeTransitionWizard()">Cancelar</button>
+        @if (transitionWizardStep > 1) {
+          <button type="button" class="btn btn-secondary" (click)="transitionWizardPrev()">Anterior</button>
+        }
+        @if (transitionWizardStep < 5) {
+          <button type="button" class="btn btn-primary" (click)="transitionWizardNext()">Siguiente</button>
+        } @else {
+          <button type="button" class="btn btn-primary" [disabled]="saving" (click)="confirmTransitionWizard()">
+            {{ saving ? 'Guardando...' : 'Guardar conexión' }}
+          </button>
+        }
       </div>
     </div>
   </div>

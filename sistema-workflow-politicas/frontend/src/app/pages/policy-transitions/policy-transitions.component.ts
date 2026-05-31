@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, ChangeDetectorRef, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -20,6 +20,7 @@ import {
   transitionStatusLabel,
   transitionTypeLabel,
 } from '../../utils/transition-display.util';
+import { isVisibleActivity, isVisibleTransition } from '../../utils/workflow-visibility.util';
 
 @Component({
   selector: 'app-policy-transitions',
@@ -34,6 +35,7 @@ export class PolicyTransitionsComponent implements OnInit {
   private readonly activityService = inject(WorkflowActivityService);
   private readonly policyService = inject(PolicyService);
   private readonly auth = inject(AuthService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   policyId = '';
   policy: PolicyDetail | null = null;
@@ -99,21 +101,28 @@ export class PolicyTransitionsComponent implements OnInit {
 
   loadActivities(): void {
     this.activityService.getByPolicy(this.policyId).subscribe({
-      next: (data) => (this.activities = data),
+      next: (data) => {
+        this.activities = [...data];
+        this.cdr.detectChanges();
+      },
     });
   }
 
-  loadTransitions(): void {
-    this.loading = true;
+  loadTransitions(options?: { silent?: boolean }): void {
+    if (!options?.silent) {
+      this.loading = true;
+    }
     this.error = '';
     this.transitionService.getByPolicy(this.policyId).subscribe({
       next: (data) => {
-        this.transitions = data;
+        this.transitions = [...data];
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: (err: HttpErrorResponse) => {
         this.error = this.resolveError(err, 'No se pudieron cargar las conexiones.');
         this.loading = false;
+        this.cdr.detectChanges();
       },
     });
   }
@@ -201,8 +210,7 @@ export class PolicyTransitionsComponent implements OnInit {
         this.modalOpen = false;
         this.saving = false;
         this.validation = null;
-        this.loadTransitions();
-        this.loadPolicy();
+        this.refreshTransitionsView();
       },
       error: (err: HttpErrorResponse) => {
         this.error = this.resolveError(err, 'No se pudo guardar la conexión.');
@@ -222,8 +230,8 @@ export class PolicyTransitionsComponent implements OnInit {
         this.message = transition.active !== false
           ? 'Conexión desactivada correctamente.'
           : 'Conexión activada correctamente.';
-        this.loadTransitions();
-        this.loadPolicy();
+        this.patchTransitionActiveState(transition.id!, transition.active !== false);
+        this.refreshTransitionsView();
       },
       error: (err: HttpErrorResponse) => {
         this.error = this.resolveError(err, 'No se pudo cambiar el estado de la conexión.');
@@ -231,16 +239,32 @@ export class PolicyTransitionsComponent implements OnInit {
     });
   }
 
+  get visibleActivities(): WorkflowActivity[] {
+    return this.activities.filter(isVisibleActivity);
+  }
+
+  get visibleTransitions(): WorkflowTransition[] {
+    return this.transitions.filter(isVisibleTransition);
+  }
+
   remove(transition: WorkflowTransition): void {
     if (!this.canManage || !transition.id) return;
-    if (!confirm(`¿Eliminar la conexión de "${transition.fromActivityName}" hacia "${transition.toActivityName}"?`)) return;
+    if (
+      !confirm(
+        `¿Eliminar la conexión de "${transition.fromActivityName}" hacia "${transition.toActivityName}"?`,
+      )
+    ) {
+      return;
+    }
 
     this.transitionService.delete(transition.id).subscribe({
-      next: () => {
-        this.message = 'Conexión eliminada correctamente.';
+      next: (result) => {
+        this.message = result.message || 'Conexión eliminada correctamente.';
         this.validation = null;
-        this.loadTransitions();
+        this.patchTransitionRemoved(transition.id!);
         this.loadPolicy();
+        this.loadActivities();
+        this.loadTransitions({ silent: true });
       },
       error: (err: HttpErrorResponse) => {
         this.error = this.resolveError(err, 'No se pudo eliminar la conexión.');
@@ -277,6 +301,24 @@ export class PolicyTransitionsComponent implements OnInit {
 
   isConditionalType(): boolean {
     return (this.form.transitionType ?? '').toUpperCase() === 'CONDITIONAL';
+  }
+
+  private refreshTransitionsView(): void {
+    this.loadTransitions({ silent: true });
+    this.loadActivities();
+    this.loadPolicy();
+  }
+
+  private patchTransitionRemoved(id: string): void {
+    this.transitions = this.transitions.filter((transition) => transition.id !== id);
+    this.cdr.detectChanges();
+  }
+
+  private patchTransitionActiveState(id: string, wasActive: boolean): void {
+    this.transitions = this.transitions.map((transition) =>
+      transition.id === id ? { ...transition, active: !wasActive } : transition,
+    );
+    this.cdr.detectChanges();
   }
 
   private resolveError(err: HttpErrorResponse, fallback: string): string {

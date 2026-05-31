@@ -47,6 +47,8 @@ export interface WorkflowActivity {
   active?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  positionX?: number;
+  positionY?: number;
 }
 
 export interface WorkflowActivityRequest {
@@ -88,8 +90,31 @@ export interface WorkflowTransition {
   conditionExpression?: string;
   orderIndex?: number;
   active?: boolean;
+  reactivated?: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface WorkflowTransitionDedupeResponse {
+  removed: number;
+  kept: number;
+  deactivatedCount?: number;
+  message: string;
+}
+
+export interface WorkflowTransitionCleanupResponse {
+  removedDuplicates: number;
+  removedOrphans: number;
+  kept: number;
+  message: string;
+  duplicateActivitiesDetected?: boolean;
+  warning?: string;
+}
+
+export interface WorkflowDeleteResponse {
+  message: string;
+  logicalDelete: boolean;
+  affectedConnections?: number;
 }
 
 export interface WorkflowTransitionRequest {
@@ -122,6 +147,12 @@ export interface ActivityNode {
   estimatedTimeHours?: number;
   x?: number;
   y?: number;
+  positionX?: number;
+  positionY?: number;
+  decisionNode?: boolean;
+  outgoingConditionalCount?: number;
+  incomingCount?: number;
+  outgoingCount?: number;
 }
 
 export interface TransitionEdge {

@@ -12,6 +12,10 @@ public class ActivityNodeResponse {
     private Integer estimatedTimeHours;
     private int x;
     private int y;
+    private boolean decisionNode;
+    private int outgoingConditionalCount;
+    private int incomingCount;
+    private int outgoingCount;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -45,4 +49,18 @@ public class ActivityNodeResponse {
 
     public int getY() { return y; }
     public void setY(int y) { this.y = y; }
+
+    public boolean isDecisionNode() { return decisionNode; }
+    public void setDecisionNode(boolean decisionNode) { this.decisionNode = decisionNode; }
+
+    public int getOutgoingConditionalCount() { return outgoingConditionalCount; }
+    public void setOutgoingConditionalCount(int outgoingConditionalCount) {
+        this.outgoingConditionalCount = outgoingConditionalCount;
+    }
+
+    public int getIncomingCount() { return incomingCount; }
+    public void setIncomingCount(int incomingCount) { this.incomingCount = incomingCount; }
+
+    public int getOutgoingCount() { return outgoingCount; }
+    public void setOutgoingCount(int outgoingCount) { this.outgoingCount = outgoingCount; }
 }

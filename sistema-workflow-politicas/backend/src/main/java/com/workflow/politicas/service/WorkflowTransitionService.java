@@ -1,6 +1,9 @@
 package com.workflow.politicas.service;
 
+import com.workflow.politicas.dto.WorkflowDeleteResponse;
 import com.workflow.politicas.dto.WorkflowFlowValidationResponse;
+import com.workflow.politicas.dto.WorkflowTransitionCleanupResponse;
+import com.workflow.politicas.dto.WorkflowTransitionDedupeResponse;
 import com.workflow.politicas.dto.WorkflowTransitionRequest;
 import com.workflow.politicas.dto.WorkflowTransitionResponse;
 import com.workflow.politicas.model.BusinessPolicy;
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -57,9 +61,28 @@ public class WorkflowTransitionService {
         WorkflowActivity from = validateActivity(request.getFromActivityId(), policy.getId());
         WorkflowActivity to = validateActivity(request.getToActivityId(), policy.getId());
 
-        if (workflowTransitionRepository.existsByPolicyIdAndFromActivityIdAndToActivityId(
-                policy.getId(), from.getId(), to.getId())) {
-            throw new IllegalArgumentException("La conexión ya existe");
+        List<WorkflowTransition> existing = workflowTransitionRepository
+                .findByPolicyIdAndFromActivityIdAndToActivityId(policy.getId(), from.getId(), to.getId());
+
+        if (existing.stream().anyMatch(WorkflowTransition::isActive)) {
+            throw new IllegalArgumentException("La conexión ya existe.");
+        }
+
+        Optional<WorkflowTransition> inactiveExisting = existing.stream()
+                .filter(t -> !t.isActive())
+                .max(Comparator.comparing(
+                        this::transitionSortTime,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                ));
+
+        if (inactiveExisting.isPresent()) {
+            WorkflowTransition transition = inactiveExisting.get();
+            applyRequest(transition, request, from, to, policy.getId());
+            transition.setActive(true);
+            transition.setUpdatedAt(LocalDateTime.now());
+            WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
+            response.setReactivated(true);
+            return response;
         }
 
         WorkflowTransition transition = new WorkflowTransition();
@@ -84,11 +107,13 @@ public class WorkflowTransitionService {
         WorkflowActivity from = validateActivity(request.getFromActivityId(), policyId);
         WorkflowActivity to = validateActivity(request.getToActivityId(), policyId);
 
-        boolean duplicate = workflowTransitionRepository.existsByPolicyIdAndFromActivityIdAndToActivityId(
-                policyId, from.getId(), to.getId());
-        if (duplicate && !(from.getId().equals(transition.getFromActivityId())
-                && to.getId().equals(transition.getToActivityId()))) {
-            throw new IllegalArgumentException("La conexión ya existe");
+        List<WorkflowTransition> samePair = workflowTransitionRepository
+                .findByPolicyIdAndFromActivityIdAndToActivityId(policyId, from.getId(), to.getId());
+        boolean duplicateActive = samePair.stream()
+                .filter(WorkflowTransition::isActive)
+                .anyMatch(t -> !t.getId().equals(transition.getId()));
+        if (duplicateActive) {
+            throw new IllegalArgumentException("La conexión ya existe.");
         }
 
         applyRequest(transition, request, from, to, policyId);
@@ -99,17 +124,36 @@ public class WorkflowTransitionService {
         return toResponse(workflowTransitionRepository.save(transition));
     }
 
-    public void delete(String id) {
+    public WorkflowDeleteResponse delete(String id) {
         WorkflowTransition transition = workflowTransitionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Conexión no encontrada"));
-        transition.setActive(false);
-        transition.setUpdatedAt(LocalDateTime.now());
-        workflowTransitionRepository.save(transition);
+
+        workflowTransitionRepository.deleteById(id);
+
+        WorkflowDeleteResponse response = new WorkflowDeleteResponse();
+        response.setLogicalDelete(false);
+        response.setAffectedConnections(0);
+        response.setMessage("Conexión eliminada correctamente.");
+        return response;
     }
 
     public WorkflowTransitionResponse activate(String id) {
         WorkflowTransition transition = workflowTransitionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Conexión no encontrada"));
+
+        List<WorkflowTransition> samePair = workflowTransitionRepository
+                .findByPolicyIdAndFromActivityIdAndToActivityId(
+                        transition.getPolicyId(),
+                        transition.getFromActivityId(),
+                        transition.getToActivityId()
+                );
+        boolean otherActive = samePair.stream()
+                .filter(WorkflowTransition::isActive)
+                .anyMatch(t -> !t.getId().equals(transition.getId()));
+        if (otherActive) {
+            throw new IllegalArgumentException("La conexión ya existe.");
+        }
+
         transition.setActive(true);
         transition.setUpdatedAt(LocalDateTime.now());
         return toResponse(workflowTransitionRepository.save(transition));
@@ -127,6 +171,81 @@ public class WorkflowTransitionService {
         return (int) workflowTransitionRepository.countByPolicyId(policyId);
     }
 
+    public WorkflowTransitionDedupeResponse deduplicateByPolicyId(String policyId) {
+        WorkflowTransitionCleanupResponse cleanup = cleanupTransitions(policyId);
+        WorkflowTransitionDedupeResponse response = new WorkflowTransitionDedupeResponse();
+        response.setRemoved(cleanup.getRemovedDuplicates() + cleanup.getRemovedOrphans());
+        response.setKept(cleanup.getKept());
+        response.setDeactivatedCount(response.getRemoved());
+        response.setMessage(cleanup.getMessage());
+        return response;
+    }
+
+    public WorkflowTransitionCleanupResponse cleanupTransitions(String policyId) {
+        validatePolicyExists(policyId);
+        List<WorkflowActivity> activities = workflowActivityRepository.findByPolicyIdOrderByOrderIndexAsc(policyId);
+        Set<String> validActivityIds = activities.stream()
+                .map(WorkflowActivity::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        boolean duplicateActivitiesDetected = hasDuplicateActivitiesByName(activities);
+
+        List<WorkflowTransition> remaining = new ArrayList<>(
+                workflowTransitionRepository.findByPolicyIdOrderByOrderIndexAsc(policyId));
+        LocalDateTime now = LocalDateTime.now();
+
+        int removedOrphans = 0;
+        Set<String> pendingDelete = new LinkedHashSet<>();
+
+        for (WorkflowTransition transition : remaining) {
+            if (isOrphanTransition(transition, validActivityIds)) {
+                pendingDelete.add(transition.getId());
+                removedOrphans++;
+            }
+        }
+        deleteTransitions(pendingDelete);
+        remaining.removeIf(t -> pendingDelete.contains(t.getId()));
+        pendingDelete.clear();
+
+        int removedDuplicates = removeDuplicateTransitionGroups(
+                remaining, this::activityIdPairKey, pendingDelete, now);
+        deleteTransitions(pendingDelete);
+        remaining.removeIf(t -> pendingDelete.contains(t.getId()));
+        pendingDelete.clear();
+
+        removedDuplicates += removeDuplicateTransitionGroups(
+                remaining, this::normalizedNamePairKey, pendingDelete, now);
+        deleteTransitions(pendingDelete);
+
+        int kept = (int) workflowTransitionRepository.countByPolicyId(policyId);
+
+        WorkflowTransitionCleanupResponse response = new WorkflowTransitionCleanupResponse();
+        response.setRemovedDuplicates(removedDuplicates);
+        response.setRemovedOrphans(removedOrphans);
+        response.setKept(kept);
+        response.setDuplicateActivitiesDetected(duplicateActivitiesDetected);
+
+        if (removedDuplicates > 0 || removedOrphans > 0) {
+            response.setMessage("Conexiones duplicadas limpiadas correctamente.");
+        } else {
+            response.setMessage("No se encontraron conexiones duplicadas para limpiar.");
+        }
+
+        if (duplicateActivitiesDetected) {
+            response.setWarning(
+                    "Existen actividades duplicadas con nombres similares. Revise las actividades.");
+            if (removedDuplicates == 0 && removedOrphans == 0) {
+                response.setMessage(
+                        "No se pudieron limpiar todas las conexiones porque existen actividades duplicadas con nombres similares.");
+            } else {
+                response.setMessage(response.getMessage() + " " + response.getWarning());
+            }
+        }
+
+        return response;
+    }
+
     public WorkflowFlowValidationResponse validateFlow(String policyId) {
         validatePolicyExists(policyId);
         List<WorkflowActivity> activities = workflowActivityRepository.findByPolicyIdOrderByOrderIndexAsc(policyId);
@@ -142,13 +261,13 @@ public class WorkflowTransitionService {
                 .anyMatch(a -> a.isActive() && "END".equalsIgnoreCase(a.getActivityType()));
 
         if (!hasStart) {
-            warnings.add("La política no tiene actividad de Inicio.");
+            warnings.add("Debe existir una actividad de inicio.");
         }
         if (!hasEnd) {
-            warnings.add("La política no tiene actividad de Fin.");
+            warnings.add("Debe existir una actividad de fin.");
         }
         if (activities.isEmpty()) {
-            errors.add("La política no tiene actividades configuradas.");
+            errors.add("Agregue al menos una actividad para diseñar el flujo.");
         }
 
         Set<String> activeActivityIds = activities.stream()
@@ -192,17 +311,27 @@ public class WorkflowTransitionService {
             boolean hasOut = withOutgoing.contains(activityId);
             boolean hasIn = withIncoming.contains(activityId);
 
+            boolean isDecision = "DECISION".equalsIgnoreCase(activity.getActivityType());
+            long conditionalOut = transitions.stream()
+                    .filter(WorkflowTransition::isActive)
+                    .filter(t -> activityId.equals(t.getFromActivityId()))
+                    .filter(t -> "CONDITIONAL".equalsIgnoreCase(t.getTransitionType())
+                            || (t.getConditionLabel() != null && !t.getConditionLabel().isBlank()))
+                    .count();
+
             if (!isStart && !isEnd && !hasOut && !hasIn) {
-                warnings.add("La actividad \"" + activity.getName() + "\" está aislada (sin conexiones).");
+                warnings.add("La actividad \"" + activity.getName() + "\" no está conectada.");
             } else if (!isEnd && !hasOut) {
                 warnings.add("La actividad \"" + activity.getName() + "\" no tiene salida.");
             } else if (!isStart && !hasIn) {
                 warnings.add("La actividad \"" + activity.getName() + "\" no tiene entrada.");
+            } else if (isDecision && conditionalOut < 2) {
+                warnings.add("La decisión \"" + activity.getName() + "\" necesita al menos dos salidas.");
             }
         }
 
         if (activeActivityIds.size() > 1 && transitions.stream().noneMatch(WorkflowTransition::isActive)) {
-            warnings.add("La política tiene actividades pero no tiene conexiones activas.");
+            warnings.add("Debe conectar las actividades para formar el flujo.");
         }
 
         result.setWarnings(warnings);
@@ -256,6 +385,113 @@ public class WorkflowTransitionService {
             }
         }
         return lines;
+    }
+
+    private LocalDateTime transitionSortTime(WorkflowTransition transition) {
+        return transition.getUpdatedAt() != null ? transition.getUpdatedAt() : transition.getCreatedAt();
+    }
+
+    private int compareTransitionPriority(WorkflowTransition a, WorkflowTransition b) {
+        if (a.isActive() != b.isActive()) {
+            return a.isActive() ? -1 : 1;
+        }
+        LocalDateTime aTime = transitionSortTime(a);
+        LocalDateTime bTime = transitionSortTime(b);
+        if (aTime == null && bTime == null) {
+            return 0;
+        }
+        if (aTime == null) {
+            return 1;
+        }
+        if (bTime == null) {
+            return -1;
+        }
+        return bTime.compareTo(aTime);
+    }
+
+    private int removeDuplicateTransitionGroups(
+            List<WorkflowTransition> transitions,
+            Function<WorkflowTransition, String> keyFn,
+            Set<String> pendingDelete,
+            LocalDateTime now
+    ) {
+        Map<String, List<WorkflowTransition>> groups = new LinkedHashMap<>();
+        for (WorkflowTransition transition : transitions) {
+            if (pendingDelete.contains(transition.getId())) {
+                continue;
+            }
+            String key = keyFn.apply(transition);
+            if (key == null || key.isBlank()) {
+                continue;
+            }
+            groups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(transition);
+        }
+
+        int removed = 0;
+        for (List<WorkflowTransition> group : groups.values()) {
+            if (group.size() <= 1) {
+                continue;
+            }
+            group.sort(this::compareTransitionPriority);
+            WorkflowTransition keeper = group.get(0);
+            if (!keeper.isActive()) {
+                keeper.setActive(true);
+                keeper.setUpdatedAt(now);
+                workflowTransitionRepository.save(keeper);
+            }
+            for (int i = 1; i < group.size(); i++) {
+                pendingDelete.add(group.get(i).getId());
+                removed++;
+            }
+        }
+        return removed;
+    }
+
+    private void deleteTransitions(Set<String> ids) {
+        for (String id : ids) {
+            workflowTransitionRepository.deleteById(id);
+        }
+    }
+
+    private boolean isOrphanTransition(WorkflowTransition transition, Set<String> validActivityIds) {
+        String fromId = transition.getFromActivityId();
+        String toId = transition.getToActivityId();
+        return fromId == null || fromId.isBlank()
+                || toId == null || toId.isBlank()
+                || !validActivityIds.contains(fromId)
+                || !validActivityIds.contains(toId);
+    }
+
+    private String activityIdPairKey(WorkflowTransition transition) {
+        if (transition.getFromActivityId() == null || transition.getToActivityId() == null) {
+            return null;
+        }
+        return transition.getFromActivityId() + "->" + transition.getToActivityId();
+    }
+
+    private String normalizedNamePairKey(WorkflowTransition transition) {
+        String from = normalizeTransitionName(transition.getFromActivityName());
+        String to = normalizeTransitionName(transition.getToActivityName());
+        if (from.isEmpty() || to.isEmpty()) {
+            return null;
+        }
+        return from + "->" + to;
+    }
+
+    private String normalizeTransitionName(String name) {
+        if (name == null) {
+            return "";
+        }
+        return name.trim().toLowerCase().replaceAll("\\s+", " ");
+    }
+
+    private boolean hasDuplicateActivitiesByName(List<WorkflowActivity> activities) {
+        Map<String, Long> counts = activities.stream()
+                .map(WorkflowActivity::getName)
+                .map(this::normalizeTransitionName)
+                .filter(name -> !name.isEmpty())
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+        return counts.values().stream().anyMatch(count -> count > 1);
     }
 
     private BusinessPolicy validatePolicyExists(String policyId) {

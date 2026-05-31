@@ -14,6 +14,8 @@ public class WorkflowActivityResponse {
     private String status;
     private int orderIndex;
     private Integer estimatedTimeHours;
+    private Integer positionX;
+    private Integer positionY;
     private String formId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -51,6 +53,12 @@ public class WorkflowActivityResponse {
 
     public Integer getEstimatedTimeHours() { return estimatedTimeHours; }
     public void setEstimatedTimeHours(Integer estimatedTimeHours) { this.estimatedTimeHours = estimatedTimeHours; }
+
+    public Integer getPositionX() { return positionX; }
+    public void setPositionX(Integer positionX) { this.positionX = positionX; }
+
+    public Integer getPositionY() { return positionY; }
+    public void setPositionY(Integer positionY) { this.positionY = positionY; }
 
     public String getFormId() { return formId; }
     public void setFormId(String formId) { this.formId = formId; }

@@ -1,5 +1,7 @@
 package com.workflow.politicas.controller;
 
+import com.workflow.politicas.dto.WorkflowDeleteResponse;
+import com.workflow.politicas.dto.WorkflowActivityPositionRequest;
 import com.workflow.politicas.dto.WorkflowActivityRequest;
 import com.workflow.politicas.dto.WorkflowActivityResponse;
 import com.workflow.politicas.service.WorkflowActivityService;
@@ -45,9 +47,8 @@ public class WorkflowActivityController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
-        workflowActivityService.delete(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<WorkflowDeleteResponse> delete(@PathVariable String id) {
+        return ResponseEntity.ok(workflowActivityService.delete(id));
     }
 
     @PatchMapping("/{id}/activate")
@@ -58,5 +59,18 @@ public class WorkflowActivityController {
     @PatchMapping("/{id}/deactivate")
     public ResponseEntity<WorkflowActivityResponse> deactivate(@PathVariable String id) {
         return ResponseEntity.ok(workflowActivityService.deactivate(id));
+    }
+
+    @PatchMapping("/{id}/position")
+    public ResponseEntity<WorkflowActivityResponse> updatePosition(
+            @PathVariable String id,
+            @RequestBody WorkflowActivityPositionRequest request
+    ) {
+        return ResponseEntity.ok(workflowActivityService.updatePosition(id, request));
+    }
+
+    @DeleteMapping("/{id}/position")
+    public ResponseEntity<WorkflowActivityResponse> clearPosition(@PathVariable String id) {
+        return ResponseEntity.ok(workflowActivityService.clearPosition(id));
     }
 }

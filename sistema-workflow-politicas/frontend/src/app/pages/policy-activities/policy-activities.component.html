@@ -25,8 +25,8 @@
   <div class="data-card">
     @if (loading) {
       <div class="loading">Cargando actividades...</div>
-    } @else if (!activities.length) {
-      <div class="empty-state">Esta política aún no tiene actividades configuradas.</div>
+    } @else if (!visibleActivities.length) {
+      <div class="empty-state">No hay actividades activas en esta política.</div>
     } @else {
       <div class="table-wrap">
         <table class="data-table">
@@ -43,7 +43,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (a of activities; track a.id || a.name + a.orderIndex) {
+            @for (a of visibleActivities; track a.id || a.name + a.orderIndex) {
               <tr>
                 <td>{{ a.orderIndex ?? '—' }}</td>
                 <td>{{ a.name }}</td>

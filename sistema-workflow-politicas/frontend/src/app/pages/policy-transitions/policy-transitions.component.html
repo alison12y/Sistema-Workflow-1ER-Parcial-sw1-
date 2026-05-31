@@ -55,12 +55,12 @@
     </section>
 
     <section class="data-card">
-      <h2>Actividades ({{ activities.length }})</h2>
-      @if (!activities.length) {
-        <div class="empty-state">No hay actividades configuradas.</div>
+      <h2>Actividades ({{ visibleActivities.length }})</h2>
+      @if (!visibleActivities.length) {
+        <div class="empty-state">No hay actividades activas configuradas.</div>
       } @else {
         <ul class="activity-list">
-          @for (a of activities; track a.id || a.name) {
+          @for (a of visibleActivities; track a.id || a.name) {
             <li>{{ a.orderIndex }}. {{ a.name }}</li>
           }
         </ul>
@@ -70,11 +70,11 @@
   </div>
 
   <div class="data-card">
-    <h2>Conexiones ({{ transitions.length }})</h2>
+    <h2>Conexiones ({{ visibleTransitions.length }})</h2>
     @if (loading) {
       <div class="loading">Cargando conexiones...</div>
-    } @else if (!transitions.length) {
-      <div class="empty-state">Esta política aún no tiene conexiones entre actividades.</div>
+    } @else if (!visibleTransitions.length) {
+      <div class="empty-state">No hay conexiones activas en esta política.</div>
     } @else {
       <div class="table-wrap">
         <table class="data-table">
@@ -89,7 +89,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (t of transitions; track t.id || t.fromActivityName + t.toActivityName) {
+            @for (t of visibleTransitions; track t.id || t.fromActivityName + t.toActivityName) {
               <tr>
                 <td>{{ t.fromActivityName || '—' }}</td>
                 <td>{{ t.toActivityName || '—' }}</td>
