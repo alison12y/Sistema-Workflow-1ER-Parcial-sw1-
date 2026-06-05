@@ -3,6 +3,7 @@ import {
   ChangeDetectorRef,
   ElementRef,
   HostListener,
+  OnDestroy,
   OnInit,
   ViewChild,
   inject,
@@ -15,16 +16,28 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { forkJoin, Observable, of } from 'rxjs';
+import { forkJoin, interval, Observable, of, Subscription } from 'rxjs';
 import { concatMap, map, switchMap } from 'rxjs/operators';
 
 import { WorkflowDesignerService } from '../../services/workflow-designer.service';
+import { WorkflowCollaborationService } from '../../services/workflow-collaboration.service';
+import {
+  WorkflowCollaborationActiveEdit,
+  WorkflowCollaborationConnectedUser,
+  WorkflowCollaborationRecentAction,
+  WorkflowCollaborationState,
+} from '../../models/workflow-collaboration.model';
 
 import { WorkflowActivityService } from '../../services/workflow-activity.service';
 
 import { WorkflowTransitionService } from '../../services/workflow-transition.service';
 
 import { AuthService } from '../../services/auth.service';
+import { AiService } from '../../services/ai.service';
+import {
+  AiWorkflowSuggestRequest,
+  AiWorkflowSuggestResponse,
+} from '../../models/ai-workflow-suggest.model';
 
 import {
   ActivityNode,
@@ -49,11 +62,26 @@ import {
 } from '../../utils/workflow-display.util';
 
 import {
+  applyGatewayTransitionTypeHint,
+  edgeCanvasLabel,
+  TransitionFormLike,
   TRANSITION_TYPE_OPTIONS,
+  transitionConditionRequired,
+  transitionShowsConditionField,
   transitionStatusClass,
   transitionStatusLabel,
+  transitionTypeHint,
   transitionTypeLabel,
+  transitionWizardSkipsConditionStep,
+  validateTransitionFormInput,
 } from '../../utils/transition-display.util';
+import {
+  defaultGatewayName,
+  gatewayActivityTypeLabel,
+  isGatewayActivityType,
+  isForkGateway,
+  isJoinGateway,
+} from '../../utils/workflow-gateway.util';
 import {
   activityTypeHelp,
   buildSequentialEdges,
@@ -71,7 +99,7 @@ import {
 } from '../../utils/workflow-designer-guided.util';
 import { isVisibleActivity, isVisibleTransition } from '../../utils/workflow-visibility.util';
 
-type UmlVisualType = 'START' | 'END' | 'DECISION' | 'TASK';
+type UmlVisualType = 'START' | 'END' | 'DECISION' | 'TASK' | 'FORK' | 'JOIN';
 
 interface NodeSize {
   width: number;
@@ -91,6 +119,13 @@ interface DragState {
   offsetY: number;
 }
 
+interface ValidationCheckItem {
+  id: string;
+  label: string;
+  status: 'pass' | 'fail' | 'warn';
+  detail?: string;
+}
+
 const LANE_LABEL_WIDTH = 200;
 
 const LANE_HEIGHT = 200;
@@ -103,6 +138,10 @@ const AUTO_LAYOUT_H_GAP = 220;
 
 const CANVAS_PADDING = 60;
 
+const COLLABORATION_POLL_MS = 11_000;
+const COLLABORATION_CONFLICT_FALLBACK =
+  'Este workflow fue modificado por otro usuario. Recargue antes de guardar.';
+
 @Component({
   selector: 'app-workflow-designer',
 
@@ -114,21 +153,60 @@ const CANVAS_PADDING = 60;
 
   styleUrl: './workflow-designer.component.scss',
 })
-export class WorkflowDesignerComponent implements OnInit {
+export class WorkflowDesignerComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
 
   private readonly router = inject(Router);
 
   private readonly designerService = inject(WorkflowDesignerService);
+  private readonly collaborationService = inject(WorkflowCollaborationService);
 
   private readonly activityService = inject(WorkflowActivityService);
 
   private readonly transitionService = inject(WorkflowTransitionService);
 
   private readonly auth = inject(AuthService);
+  private readonly aiService = inject(AiService);
   private readonly cdr = inject(ChangeDetectorRef);
 
+  aiPrompt = '';
+  aiLoading = false;
+  aiApplying = false;
+  aiError = '';
+  aiSuggestion: AiWorkflowSuggestResponse | null = null;
+  voiceListening = false;
+  readonly aiExamplePrompt =
+    'Crear una actividad Validar documentación en el departamento Legal y conectarla después de Recepción de solicitud de forma secuencial.';
+  readonly voiceSupported =
+    typeof window !== 'undefined' &&
+    (!!(window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition ||
+      !!(window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition);
+
+  private speechRecognition: {
+    lang: string;
+    continuous: boolean;
+    interimResults: boolean;
+    onresult: ((event: { results: { [index: number]: { [index: number]: { transcript: string } } } }) => void) | null;
+    onerror: ((event: { error: string }) => void) | null;
+    onend: (() => void) | null;
+    start: () => void;
+    stop: () => void;
+  } | null = null;
+
   policyId: string | null = null;
+
+  collaborationConflictMessage = COLLABORATION_CONFLICT_FALLBACK;
+  collaborationSessionId = '';
+  collaborationState: WorkflowCollaborationState | null = null;
+  collaborationConflict = false;
+  collaborationPolling = false;
+  private loadedRevision = 0;
+  private collaborationStarted = false;
+  private conflictReported = false;
+  private collaborationPollSub?: Subscription;
+  /** Usuario JWT al que pertenece la sesión colaborativa activa (evita mezclar cuentas). */
+  private collaborationOwnerUsername = '';
+  private trackedEditingElementId: string | null = null;
 
   data: WorkflowDesignerData | null = null;
 
@@ -191,6 +269,7 @@ export class WorkflowDesignerComponent implements OnInit {
   readonly guidedActivityTypeOptions = GUIDED_ACTIVITY_TYPE_OPTIONS;
 
   readonly guidedTransitionTypeOptions = GUIDED_TRANSITION_TYPE_OPTIONS;
+  transitionFormWarning = '';
 
   readonly conditionLabelExamples = CONDITION_LABEL_EXAMPLES;
 
@@ -214,11 +293,11 @@ export class WorkflowDesignerComponent implements OnInit {
 
   propertiesEditingTransitionId: string | null = null;
 
-  lanesPanelOpen = false;
-
   connectionsPanelOpen = false;
 
-  flowTextPanelOpen = false;
+  lanesPanelOpen = false;
+
+  flowTextPanelOpen = true;
 
   helpPanelOpen = false;
 
@@ -271,6 +350,7 @@ export class WorkflowDesignerComponent implements OnInit {
   @ViewChild('diagramViewport') diagramViewport?: ElementRef<HTMLDivElement>;
 
   readonly canEdit = this.auth.canEditWorkflowDesigner();
+  readonly canViewForms = this.auth.canViewDynamicForms();
 
   readonly activityStatusClass = activityStatusClass;
 
@@ -304,9 +384,9 @@ export class WorkflowDesignerComponent implements OnInit {
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
-      this.policyId = params.get('id');
+      const nextPolicyId = params.get('id');
 
-      if (!this.policyId) {
+      if (!nextPolicyId) {
         this.loading = false;
 
         this.error = 'No se encontró la política asociada.';
@@ -322,8 +402,30 @@ export class WorkflowDesignerComponent implements OnInit {
         return;
       }
 
+      const loggedInUsername = this.auth.getCurrentUser()?.username?.trim() ?? '';
+      if (
+        this.collaborationOwnerUsername &&
+        loggedInUsername &&
+        this.collaborationOwnerUsername !== loggedInUsername
+      ) {
+        this.resetCollaborationSession();
+      }
+      this.collaborationOwnerUsername = loggedInUsername;
+
+      if (this.policyId && this.policyId !== nextPolicyId) {
+        this.resetCollaborationSession();
+      }
+
+      this.policyId = nextPolicyId;
+      if (!this.collaborationSessionId) {
+        this.collaborationSessionId = this.createCollaborationSessionId();
+      }
       this.loadDesigner();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.resetCollaborationSession();
   }
 
   loadDesigner(showLoading = true): void {
@@ -345,6 +447,7 @@ export class WorkflowDesignerComponent implements OnInit {
         if (showLoading) {
           this.loading = false;
         }
+        this.startCollaborationIfNeeded();
         this.cdr.detectChanges();
       },
 
@@ -387,6 +490,10 @@ export class WorkflowDesignerComponent implements OnInit {
     if (this.logConnectionsAfterCleanup) {
       console.log('[cleanup] conexiones después de loadDesigner():', transitions.length);
       this.logConnectionsAfterCleanup = false;
+    }
+
+    if (this.collaborationStarted && !this.collaborationConflict) {
+      this.syncRevisionAfterOwnSave();
     }
   }
 
@@ -695,9 +802,7 @@ export class WorkflowDesignerComponent implements OnInit {
     if (this.editMode) {
       this.loadCrudData();
     } else {
-      this.selectedNodeId = null;
-
-      this.selectedEdgeId = null;
+      this.clearDiagramSelection();
     }
 
     this.syncPropertiesPanel();
@@ -705,10 +810,7 @@ export class WorkflowDesignerComponent implements OnInit {
 
   cancelEditMode(): void {
     this.editMode = false;
-
-    this.selectedNodeId = null;
-
-    this.selectedEdgeId = null;
+    this.clearDiagramSelection();
 
     this.closeActivityModal();
 
@@ -719,8 +821,8 @@ export class WorkflowDesignerComponent implements OnInit {
     if (!this.policyId) return;
 
     this.validating = true;
-
     this.showValidation = true;
+    this.message = '';
 
     this.transitionService.validatePolicyFlow(this.policyId).subscribe({
       next: (result) => {
@@ -730,28 +832,127 @@ export class WorkflowDesignerComponent implements OnInit {
           warnings: (result.warnings ?? []).map(friendlyValidationMessage),
           message: friendlyValidationMessage(result.message),
         };
-
         this.validating = false;
-
-        if (this.validationResult.valid) {
-          this.message = 'El flujo está correctamente configurado.';
-        } else {
-          this.message = this.validationResult.message;
-        }
-
-        this.flashMessage();
+        this.cdr.detectChanges();
       },
 
       error: (err) => {
         this.validating = false;
-
+        this.showValidation = false;
         this.error = err.error?.message ?? 'No se pudo validar el flujo.';
+        this.cdr.detectChanges();
       },
     });
   }
 
   closeValidation(): void {
     this.showValidation = false;
+  }
+
+  validationStatusTitle(): string {
+    if (!this.validationResult) return '';
+    return this.validationResult.valid ? 'Flujo válido' : 'Flujo inválido';
+  }
+
+  validationErrorCount(): number {
+    return this.validationResult?.errors?.length ?? 0;
+  }
+
+  validationWarningCount(): number {
+    return this.validationResult?.warnings?.length ?? 0;
+  }
+
+  validationPassedCheckCount(): number {
+    return this.validationChecklist().filter((item) => item.status === 'pass').length;
+  }
+
+  validationChecklist(): ValidationCheckItem[] {
+    const errors = (this.validationResult?.errors ?? []).map((e) => e.toLowerCase());
+    const warnings = (this.validationResult?.warnings ?? []).map((w) => w.toLowerCase());
+    const matches = (patterns: string[]) =>
+      patterns.some((p) => errors.some((e) => e.includes(p)) || warnings.some((w) => w.includes(p)));
+
+    const startFail = matches(['inicio', 'start']);
+    const endFail = matches(['fin', 'end']);
+    const connectivityWarn = matches([
+      'aislad',
+      'sin conexiones',
+      'sin salida',
+      'sin entrada',
+      'conectar las actividades',
+    ]);
+    const responsibleFail = matches(['responsable']);
+    const transitionFail = matches([
+      'conexión',
+      'conexion',
+      'transición',
+      'transicion',
+      'condicional',
+      'paralel',
+      'iterativ',
+      'origen',
+      'destino',
+    ]);
+
+    const activities = this.crudActivities.filter(isVisibleActivity);
+    const transitions = this.allTransitions.filter(isVisibleTransition);
+    const startCount = activities.filter((a) => (a.activityType ?? '').toUpperCase() === 'START').length;
+    const endCount = activities.filter((a) => (a.activityType ?? '').toUpperCase() === 'END').length;
+    const tasks = activities.filter((a) => (a.activityType ?? '').toUpperCase() === 'TASK');
+    const tasksWithResponsible = tasks.filter(
+      (a) => !!(a.responsibleName?.trim() || a.responsibleType?.trim()),
+    );
+
+    return [
+      {
+        id: 'start',
+        label: 'Nodo Inicio',
+        status: startFail ? 'fail' : startCount === 1 ? 'pass' : startCount === 0 ? 'fail' : 'warn',
+        detail:
+          startCount === 0
+            ? 'Falta actividad START'
+            : startCount > 1
+              ? 'Hay más de un inicio'
+              : undefined,
+      },
+      {
+        id: 'end',
+        label: 'Nodo Fin',
+        status: endFail ? 'fail' : endCount >= 1 ? 'pass' : 'fail',
+        detail: endCount === 0 ? 'Falta actividad END' : undefined,
+      },
+      {
+        id: 'connected',
+        label: 'Actividades conectadas',
+        status: connectivityWarn ? 'warn' : activities.length <= 1 || transitions.length > 0 ? 'pass' : 'warn',
+        detail: connectivityWarn ? 'Revise actividades aisladas o sin enlace' : undefined,
+      },
+      {
+        id: 'responsible',
+        label: 'Responsables definidos',
+        status: responsibleFail
+          ? 'fail'
+          : tasks.length === 0 || tasksWithResponsible.length === tasks.length
+            ? 'pass'
+            : 'warn',
+        detail:
+          tasks.length > tasksWithResponsible.length
+            ? `${tasks.length - tasksWithResponsible.length} tarea(s) sin responsable`
+            : undefined,
+      },
+      {
+        id: 'transitions',
+        label: 'Transiciones válidas',
+        status: transitionFail ? 'fail' : transitions.length > 0 || activities.length <= 1 ? 'pass' : 'warn',
+        detail: transitionFail ? 'Revise conexiones y tipos de transición' : undefined,
+      },
+    ];
+  }
+
+  validationCheckIcon(status: ValidationCheckItem['status']): string {
+    if (status === 'pass') return '✓';
+    if (status === 'fail') return '✕';
+    return '!';
   }
 
   goBack(): void {
@@ -763,19 +964,33 @@ export class WorkflowDesignerComponent implements OnInit {
   }
 
   selectNode(node: ActivityNode): void {
-    this.selectedNodeId = node.id ?? null;
-
+    if (!node.id) return;
+    if (!this.confirmSoftLock('ACTIVITY', node.id)) return;
+    this.clearActiveEditingRegistration();
+    this.selectedNodeId = node.id;
     this.selectedEdgeId = null;
-
     this.syncPropertiesPanel();
+    this.reportActiveEditing('ACTIVITY', node.id, node.name ?? 'Actividad', 'SELECTING');
   }
 
   selectEdge(edge: TransitionEdge | WorkflowTransition): void {
-    this.selectedEdgeId = edge.id ?? null;
-
+    if (!edge.id) return;
+    if (!this.confirmSoftLock('TRANSITION', edge.id)) return;
+    this.clearActiveEditingRegistration();
+    this.selectedEdgeId = edge.id;
     this.selectedNodeId = null;
-
     this.syncPropertiesPanel();
+    const label =
+      edge.fromActivityName && edge.toActivityName
+        ? `${edge.fromActivityName} → ${edge.toActivityName}`
+        : 'Conexión';
+    this.reportActiveEditing('TRANSITION', edge.id, label, 'SELECTING');
+  }
+
+  private clearDiagramSelection(): void {
+    this.clearActiveEditingRegistration();
+    this.selectedNodeId = null;
+    this.selectedEdgeId = null;
   }
 
   get zoomScale(): number {
@@ -833,10 +1048,40 @@ export class WorkflowDesignerComponent implements OnInit {
   openCreateActivityFromToolbox(activityType: string): void {
     this.editingActivityId = null;
     this.preselectedLaneForActivity = null;
-    this.activityForm = { ...this.emptyActivityForm(), activityType };
+    const normalized = activityType.toUpperCase();
+    const gateway = isGatewayActivityType(normalized);
+    this.activityForm = {
+      ...this.emptyActivityForm(),
+      activityType: normalized,
+      name: gateway ? defaultGatewayName(normalized) : '',
+      responsibleName: '',
+      estimatedTimeHours: gateway ? undefined : 1,
+    };
     this.activityModalGuided = true;
     this.modalError = '';
     this.activityModalOpen = true;
+  }
+
+  isGatewayActivityForm(): boolean {
+    return isGatewayActivityType(this.activityForm.activityType);
+  }
+
+  gatewayActivityFormHint(): string {
+    if (isForkGateway(this.activityForm.activityType)) {
+      return 'Pasarela de bifurcación: no genera tarea humana. Conecte entrada secuencial y al menos dos salidas PARALLEL_SPLIT.';
+    }
+    if (isJoinGateway(this.activityForm.activityType)) {
+      return 'Pasarela de unión: no genera tarea humana. Conecte al menos dos entradas PARALLEL_JOIN y una salida hacia la siguiente actividad.';
+    }
+    return '';
+  }
+
+  isGatewayPropertiesNode(): boolean {
+    return isGatewayActivityType(this.propertiesActivityForm?.activityType);
+  }
+
+  gatewayPropertiesTypeHint(): string {
+    return gatewayActivityTypeLabel(this.propertiesActivityForm?.activityType);
   }
 
   openTransitionWizard(fromActivityId?: string): void {
@@ -868,17 +1113,26 @@ export class WorkflowDesignerComponent implements OnInit {
       this.modalError = 'Seleccione la actividad de destino.';
       return;
     }
-    if (
-      this.transitionWizardStep === 4 &&
-      this.transitionWizardForm.transitionType === 'CONDITIONAL' &&
-      !this.transitionWizardForm.conditionLabel?.trim()
-    ) {
-      this.modalError = 'Indique la etiqueta de condición.';
-      return;
+    if (this.transitionWizardStep === 4) {
+      const validation = validateTransitionFormInput(
+        this.transitionWizardForm,
+        this.allTransitions,
+      );
+      if (validation.error) {
+        this.modalError = validation.error;
+        return;
+      }
+      this.transitionFormWarning = validation.warning ?? '';
     }
     this.modalError = '';
     if (this.transitionWizardStep < 5) {
-      if (this.transitionWizardStep === 3 && this.transitionWizardForm.transitionType !== 'CONDITIONAL') {
+      if (this.transitionWizardStep === 2) {
+        this.applyGatewayTransitionHintsToForm(this.transitionWizardForm);
+      }
+      if (
+        this.transitionWizardStep === 3 &&
+        transitionWizardSkipsConditionStep(this.transitionWizardForm.transitionType)
+      ) {
         this.transitionWizardStep = 5;
       } else {
         this.transitionWizardStep += 1;
@@ -889,7 +1143,10 @@ export class WorkflowDesignerComponent implements OnInit {
   transitionWizardPrev(): void {
     this.modalError = '';
     if (this.transitionWizardStep > 1) {
-      if (this.transitionWizardStep === 5 && this.transitionWizardForm.transitionType !== 'CONDITIONAL') {
+      if (
+        this.transitionWizardStep === 5 &&
+        transitionWizardSkipsConditionStep(this.transitionWizardForm.transitionType)
+      ) {
         this.transitionWizardStep = 3;
       } else {
         this.transitionWizardStep -= 1;
@@ -904,6 +1161,15 @@ export class WorkflowDesignerComponent implements OnInit {
       this.modalError = 'Origen y destino no pueden ser iguales.';
       return;
     }
+    const clientValidation = validateTransitionFormInput(
+      this.transitionWizardForm,
+      this.allTransitions,
+    );
+    if (clientValidation.error) {
+      this.modalError = clientValidation.error;
+      return;
+    }
+    this.transitionFormWarning = clientValidation.warning ?? '';
     this.saving = true;
     const payload: WorkflowTransitionRequest = {
       policyId: this.policyId ?? undefined,
@@ -932,10 +1198,6 @@ export class WorkflowDesignerComponent implements OnInit {
 
   get primaryToolboxItems(): UmlToolboxItem[] {
     return this.umlToolboxItems.filter((i) => !i.soon);
-  }
-
-  get soonToolboxItems(): UmlToolboxItem[] {
-    return this.umlToolboxItems.filter((i) => i.soon);
   }
 
   get connectionsCountLabel(): string {
@@ -1321,7 +1583,7 @@ export class WorkflowDesignerComponent implements OnInit {
         policyId: this.policyId ?? undefined,
         fromActivityId: tr.fromActivityId,
         toActivityId: tr.toActivityId,
-        transitionType: tr.transitionType ?? 'SEQUENTIAL',
+        transitionType: (tr.transitionType ?? 'SEQUENTIAL').toUpperCase(),
         conditionLabel: tr.conditionLabel ?? '',
         conditionExpression: tr.conditionExpression ?? '',
         orderIndex: tr.orderIndex,
@@ -1333,10 +1595,17 @@ export class WorkflowDesignerComponent implements OnInit {
   savePropertiesPanel(): void {
     if (!this.canEdit || !this.editMode) return;
     if (this.propertiesActivityForm && this.selectedNodeId) {
+      if (!this.confirmSoftLock('ACTIVITY', this.selectedNodeId)) return;
       if (!this.propertiesActivityForm.name?.trim()) {
         this.error = 'El nombre es obligatorio.';
         return;
       }
+      this.reportActiveEditing(
+        'ACTIVITY',
+        this.selectedNodeId,
+        this.propertiesActivityForm.name.trim(),
+        'EDITING',
+      );
       this.registerLaneName(this.propertiesActivityForm.responsibleName);
       this.propertiesSaving = true;
       this.activityService
@@ -1363,16 +1632,39 @@ export class WorkflowDesignerComponent implements OnInit {
     }
 
     if (this.propertiesTransitionForm && this.propertiesEditingTransitionId) {
+      if (!this.confirmSoftLock('TRANSITION', this.propertiesEditingTransitionId)) return;
+      const clientValidation = validateTransitionFormInput(
+        this.propertiesTransitionForm,
+        this.allTransitions,
+        this.propertiesEditingTransitionId,
+      );
+      if (clientValidation.error) {
+        this.error = clientValidation.error;
+        return;
+      }
+      this.reportActiveEditing(
+        'TRANSITION',
+        this.propertiesEditingTransitionId,
+        'Conexión',
+        'EDITING',
+      );
       this.propertiesSaving = true;
       const payload = {
         ...this.propertiesTransitionForm,
         policyId: this.policyId ?? undefined,
+        transitionType: (
+          this.propertiesTransitionForm.transitionType ?? 'SEQUENTIAL'
+        ).toUpperCase(),
         conditionLabel: this.propertiesTransitionForm.conditionLabel?.trim() || undefined,
+        conditionExpression:
+          this.propertiesTransitionForm.conditionExpression?.trim() || undefined,
       };
       this.transitionService.update(this.propertiesEditingTransitionId, payload).subscribe({
         next: () => {
           this.propertiesSaving = false;
-          this.message = 'Conexión actualizada correctamente.';
+          this.message = clientValidation.warning
+            ? `Conexión actualizada correctamente. ${clientValidation.warning}`
+            : 'Conexión actualizada correctamente.';
           this.loadDesigner(false);
           this.flashMessage();
         },
@@ -1888,6 +2180,7 @@ export class WorkflowDesignerComponent implements OnInit {
 
   removeActivityNode(node: ActivityNode): void {
     if (!this.ensureCanEdit() || !node.id) return;
+    if (!this.confirmSoftLock('ACTIVITY', node.id)) return;
 
     if (
       !confirm(
@@ -1945,11 +2238,30 @@ export class WorkflowDesignerComponent implements OnInit {
 
     if (fromActivityId) {
       this.transitionForm.fromActivityId = fromActivityId;
+      this.applyGatewayTransitionHintsToForm(this.transitionForm);
     }
 
     this.modalError = '';
 
     this.transitionModalOpen = true;
+  }
+
+  onTransitionFormEndpointChange(): void {
+    this.applyGatewayTransitionHintsToForm(this.transitionForm);
+    this.onCollaborationPropertyEdit();
+  }
+
+  onPropertiesTransitionEndpointChange(): void {
+    if (this.propertiesTransitionForm) {
+      this.applyGatewayTransitionHintsToForm(this.propertiesTransitionForm);
+    }
+    this.onCollaborationPropertyEdit();
+  }
+
+  private applyGatewayTransitionHintsToForm(form: TransitionFormLike): void {
+    const from = this.nodeById(form.fromActivityId);
+    const to = this.nodeById(form.toActivityId);
+    applyGatewayTransitionTypeHint(form, from?.activityType, to?.activityType);
   }
 
   openEditTransition(transition: WorkflowTransition): void {
@@ -1964,7 +2276,7 @@ export class WorkflowDesignerComponent implements OnInit {
 
       toActivityId: transition.toActivityId,
 
-      transitionType: transition.transitionType ?? 'SEQUENTIAL',
+      transitionType: (transition.transitionType ?? 'SEQUENTIAL').toUpperCase(),
 
       conditionLabel: transition.conditionLabel ?? '',
 
@@ -1975,6 +2287,7 @@ export class WorkflowDesignerComponent implements OnInit {
       active: transition.active !== false,
     };
 
+    this.transitionFormWarning = '';
     this.modalError = '';
 
     this.transitionModalOpen = true;
@@ -2018,15 +2331,17 @@ export class WorkflowDesignerComponent implements OnInit {
       return;
     }
 
-    if (
-      this.transitionForm.transitionType === 'CONDITIONAL' &&
-      !this.transitionForm.conditionLabel?.trim()
-    ) {
-      this.modalError =
-        'Debe indicar una condición para conexiones condicionales.';
-
+    const clientValidation = validateTransitionFormInput(
+      this.transitionForm,
+      this.allTransitions,
+      this.editingTransitionId,
+    );
+    if (clientValidation.error) {
+      this.modalError = clientValidation.error;
+      this.transitionFormWarning = '';
       return;
     }
+    this.transitionFormWarning = clientValidation.warning ?? '';
 
     this.saving = true;
 
@@ -2051,7 +2366,10 @@ export class WorkflowDesignerComponent implements OnInit {
     request$.subscribe({
       next: (result) => {
         if (this.editingTransitionId) {
-          this.message = 'Conexión actualizada correctamente.';
+          this.message = this.transitionFormWarning
+            ? `Conexión actualizada correctamente. ${this.transitionFormWarning}`
+            : 'Conexión actualizada correctamente.';
+          this.transitionFormWarning = '';
           this.transitionModalOpen = false;
           this.saving = false;
           this.loadDesigner(false);
@@ -2059,6 +2377,7 @@ export class WorkflowDesignerComponent implements OnInit {
           return;
         }
         this.transitionModalOpen = false;
+        this.transitionFormWarning = '';
         this.handleTransitionCreateSuccess(result);
       },
 
@@ -2136,9 +2455,39 @@ export class WorkflowDesignerComponent implements OnInit {
   }
 
   isConditionalTransitionType(): boolean {
-    return (
-      (this.transitionForm.transitionType ?? '').toUpperCase() === 'CONDITIONAL'
-    );
+    return transitionShowsConditionField(this.transitionForm.transitionType);
+  }
+
+  transitionConditionRequired(): boolean {
+    return transitionConditionRequired(this.transitionForm.transitionType);
+  }
+
+  propertiesTransitionShowsCondition(): boolean {
+    return transitionShowsConditionField(this.propertiesTransitionForm?.transitionType);
+  }
+
+  propertiesTransitionConditionRequired(): boolean {
+    return transitionConditionRequired(this.propertiesTransitionForm?.transitionType);
+  }
+
+  currentTransitionFormHint(): string {
+    return transitionTypeHint(this.transitionForm.transitionType);
+  }
+
+  propertiesTransitionTypeHint(): string {
+    return transitionTypeHint(this.propertiesTransitionForm?.transitionType);
+  }
+
+  wizardTransitionTypeHint(): string {
+    return transitionTypeHint(this.transitionWizardForm.transitionType);
+  }
+
+  wizardShowsConditionStep(): boolean {
+    return transitionShowsConditionField(this.transitionWizardForm.transitionType);
+  }
+
+  wizardConditionRequired(): boolean {
+    return transitionConditionRequired(this.transitionWizardForm.transitionType);
   }
 
   activityOptionsForSelect(): WorkflowActivity[] {
@@ -2159,6 +2508,11 @@ export class WorkflowDesignerComponent implements OnInit {
     return this.activityOptionsForSelect().find((a) => a.id === id)?.name ?? '—';
   }
 
+  activityHasForm(node: ActivityNode): boolean {
+    if (!node.id) return false;
+    return !!this.crudActivities.find((activity) => activity.id === node.id)?.formId;
+  }
+
   private ensureCanEdit(): boolean {
     if (!this.canEdit) {
       this.message = 'No tienes permiso para modificar el diseño.';
@@ -2168,7 +2522,394 @@ export class WorkflowDesignerComponent implements OnInit {
       return false;
     }
 
+    if (this.collaborationConflict) {
+      this.error = this.collaborationConflictMessage;
+      this.cdr.detectChanges();
+      return false;
+    }
+
     return true;
+  }
+
+  reloadAfterConflict(): void {
+    if (!this.policyId) return;
+    this.collaborationConflict = false;
+    this.conflictReported = false;
+    this.error = '';
+    this.loadDesigner(true);
+  }
+
+  connectedCollaborators(): WorkflowCollaborationConnectedUser[] {
+    const state = this.collaborationState;
+    if (!state) {
+      return [];
+    }
+    if (state.connectedUsers?.length) {
+      return state.connectedUsers;
+    }
+    return (state.connectedEditors ?? []).map((editor) => ({
+      userId: editor.sessionId,
+      username: editor.username,
+      fullName: editor.displayName || editor.username,
+      currentUser: editor.currentUser,
+    }));
+  }
+
+  activeEditsNow(): WorkflowCollaborationActiveEdit[] {
+    const edits = this.collaborationState?.activeEdits ?? [];
+    return edits.filter((edit) => !edit.currentUser);
+  }
+
+  recentCollaborationActivity(): WorkflowCollaborationRecentAction[] {
+    return this.collaborationState?.recentActions ?? [];
+  }
+
+  editingNowLabel(edit: WorkflowCollaborationActiveEdit): string {
+    const name = edit.fullName?.trim() || edit.username || 'Usuario';
+    const action = (edit.action ?? 'SELECTING').toUpperCase();
+    let verb = 'está revisando';
+    if (action === 'EDITING') verb = 'está editando';
+    if (action === 'MOVING') verb = 'está moviendo';
+    const element = edit.elementName?.trim() || edit.elementId || 'elemento';
+    const you = edit.currentUser ? ' (usted)' : '';
+    return `${name}${you} ${verb} “${element}”`;
+  }
+
+  collaborationLastModifiedLabel(): string {
+    const state = this.collaborationState;
+    if (!state?.lastModifiedAt) {
+      return 'Sin modificaciones registradas';
+    }
+    if (state.lastModifiedSummary?.trim()) {
+      const when = new Date(state.lastModifiedAt).toLocaleString();
+      return `${state.lastModifiedSummary.trim()} — ${when}`;
+    }
+    const who =
+      state.lastModifiedByName?.trim() ||
+      state.lastModifiedByDisplayName?.trim() ||
+      state.lastModifiedByUsername?.trim() ||
+      '—';
+    const verb = state.lastModifiedActionLabel?.trim() || 'modificó el workflow';
+    const element = state.lastModifiedElementName?.trim();
+    const kind =
+      state.lastModifiedElementType === 'ACTIVITY'
+        ? 'actividad'
+        : state.lastModifiedElementType === 'TRANSITION'
+          ? 'conexión'
+          : 'elemento';
+    const detail = element ? `${verb} ${kind} “${element}”` : verb;
+    const when = new Date(state.lastModifiedAt).toLocaleString();
+    return `${who} ${detail} — ${when}`;
+  }
+
+  recentActivityLabel(action: WorkflowCollaborationRecentAction): string {
+    if (action.summary?.trim()) {
+      return action.summary.trim();
+    }
+    const who =
+      action.modifiedByName?.trim() ||
+      action.modifiedByDisplayName?.trim() ||
+      action.modifiedByUsername?.trim() ||
+      'Usuario';
+    const verb = action.actionLabel?.trim() || 'modificó';
+    const element = action.elementName?.trim();
+    const kind =
+      action.elementType === 'ACTIVITY'
+        ? 'actividad'
+        : action.elementType === 'TRANSITION'
+          ? 'conexión'
+          : 'elemento';
+    return element ? `${who} ${verb} ${kind} “${element}”` : `${who} ${verb}`;
+  }
+
+  recentActivityTime(action: WorkflowCollaborationRecentAction): string {
+    if (!action.modifiedAt) return '';
+    return new Date(action.modifiedAt).toLocaleTimeString([], {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  private updateCollaborationConflictMessage(): void {
+    const state = this.collaborationState;
+    if (!state?.staleForClient) {
+      this.collaborationConflictMessage = COLLABORATION_CONFLICT_FALLBACK;
+      return;
+    }
+    const who =
+      state.lastModifiedByName?.trim() ||
+      state.lastModifiedByDisplayName?.trim() ||
+      state.lastModifiedByUsername?.trim() ||
+      'Otro usuario';
+    const when = state.lastModifiedAt
+      ? new Date(state.lastModifiedAt).toLocaleTimeString([], {
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : '';
+    this.collaborationConflictMessage = when
+      ? `${who} modificó el workflow a las ${when}. Recargue para ver los cambios antes de guardar.`
+      : `${who} modificó el workflow. Recargue para ver los cambios antes de guardar.`;
+  }
+
+  isElementLockedByOther(
+    elementType: 'ACTIVITY' | 'TRANSITION',
+    elementId: string | null | undefined,
+  ): boolean {
+    return !!this.findOtherUserEditing(elementType, elementId);
+  }
+
+  private findOtherUserEditing(
+    elementType: 'ACTIVITY' | 'TRANSITION',
+    elementId: string | null | undefined,
+  ): WorkflowCollaborationActiveEdit | null {
+    if (!elementId) return null;
+    const me = this.auth.getCurrentUser()?.username?.trim().toLowerCase() ?? '';
+    return (
+      this.activeEditsNow().find(
+        (edit) =>
+          edit.elementId === elementId &&
+          (edit.elementType ?? '').toUpperCase() === elementType &&
+          !edit.currentUser &&
+          (edit.username?.trim().toLowerCase() ?? '') !== me,
+      ) ?? null
+    );
+  }
+
+  private confirmSoftLock(
+    elementType: 'ACTIVITY' | 'TRANSITION',
+    elementId: string | null | undefined,
+  ): boolean {
+    const other = this.findOtherUserEditing(elementType, elementId);
+    if (!other) return true;
+    const who = other.fullName?.trim() || other.username || 'otro usuario';
+    return confirm(
+      `Este elemento está siendo editado por ${who}. ¿Desea continuar de todos modos?`,
+    );
+  }
+
+  onCollaborationPropertyEdit(): void {
+    if (!this.canEdit || !this.editMode) return;
+    if (this.selectedNodeId && this.propertiesActivityForm?.name) {
+      this.reportActiveEditing(
+        'ACTIVITY',
+        this.selectedNodeId,
+        this.propertiesActivityForm.name.trim() || 'Actividad',
+        'EDITING',
+      );
+      return;
+    }
+    if (this.selectedEdgeId) {
+      const tr = this.selectedTransition;
+      const label =
+        tr?.fromActivityName && tr?.toActivityName
+          ? `${tr.fromActivityName} → ${tr.toActivityName}`
+          : 'Conexión';
+      this.reportActiveEditing('TRANSITION', this.selectedEdgeId, label, 'EDITING');
+    }
+  }
+
+  private reportActiveEditing(
+    elementType: 'ACTIVITY' | 'TRANSITION',
+    elementId: string,
+    elementName: string,
+    action: 'SELECTING' | 'EDITING' | 'MOVING',
+  ): void {
+    if (!this.policyId || !this.collaborationSessionId || !this.editMode) return;
+    this.trackedEditingElementId = elementId;
+    this.collaborationService
+      .reportEditing(this.policyId, {
+        sessionId: this.collaborationSessionId,
+        elementType,
+        elementId,
+        elementName,
+        action,
+      })
+      .subscribe({
+        next: (state) => {
+          this.collaborationState = this.normalizeCollaborationState(state);
+          this.cdr.detectChanges();
+        },
+        error: () => undefined,
+      });
+  }
+
+  private clearActiveEditingRegistration(): void {
+    if (!this.policyId || !this.collaborationSessionId || !this.trackedEditingElementId) {
+      this.trackedEditingElementId = null;
+      return;
+    }
+    const elementId = this.trackedEditingElementId;
+    this.trackedEditingElementId = null;
+    this.collaborationService
+      .clearEditing(this.policyId, this.collaborationSessionId, elementId)
+      .subscribe({
+        next: (state) => {
+          this.collaborationState = this.normalizeCollaborationState(state);
+          this.cdr.detectChanges();
+        },
+        error: () => undefined,
+      });
+  }
+
+  private createCollaborationSessionId(): string {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID();
+    }
+    return `sess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  private startCollaborationIfNeeded(): void {
+    if (!this.policyId || this.collaborationStarted) return;
+    if (!this.collaborationSessionId) {
+      this.collaborationSessionId = this.createCollaborationSessionId();
+    }
+    this.collaborationStarted = true;
+
+    this.collaborationService.open(this.policyId, this.collaborationSessionId).subscribe({
+      next: (state) => {
+        this.applyCollaborationState(state, false);
+        this.startCollaborationPolling();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.collaborationPolling = false;
+      },
+    });
+  }
+
+  private startCollaborationPolling(): void {
+    if (this.collaborationPollSub || !this.policyId) return;
+    this.collaborationPolling = true;
+    this.collaborationPollSub = interval(COLLABORATION_POLL_MS).subscribe(() => {
+      this.pollCollaboration();
+    });
+    setTimeout(() => this.pollCollaboration(), 2_000);
+  }
+
+  private stopCollaborationPolling(): void {
+    this.collaborationPollSub?.unsubscribe();
+    this.collaborationPollSub = undefined;
+    this.collaborationPolling = false;
+  }
+
+  private pollCollaboration(): void {
+    if (!this.policyId || !this.collaborationSessionId) return;
+
+    this.collaborationService
+      .heartbeat(this.policyId, this.collaborationSessionId, this.loadedRevision)
+      .subscribe({
+        next: (state) => {
+          this.applyCollaborationState(state, true);
+          this.cdr.detectChanges();
+        },
+        error: () => undefined,
+      });
+  }
+
+  private applyCollaborationState(state: WorkflowCollaborationState, fromPoll: boolean): void {
+    const normalized = this.normalizeCollaborationState(state);
+    this.collaborationState = normalized;
+    this.updateCollaborationConflictMessage();
+
+    const currentUser = this.auth.getCurrentUser()?.username?.trim().toLowerCase() ?? '';
+    const modifiedBySelf =
+      !!normalized.lastModifiedByUsername &&
+      !!currentUser &&
+      normalized.lastModifiedByUsername.trim().toLowerCase() === currentUser;
+
+    if (!fromPoll || !normalized.staleForClient || modifiedBySelf) {
+      if (!this.collaborationConflict) {
+        this.loadedRevision = normalized.revision;
+      }
+    }
+
+    if (normalized.staleForClient && !modifiedBySelf && !this.collaborationConflict) {
+      this.collaborationConflict = true;
+      this.error = this.collaborationConflictMessage;
+      if (this.editMode) {
+        this.editMode = false;
+      }
+      this.reportCollaborationConflictOnce();
+    }
+  }
+
+  private reportCollaborationConflictOnce(): void {
+    if (this.conflictReported || !this.policyId) return;
+    this.conflictReported = true;
+    this.collaborationService
+      .reportConflict(this.policyId, this.collaborationSessionId, this.loadedRevision)
+      .subscribe({ error: () => undefined });
+  }
+
+  private syncRevisionAfterOwnSave(): void {
+    if (!this.policyId || !this.collaborationSessionId) return;
+    this.collaborationService
+      .heartbeat(this.policyId, this.collaborationSessionId, this.loadedRevision)
+      .subscribe({
+        next: (state) => {
+          const normalized = this.normalizeCollaborationState(state);
+          this.loadedRevision = normalized.revision;
+          this.collaborationState = normalized;
+          this.cdr.detectChanges();
+        },
+        error: () => undefined,
+      });
+  }
+
+  private normalizeCollaborationState(
+    state: WorkflowCollaborationState,
+  ): WorkflowCollaborationState {
+    const currentUsername =
+      this.auth.getCurrentUser()?.username?.trim().toLowerCase() ?? '';
+    const connectedUsers =
+      state.connectedUsers?.length
+        ? state.connectedUsers.map((user) => ({
+            ...user,
+            currentUser:
+              !!currentUsername &&
+              user.username?.trim().toLowerCase() === currentUsername,
+          }))
+        : (state.connectedEditors ?? []).map((editor) => ({
+            userId: editor.sessionId,
+            username: editor.username,
+            fullName: editor.displayName || editor.username,
+            currentUser:
+              !!currentUsername &&
+              editor.username?.trim().toLowerCase() === currentUsername,
+          }));
+    const activeEdits = (state.activeEdits ?? []).map((edit) => ({
+      ...edit,
+      currentUser:
+        !!currentUsername &&
+        edit.username?.trim().toLowerCase() === currentUsername,
+    }));
+    return {
+      ...state,
+      revision: state.currentRevision ?? state.revision,
+      connectedUsers,
+      activeEdits,
+    };
+  }
+
+  private resetCollaborationSession(): void {
+    this.stopCollaborationPolling();
+    const policyId = this.policyId;
+    const sessionId = this.collaborationSessionId;
+    if (policyId && sessionId) {
+      this.collaborationService.close(policyId, sessionId).subscribe({
+        error: () => undefined,
+      });
+    }
+    this.collaborationStarted = false;
+    this.collaborationConflict = false;
+    this.conflictReported = false;
+    this.collaborationConflictMessage = COLLABORATION_CONFLICT_FALLBACK;
+    this.collaborationState = null;
+    this.collaborationSessionId = '';
+    this.trackedEditingElementId = null;
+    this.loadedRevision = 0;
+    this.collaborationPolling = false;
   }
 
   private resolveMutationError(
@@ -2236,6 +2977,7 @@ export class WorkflowDesignerComponent implements OnInit {
     event.preventDefault();
     event.stopPropagation();
     this.selectNode(node);
+    this.reportActiveEditing('ACTIVITY', node.id, node.name ?? 'Actividad', 'MOVING');
     const pt = this.canvasPointFromEvent(event);
     this.dragging = true;
     this.dragState = {
@@ -2284,6 +3026,7 @@ export class WorkflowDesignerComponent implements OnInit {
       this.pendingVisualChanges.set(node.id, { x: node.x, y: node.y });
       this.syncPropertiesPanel();
       this.saveSingleNodePosition(node);
+      this.reportActiveEditing('ACTIVITY', node.id, node.name ?? 'Actividad', 'SELECTING');
     }
   }
 
@@ -2308,6 +3051,7 @@ export class WorkflowDesignerComponent implements OnInit {
         this.savingVisual = false;
         this.pendingVisualChanges.delete(node.id!);
         this.message = 'Posición guardada correctamente.';
+        this.syncRevisionAfterOwnSave();
         this.flashMessage();
       },
       error: (err: HttpErrorResponse) => {
@@ -2649,6 +3393,10 @@ export class WorkflowDesignerComponent implements OnInit {
 
     if (type === 'END') return 'END';
 
+    if (type === 'FORK') return 'FORK';
+
+    if (type === 'JOIN') return 'JOIN';
+
     if (type === 'DECISION' || node.decisionNode) return 'DECISION';
 
     return 'TASK';
@@ -2658,6 +3406,8 @@ export class WorkflowDesignerComponent implements OnInit {
     const classes = [`uml-${this.visualType(node).toLowerCase()}`];
 
     if (this.isNodeSelected(node)) classes.push('selected');
+
+    if (node.id && this.isElementLockedByOther('ACTIVITY', node.id)) classes.push('peer-editing');
 
     if (this.dragging && node.id === this.dragState?.nodeId) classes.push('dragging');
 
@@ -2679,6 +3429,10 @@ export class WorkflowDesignerComponent implements OnInit {
 
       case 'DECISION':
         return { width: 110, height: 110 };
+
+      case 'FORK':
+      case 'JOIN':
+        return { width: 96, height: 44 };
 
       default:
         return { width: 200, height: 88 };
@@ -2816,15 +3570,11 @@ export class WorkflowDesignerComponent implements OnInit {
   }
 
   edgeLabel(edge: TransitionEdge): string {
-    if (edge.conditionLabel?.trim()) {
-      return edge.conditionLabel.trim();
-    }
-
-    if (edge.transitionType?.toUpperCase() === 'CONDITIONAL') {
-      return edge.transitionTypeLabel ?? 'Condicional';
-    }
-
-    return '';
+    return edgeCanvasLabel(
+      edge.transitionType,
+      edge.conditionLabel,
+      edge.transitionTypeLabel,
+    );
   }
 
   edgeLabelWidth(label: string): number {
@@ -2887,5 +3637,289 @@ export class WorkflowDesignerComponent implements OnInit {
 
   trackTransition(_index: number, t: WorkflowTransition): string {
     return t.id ?? `${t.fromActivityName}-${t.toActivityName}`;
+  }
+
+  // ——— IA diseño workflow (F6) ———
+
+  useAiExamplePrompt(): void {
+    this.aiPrompt = this.aiExamplePrompt;
+  }
+
+  generateAiSuggestion(): void {
+    if (!this.canEdit) {
+      this.aiError = 'No tiene permiso para diseñar con IA.';
+      return;
+    }
+    if (!this.policyId || !this.aiPrompt.trim()) {
+      this.aiError = 'Escriba o dicte un prompt antes de generar la sugerencia.';
+      return;
+    }
+    this.ensureEditModeForGuided();
+    this.aiLoading = true;
+    this.aiError = '';
+    this.aiSuggestion = null;
+
+    this.aiService.suggestWorkflow(this.buildAiSuggestRequest()).subscribe({
+      next: (response) => {
+        this.aiLoading = false;
+        this.aiSuggestion = response;
+        if (response.fallbackUsed) {
+          this.message =
+            'Sugerencia generada con parser local (IA externa no disponible). Revise antes de aplicar.';
+          this.flashMessage();
+        }
+        this.cdr.detectChanges();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.aiLoading = false;
+        if (err.status === 403) {
+          this.aiError = 'No tiene permiso para usar IA en el diseñador.';
+        } else if (err.status === 400) {
+          this.aiError = 'El prompt es obligatorio.';
+        } else {
+          this.aiError =
+            'No se pudo obtener la sugerencia. El diseñador sigue operativo; intente de nuevo o reformule el prompt.';
+        }
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private buildAiSuggestRequest(): AiWorkflowSuggestRequest {
+    const activities = this.activityOptionsForSelect().map((a) => ({
+      id: a.id,
+      name: a.name,
+      activityType: a.activityType,
+      responsibleName: a.responsibleName,
+      responsibleType: a.responsibleType,
+      orderIndex: a.orderIndex,
+    }));
+    const transitions = this.connectionsPanelRows.map((t) => ({
+      id: t.id,
+      fromActivityId: t.fromActivityId,
+      fromActivityName: t.fromActivityName,
+      toActivityId: t.toActivityId,
+      toActivityName: t.toActivityName,
+      transitionType: t.transitionType,
+      conditionLabel: t.conditionLabel,
+    }));
+    const lanes = this.displayLaneNames.map((name) => ({
+      name,
+      activityCount: this.activitiesInLane(name),
+    }));
+    return {
+      policyId: this.policyId!,
+      prompt: this.aiPrompt.trim(),
+      activities,
+      transitions,
+      lanes,
+    };
+  }
+
+  get canApplyAiSuggestion(): boolean {
+    if (!this.aiSuggestion || !this.canEdit) return false;
+    if (this.aiSuggestion.intent === 'VALIDATE_DIAGRAM') return true;
+    const acts = this.aiSuggestion.suggestedActivities?.length ?? 0;
+    const trans = this.aiSuggestion.suggestedTransitions?.length ?? 0;
+    return acts > 0 || trans > 0;
+  }
+
+  applyAiSuggestion(): void {
+    if (!this.ensureCanEdit() || !this.aiSuggestion || !this.policyId) return;
+
+    if (this.aiSuggestion.intent === 'VALIDATE_DIAGRAM') {
+      this.validateFlow();
+      return;
+    }
+
+    const activities = (this.aiSuggestion.suggestedActivities ?? []).filter(
+      (a) => (a.operation ?? 'CREATE').toUpperCase() === 'CREATE' && a.name?.trim(),
+    );
+    const transitions = (this.aiSuggestion.suggestedTransitions ?? []).filter(
+      (t) =>
+        (t.operation ?? 'CREATE').toUpperCase() === 'CREATE' &&
+        t.fromActivityName?.trim() &&
+        t.toActivityName?.trim(),
+    );
+
+    if (!activities.length && !transitions.length) {
+      this.aiError = 'La sugerencia no incluye actividades ni conexiones para aplicar.';
+      return;
+    }
+
+    if (
+      !confirm(
+        '¿Aplicar la sugerencia de IA al diagrama? Los cambios se guardarán en actividades y conexiones del workflow.',
+      )
+    ) {
+      return;
+    }
+
+    this.aiApplying = true;
+    this.aiError = '';
+    this.ensureEditModeForGuided();
+
+    const nameToId = this.buildActivityNameIndex();
+    const maxOrder = this.maxActivityOrderIndex();
+
+    let chain$ = of(null as WorkflowActivity | null);
+    let order = maxOrder;
+
+    for (const item of activities) {
+      const norm = this.normalizeActivityName(item.name);
+      if (nameToId.has(norm)) continue;
+      order += 1;
+      const responsible = item.responsibleName?.trim();
+      if (responsible) this.registerLaneName(responsible);
+      const payload: WorkflowActivityRequest = {
+        policyId: this.policyId,
+        name: item.name.trim(),
+        responsibleType: item.responsibleType ?? (responsible ? 'DEPARTMENT' : 'ROLE'),
+        responsibleName: responsible || undefined,
+        activityType: (item.activityType ?? 'TASK').toUpperCase(),
+        status: 'ACTIVA',
+        orderIndex: item.orderIndex ?? order,
+        estimatedTimeHours: 1,
+      };
+      chain$ = chain$.pipe(
+        concatMap(() =>
+          this.activityService.create(payload).pipe(
+            map((created) => {
+              if (created.id) {
+                nameToId.set(this.normalizeActivityName(created.name), created.id);
+              }
+              return created;
+            }),
+          ),
+        ),
+      );
+    }
+
+    chain$
+      .pipe(
+        switchMap(() => {
+          const requests = transitions
+            .map((edge, index) => {
+              const fromId = this.resolveActivityIdByName(edge.fromActivityName, nameToId);
+              const toId = this.resolveActivityIdByName(edge.toActivityName, nameToId);
+              if (!fromId || !toId || fromId === toId) return null;
+              const type = (edge.transitionType ?? 'SEQUENTIAL').toUpperCase();
+              return this.transitionService.create({
+                policyId: this.policyId!,
+                fromActivityId: fromId,
+                toActivityId: toId,
+                transitionType: type,
+                conditionLabel: edge.conditionLabel?.trim() || undefined,
+                orderIndex: index + 1,
+                active: true,
+              });
+            })
+            .filter((r): r is Observable<WorkflowTransition> => r !== null);
+          return requests.length ? forkJoin(requests) : of([]);
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.aiApplying = false;
+          this.message = 'Sugerencia de IA aplicada. Validando flujo...';
+          this.aiSuggestion = null;
+          this.loadDesigner(false);
+          this.syncRevisionAfterOwnSave();
+          this.validateFlow();
+          this.flashMessage();
+        },
+        error: (err: HttpErrorResponse) => {
+          this.aiApplying = false;
+          this.aiError = this.resolveMutationError(
+            err,
+            'No se pudo aplicar la sugerencia completa. Revise actividades y conexiones creadas.',
+          );
+          this.loadDesigner(false);
+        },
+      });
+  }
+
+  private buildActivityNameIndex(): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const a of this.activityOptionsForSelect()) {
+      if (a.id && a.name) {
+        map.set(this.normalizeActivityName(a.name), a.id);
+      }
+    }
+    return map;
+  }
+
+  private maxActivityOrderIndex(): number {
+    return this.activityOptionsForSelect().reduce(
+      (max, a) => Math.max(max, a.orderIndex ?? 0),
+      0,
+    );
+  }
+
+  private normalizeActivityName(name: string): string {
+    return name.trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  private resolveActivityIdByName(name: string, index: Map<string, string>): string | undefined {
+    const norm = this.normalizeActivityName(name);
+    if (index.has(norm)) return index.get(norm);
+    for (const [key, id] of index.entries()) {
+      if (key.includes(norm) || norm.includes(key)) return id;
+    }
+    return undefined;
+  }
+
+  toggleVoiceDictation(): void {
+    if (this.voiceListening) {
+      this.stopVoiceDictation();
+    } else {
+      this.startVoiceDictation();
+    }
+  }
+
+  startVoiceDictation(): void {
+    if (!this.voiceSupported) {
+      this.aiError =
+        'El reconocimiento de voz no está disponible en este navegador. Use Chrome o Edge en español.';
+      return;
+    }
+    const w = window as unknown as {
+      SpeechRecognition?: new () => NonNullable<typeof this.speechRecognition>;
+      webkitSpeechRecognition?: new () => NonNullable<typeof this.speechRecognition>;
+    };
+    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+    if (!Ctor) return;
+
+    this.speechRecognition = new Ctor();
+    this.speechRecognition.lang = 'es-ES';
+    this.speechRecognition.continuous = false;
+    this.speechRecognition.interimResults = false;
+    this.speechRecognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      this.aiPrompt = (this.aiPrompt ? `${this.aiPrompt.trim()} ` : '') + transcript.trim();
+      this.cdr.detectChanges();
+    };
+    this.speechRecognition.onerror = (event) => {
+      this.aiError = `Error de voz: ${event.error}`;
+      this.voiceListening = false;
+      this.cdr.detectChanges();
+    };
+    this.speechRecognition.onend = () => {
+      this.voiceListening = false;
+      this.cdr.detectChanges();
+    };
+    this.aiError = '';
+    this.voiceListening = true;
+    this.speechRecognition.start();
+  }
+
+  stopVoiceDictation(): void {
+    this.speechRecognition?.stop();
+    this.voiceListening = false;
+  }
+
+  clearAiSuggestion(): void {
+    this.aiSuggestion = null;
+    this.aiError = '';
   }
 }

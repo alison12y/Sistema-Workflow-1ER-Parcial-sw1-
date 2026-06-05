@@ -17,6 +17,12 @@
     font-size: 0.95rem;
   }
 
+  .sync-hint {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+
   .toolbar-actions {
     display: flex;
     gap: 0.5rem;

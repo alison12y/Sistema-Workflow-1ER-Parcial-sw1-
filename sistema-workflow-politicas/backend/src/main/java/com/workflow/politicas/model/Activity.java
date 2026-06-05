@@ -3,6 +3,8 @@ package com.workflow.politicas.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+/** @deprecated Modelo BPM legacy (C). Usar {@link WorkflowActivity}. */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @Document(collection = "activities")
 public class Activity {
     @Id

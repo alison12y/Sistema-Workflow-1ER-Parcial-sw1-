@@ -105,3 +105,38 @@
   background: rgba(72, 187, 120, 0.15);
   color: #2f855a;
 }
+
+.sync-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+  padding: 1rem;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+    min-width: 140px;
+  }
+}
+
+.kpi-card.task-pending {
+  border-left-color: #ecc94b;
+}
+
+.kpi-card.task-progress {
+  border-left-color: #4299e1;
+}
+
+.kpi-card.task-done {
+  border-left-color: #48bb78;
+}

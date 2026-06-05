@@ -4,6 +4,12 @@ import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 
+interface DemoCredential {
+  role: string;
+  username: string;
+  password: string;
+}
+
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -15,10 +21,23 @@ export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
+  /** Solo referencia visual; no rellena el formulario ni altera el flujo de autenticación. */
+  readonly demoAccounts: DemoCredential[] = [
+    { role: 'Administrador', username: 'sistema.admin', password: 'Admin.Sistema2024!' },
+    { role: 'Diseñador del Workflow', username: 'carlos.mendoza', password: 'Carlos.M2024!' },
+    { role: 'Funcionario', username: 'ana.rodriguez', password: 'Ana.R2024!' },
+  ];
+
+  demoSectionOpen = false;
+
   username = '';
   password = '';
   loading = false;
   error = '';
+
+  toggleDemoSection(): void {
+    this.demoSectionOpen = !this.demoSectionOpen;
+  }
 
   onSubmit(): void {
     this.error = '';

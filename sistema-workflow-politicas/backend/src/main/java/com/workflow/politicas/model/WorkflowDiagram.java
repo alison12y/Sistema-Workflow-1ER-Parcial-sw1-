@@ -4,6 +4,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 
+/** @deprecated Modelo BPM legacy (C). Usar {@link WorkflowActivity} por {@code policyId}. */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @Document(collection = "workflow_diagrams")
 public class WorkflowDiagram {
     @Id

@@ -1,9 +1,9 @@
 package com.workflow.politicas.controller;
 
-import com.workflow.politicas.dto.DynamicFormDetailResponse;
-import com.workflow.politicas.dto.DynamicFormSaveRequest;
+import com.workflow.politicas.dto.*;
 import com.workflow.politicas.model.DynamicForm;
 import com.workflow.politicas.service.DynamicFormService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,9 +17,49 @@ public class DynamicFormController {
         this.dynamicFormService = dynamicFormService;
     }
 
+    @GetMapping("/activity/{activityId}")
+    public DynamicFormResponse getFormByActivity(@PathVariable String activityId) {
+        return dynamicFormService.getByActivityId(activityId);
+    }
+
+    @GetMapping("/activity/{activityId}/detail")
+    public DynamicFormDetailResponse getDetailByActivity(@PathVariable String activityId) {
+        return dynamicFormService.getDetailByWorkflowActivityId(activityId);
+    }
+
     @PostMapping
-    public DynamicForm createForm(@RequestBody DynamicForm form) {
-        return dynamicFormService.create(form);
+    public ResponseEntity<DynamicFormResponse> createForm(@RequestBody DynamicFormRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(dynamicFormService.create(request));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<DynamicFormResponse> updateForm(
+            @PathVariable String id,
+            @RequestBody DynamicFormRequest request
+    ) {
+        return ResponseEntity.ok(dynamicFormService.update(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<WorkflowDeleteResponse> deleteForm(@PathVariable String id) {
+        return ResponseEntity.ok(dynamicFormService.delete(id));
+    }
+
+    @PatchMapping("/{id}/activate")
+    public ResponseEntity<DynamicFormResponse> activateForm(@PathVariable String id) {
+        return ResponseEntity.ok(dynamicFormService.activate(id));
+    }
+
+    @PatchMapping("/{id}/deactivate")
+    public ResponseEntity<DynamicFormResponse> deactivateForm(@PathVariable String id) {
+        return ResponseEntity.ok(dynamicFormService.deactivate(id));
+    }
+
+    // ——— Compatibilidad diseño anterior ———
+
+    @PostMapping("/legacy")
+    public DynamicForm createLegacyForm(@RequestBody DynamicForm form) {
+        return dynamicFormService.createLegacy(form);
     }
 
     @PostMapping("/save")
@@ -35,19 +75,17 @@ public class DynamicFormController {
         return ResponseEntity.ok(dynamicFormService.getByPolicyAndActivity(policyId, activity));
     }
 
-    @GetMapping("/{activityId}")
-    public ResponseEntity<DynamicForm> getFormByActivity(@PathVariable String activityId) {
-        return dynamicFormService.findByActivityId(activityId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<DynamicForm> updateForm(@PathVariable String id, @RequestBody DynamicForm details) {
+    @GetMapping("/{id}")
+    public ResponseEntity<DynamicFormResponse> getFormById(@PathVariable String id) {
         try {
-            return ResponseEntity.ok(dynamicFormService.update(id, details));
-        } catch (RuntimeException e) {
+            return ResponseEntity.ok(dynamicFormService.getById(id));
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @PutMapping("/legacy/{id}")
+    public ResponseEntity<DynamicForm> updateLegacyForm(@PathVariable String id, @RequestBody DynamicForm details) {
+        return ResponseEntity.ok(dynamicFormService.updateLegacy(id, details));
     }
 }

@@ -24,5 +24,40 @@
         {{ loading ? 'Ingresando...' : 'Iniciar sesión' }}
       </button>
     </form>
+
+    <section class="demo-credentials" aria-label="Credenciales ">
+      <button
+        type="button"
+        class="demo-toggle"
+        (click)="toggleDemoSection()"
+        [attr.aria-expanded]="demoSectionOpen"
+      >
+        <i class="material-icons" aria-hidden="true">{{ demoSectionOpen ? 'expand_less' : 'expand_more' }}</i>
+        {{ demoSectionOpen ? 'Ocultar usuarios' : 'Mostrar usuarios ' }}
+      </button>
+
+      @if (demoSectionOpen) {
+        <div class="demo-panel">
+          <h2 class="demo-title">Credenciales</h2>
+          <p class="demo-subtitle">Usuarios para ingresar</p>
+
+          @for (account of demoAccounts; track account.username) {
+            <div class="demo-account">
+              <span class="demo-role">{{ account.role }}</span>
+              <dl class="demo-fields">
+                <div class="demo-field">
+                  <dt>Usuario</dt>
+                  <dd>{{ account.username }}</dd>
+                </div>
+                <div class="demo-field">
+                  <dt>Contraseña</dt>
+                  <dd>{{ account.password }}</dd>
+                </div>
+              </dl>
+            </div>
+          }
+        </div>
+      }
+    </section>
   </div>
 </div>

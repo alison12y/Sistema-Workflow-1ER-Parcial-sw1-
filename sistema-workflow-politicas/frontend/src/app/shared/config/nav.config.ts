@@ -43,7 +43,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
   },
   {
     path: '/seguimiento',
-    label: 'Seguimiento de trámites',
+    label: 'Seguimiento (alternativa)',
     icon: 'track_changes',
     permissions: ['MONITORING_VIEW', 'REPORTS_VIEW', 'POLICIES_MANAGE'],
     section: 'workflow',
@@ -99,11 +99,9 @@ export const NAV_ITEMS: NavItemConfig[] = [
   },
   {
     path: '/ai-assistant',
-    label: 'Asistente IA',
+    label: 'Guía asistente IA',
     icon: 'auto_awesome',
     permissions: ['AI_ASSIST'],
-    pending: true,
-    pendingMessage: 'Módulo en desarrollo',
     section: 'workflow',
   },
 ];

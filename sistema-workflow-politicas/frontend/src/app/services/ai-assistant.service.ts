@@ -172,12 +172,21 @@ export class AiAssistantService {
         continue;
       }
 
-      if (field.type === 'select') {
+      if (field.type === 'select' || field.type === 'radio') {
         const options = this.parseOptions(field.options);
         const candidate = String(suggestion.suggestedValue);
         const match = options.find((opt) => this.normalize(opt) === this.normalize(candidate));
         if (match) {
           values[key] = match;
+          appliedCount++;
+        }
+        continue;
+      }
+
+      if (field.type === 'number') {
+        const num = String(suggestion.suggestedValue).replace(/[^\d.,-]/g, '').replace(',', '.');
+        if (num) {
+          values[key] = num;
           appliedCount++;
         }
         continue;

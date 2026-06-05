@@ -5,6 +5,12 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
+/**
+ * Transición entre actividades del Ciclo 1 (modelo oficial).
+ * Tipos: {@link com.workflow.politicas.workflow.cycle1.WorkflowTransitionType}.
+ *
+ * @see com.workflow.politicas.workflow.cycle1.Cycle1WorkflowModel
+ */
 @Document(collection = "workflow_transitions")
 public class WorkflowTransition {
     @Id

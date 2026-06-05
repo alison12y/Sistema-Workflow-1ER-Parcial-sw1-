@@ -2,7 +2,10 @@
   <div class="page-toolbar">
     <div>
       <h1>Seguimiento de trámites</h1>
-      <p>Visualice el avance de cada trámite en el flujo de trabajo de políticas de negocio</p>
+      <p>Vista para supervisión y atención al cliente — actualización automática cada 12 s</p>
+      @if (lastUpdated) {
+        <p class="sync-hint">Última actualización: {{ formatDate(lastUpdated.toISOString()) }}</p>
+      }
     </div>
     <button type="button" class="btn btn-secondary" (click)="load()">Actualizar</button>
   </div>
@@ -20,24 +23,28 @@
           <thead>
             <tr>
               <th>Código</th>
-              <th>Política de negocio</th>
+              <th>Política</th>
               <th>Estado</th>
-              <th>Actividad actual</th>
+              <th>Actividad</th>
               <th>Responsable</th>
-              <th>Tiempo transcurrido</th>
+              <th>Tareas P/E/C</th>
               <th>Avance</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             @for (item of tramites; track item.id) {
-              <tr>
+              <tr [class.row-error]="hasWorkflowError(item.workflowError)">
                 <td><strong>{{ item.code }}</strong></td>
                 <td>{{ item.policyName }}</td>
                 <td><span class="badge" [class]="statusClass(item.status)">{{ statusLabel(item.status) }}</span></td>
                 <td>{{ item.currentActivity }}</td>
                 <td>{{ item.responsible }}</td>
-                <td>{{ item.timeElapsed }}</td>
+                <td>
+                  {{ item.pendingTaskCount ?? 0 }} /
+                  {{ item.inProgressTaskCount ?? 0 }} /
+                  {{ item.completedTaskCount ?? 0 }}
+                </td>
                 <td>{{ item.progress }}%</td>
                 <td class="actions">
                   <button type="button" class="btn btn-secondary btn-sm" (click)="openTrace(item)">Seguimiento</button>
@@ -61,30 +68,30 @@
       } @else if (traceError) {
         <div class="alert error">{{ traceError }}</div>
       } @else if (traceData) {
+        @if (hasWorkflowError(traceData.workflowError)) {
+          <div class="alert error">{{ traceData.workflowError }}</div>
+        }
         <div class="trace-summary">
           <div><span>Código</span><strong>{{ traceData.code }}</strong></div>
-          <div><span>Política</span><strong>{{ traceData.policyName }}</strong></div>
           <div><span>Estado</span><strong>{{ statusLabel(traceData.status) }}</strong></div>
-          <div><span>Actividad actual</span><strong>{{ traceData.currentActivity }}</strong></div>
-          <div><span>Completadas</span><strong>{{ completedTasks(traceData) }}</strong></div>
-          <div><span>Pendientes</span><strong>{{ pendingTasks(traceData) }}</strong></div>
+          <div><span>Actividad</span><strong>{{ traceData.currentActivity }}</strong></div>
+          <div><span>Responsable</span><strong>{{ traceData.responsible }}</strong></div>
+          <div><span>Pendientes</span><strong>{{ traceData.taskCounts?.pending ?? 0 }}</strong></div>
+          <div><span>En curso</span><strong>{{ traceData.taskCounts?.inProgress ?? 0 }}</strong></div>
+          <div><span>Completadas</span><strong>{{ traceData.taskCounts?.completed ?? 0 }}</strong></div>
         </div>
-        @if (traceData.tasks?.length) {
-          <table class="data-table">
-            <thead>
-              <tr><th>Actividad</th><th>Responsable</th><th>Estado</th><th>Observaciones</th></tr>
-            </thead>
-            <tbody>
-              @for (task of traceData.tasks; track task.order) {
-                <tr>
-                  <td>{{ task.name }}</td>
-                  <td>{{ task.responsible }}</td>
-                  <td>{{ taskStatusLabel(task.status) }}</td>
-                  <td>{{ task.notes || '—' }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+
+        @if (traceData.events?.length) {
+          <h3>Eventos recientes</h3>
+          <ul class="timeline-list">
+            @for (event of traceData.events; track $index) {
+              <li [class]="traceEventClass(event.eventType)">
+                <strong>{{ traceTitle(event) }}</strong>
+                <span class="timeline-date">{{ formatDate(event.occurredAt || event.startedAt) }}</span>
+                <div class="timeline-meta">{{ traceUser(event) }}</div>
+              </li>
+            }
+          </ul>
         }
       }
       <div class="modal-actions">

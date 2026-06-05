@@ -6,7 +6,13 @@ public class KpiSummaryResponse {
     private long enProceso;
     private long finalizados;
     private long cancelados;
+    private long tramitesActivos;
+    private long tramitesConError;
+    private long tareasPendientes;
+    private long tareasEnProceso;
+    private long tareasCompletadas;
     private String tiempoPromedio;
+    private String tiempoPromedioActividad;
     private String actividadMayorDemora;
     private String responsableMayorCarga;
     private String cuelloDeBotellaPrincipal;
@@ -51,12 +57,60 @@ public class KpiSummaryResponse {
         this.cancelados = cancelados;
     }
 
+    public long getTramitesActivos() {
+        return tramitesActivos;
+    }
+
+    public void setTramitesActivos(long tramitesActivos) {
+        this.tramitesActivos = tramitesActivos;
+    }
+
+    public long getTramitesConError() {
+        return tramitesConError;
+    }
+
+    public void setTramitesConError(long tramitesConError) {
+        this.tramitesConError = tramitesConError;
+    }
+
+    public long getTareasPendientes() {
+        return tareasPendientes;
+    }
+
+    public void setTareasPendientes(long tareasPendientes) {
+        this.tareasPendientes = tareasPendientes;
+    }
+
+    public long getTareasEnProceso() {
+        return tareasEnProceso;
+    }
+
+    public void setTareasEnProceso(long tareasEnProceso) {
+        this.tareasEnProceso = tareasEnProceso;
+    }
+
+    public long getTareasCompletadas() {
+        return tareasCompletadas;
+    }
+
+    public void setTareasCompletadas(long tareasCompletadas) {
+        this.tareasCompletadas = tareasCompletadas;
+    }
+
     public String getTiempoPromedio() {
         return tiempoPromedio;
     }
 
     public void setTiempoPromedio(String tiempoPromedio) {
         this.tiempoPromedio = tiempoPromedio;
+    }
+
+    public String getTiempoPromedioActividad() {
+        return tiempoPromedioActividad;
+    }
+
+    public void setTiempoPromedioActividad(String tiempoPromedioActividad) {
+        this.tiempoPromedioActividad = tiempoPromedioActividad;
     }
 
     public String getActividadMayorDemora() {

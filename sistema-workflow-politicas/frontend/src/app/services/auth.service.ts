@@ -104,4 +104,31 @@ export class AuthService {
       this.hasPermission('POLICIES_MANAGE')
     );
   }
+
+  canManageDynamicForms(): boolean {
+    return (
+      this.isAdmin() ||
+      this.hasPermission('WORKFLOW_MANAGE') ||
+      this.hasPermission('WORKFLOW_DESIGN') ||
+      this.hasPermission('POLICIES_MANAGE') ||
+      this.hasPermission('FORMS_MANAGE')
+    );
+  }
+
+  canViewDynamicForms(): boolean {
+    return (
+      this.canManageDynamicForms() ||
+      this.hasPermission('WORKFLOW_VIEW') ||
+      this.hasPermission('TASKS_EXECUTE')
+    );
+  }
+
+  canExecuteTasks(): boolean {
+    return (
+      this.isAdmin() ||
+      this.hasPermission('TASKS_EXECUTE') ||
+      this.hasPermission('WORKFLOW_MANAGE') ||
+      this.hasPermission('POLICIES_MANAGE')
+    );
+  }
 }

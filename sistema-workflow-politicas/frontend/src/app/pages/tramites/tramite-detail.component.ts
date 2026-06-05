@@ -1,6 +1,7 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 import { TramiteService } from '../../services/tramite.service';
 import { FormSubmissionService } from '../../services/form-submission.service';
 import { Tramite } from '../../models/tramite.model';
@@ -9,6 +10,12 @@ import {
   toFormSubmissionViews,
   triggerFileDownload,
 } from '../../utils/form-submission-display.util';
+import { CYCLE1_POLL_INTERVAL_MS } from '../../core/polling.config';
+import {
+  traceEventLabel,
+  traceEventCssClass,
+  tramiteHasWorkflowError,
+} from '../../utils/monitoring-display.util';
 import {
   httpErrorMessage,
   traceUserName,
@@ -28,8 +35,9 @@ import {
   templateUrl: './tramite-detail.component.html',
   styleUrl: './tramite-detail.component.scss',
 })
-export class TramiteDetailComponent implements OnInit {
+export class TramiteDetailComponent implements OnInit, OnDestroy {
   private readonly tramiteService = inject(TramiteService);
+  private readonly auth = inject(AuthService);
   private readonly formSubmissionService = inject(FormSubmissionService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -50,6 +58,13 @@ export class TramiteDetailComponent implements OnInit {
   readonly displayDescription = tramiteDescription;
   readonly displayRequester = tramiteRequesterName;
   readonly traceUser = traceUserName;
+  readonly traceEventLabel = traceEventLabel;
+  readonly traceEventClass = traceEventCssClass;
+  readonly hasWorkflowError = tramiteHasWorkflowError;
+  lastUpdated: Date | null = null;
+
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private currentTramiteId: string | null = null;
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
@@ -58,21 +73,39 @@ export class TramiteDetailComponent implements OnInit {
         this.router.navigate(['/tramites']);
         return;
       }
-      this.load(id);
+      this.currentTramiteId = id;
+      this.load(id, true);
+      if (this.pollTimer) {
+        clearInterval(this.pollTimer);
+      }
+      this.pollTimer = setInterval(() => {
+        if (this.currentTramiteId) {
+          this.load(this.currentTramiteId, false);
+        }
+      }, CYCLE1_POLL_INTERVAL_MS);
     });
   }
 
-  load(id: string): void {
-    this.loading = true;
-    this.loadingSubmissions = true;
+  ngOnDestroy(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  load(id: string, showSpinner = true): void {
+    if (showSpinner) {
+      this.loading = true;
+      this.loadingSubmissions = true;
+    }
     this.error = '';
-    this.formSubmissions = [];
 
     this.tramiteService.getById(id).subscribe({
       next: (data) => {
         this.tramite = data;
         this.loading = false;
-        this.loadFormSubmissions(id);
+        this.lastUpdated = new Date();
+        this.loadFormSubmissions(id, showSpinner);
       },
       error: (err) => {
         this.error = httpErrorMessage(err, 'No se pudo cargar el detalle del trámite');
@@ -82,7 +115,10 @@ export class TramiteDetailComponent implements OnInit {
     });
   }
 
-  loadFormSubmissions(tramiteId: string): void {
+  loadFormSubmissions(tramiteId: string, showSpinner = true): void {
+    if (showSpinner) {
+      this.loadingSubmissions = true;
+    }
     this.formSubmissionService.getByTramite(tramiteId).subscribe({
       next: (submissions) => {
         this.formSubmissions = toFormSubmissionViews(submissions);
@@ -136,11 +172,18 @@ export class TramiteDetailComponent implements OnInit {
   }
 
   canAdvance(): boolean {
-    return !!this.tramite && (this.tramite.status === 'INICIADO' || this.tramite.status === 'EN_PROCESO');
+    return (
+      !!this.tramite &&
+      this.auth.isAdmin() &&
+      (this.tramite.status === 'INICIADO' || this.tramite.status === 'EN_PROCESO')
+    );
   }
 
   canCancel(): boolean {
-    return this.canAdvance();
+    return (
+      !!this.tramite &&
+      (this.tramite.status === 'INICIADO' || this.tramite.status === 'EN_PROCESO')
+    );
   }
 
   formatDate(value?: string): string {
@@ -149,8 +192,12 @@ export class TramiteDetailComponent implements OnInit {
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString('es-BO');
   }
 
-  traceTitle(item: { eventLabel?: string; activityName?: string }): string {
-    return item.eventLabel || item.activityName || 'Evento';
+  traceTitle(item: { eventLabel?: string; activityName?: string; eventType?: string }): string {
+    const label = traceEventLabel(item.eventType, item.eventLabel);
+    if (item.activityName?.trim()) {
+      return `${label} — ${item.activityName.trim()}`;
+    }
+    return label;
   }
 
   downloadFile(fileId: string | undefined, fileName: string | undefined): void {

@@ -2,28 +2,24 @@ package com.workflow.politicas.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.LocalDateTime;
 
 @Document(collection = "dynamic_forms")
 public class DynamicForm {
     @Id
     private String id;
+    private String activityId;
+    private String policyId;
+    /** Nombre de actividad legado (compatibilidad con diseño anterior). */
+    private String activityName;
     private String name;
     private String description;
-    private String policyId;
-    private String activityName;
+    private Boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public DynamicForm() {
-    }
-
-    public DynamicForm(String id, String name, String description, LocalDateTime createdAt, LocalDateTime updatedAt) {
-        this.id = id;
-        this.name = name;
-        this.description = description;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
     }
 
     public String getId() {
@@ -32,6 +28,30 @@ public class DynamicForm {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getActivityId() {
+        return activityId;
+    }
+
+    public void setActivityId(String activityId) {
+        this.activityId = activityId;
+    }
+
+    public String getPolicyId() {
+        return policyId;
+    }
+
+    public void setPolicyId(String policyId) {
+        this.policyId = policyId;
+    }
+
+    public String getActivityName() {
+        return activityName;
+    }
+
+    public void setActivityName(String activityName) {
+        this.activityName = activityName;
     }
 
     public String getName() {
@@ -50,20 +70,12 @@ public class DynamicForm {
         this.description = description;
     }
 
-    public String getPolicyId() {
-        return policyId;
+    public boolean isActive() {
+        return active == null || Boolean.TRUE.equals(active);
     }
 
-    public void setPolicyId(String policyId) {
-        this.policyId = policyId;
-    }
-
-    public String getActivityName() {
-        return activityName;
-    }
-
-    public void setActivityName(String activityName) {
-        this.activityName = activityName;
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public LocalDateTime getCreatedAt() {

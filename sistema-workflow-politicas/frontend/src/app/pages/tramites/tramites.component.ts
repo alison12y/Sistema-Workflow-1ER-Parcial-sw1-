@@ -223,11 +223,15 @@ export class TramitesComponent implements OnInit {
   }
 
   canAdvance(tramite: Tramite): boolean {
-    return tramite.status === 'INICIADO' || tramite.status === 'EN_PROCESO';
+    // F1: enrutamiento automático al completar actividades; avance manual solo administrador
+    return (
+      this.auth.isAdmin() &&
+      (tramite.status === 'INICIADO' || tramite.status === 'EN_PROCESO')
+    );
   }
 
   canCancel(tramite: Tramite): boolean {
-    return this.canAdvance(tramite);
+    return tramite.status === 'INICIADO' || tramite.status === 'EN_PROCESO';
   }
 
   formatDate(value?: string): string {

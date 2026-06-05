@@ -1,0 +1,53 @@
+@startuml Arquitectura-Ciclo1-Workflow-F0
+title Ciclo 1 - Modelo oficial de workflow (F0 Consolidación)
+
+skinparam componentStyle rectangle
+
+package "Diseño UML 2.5 (OFICIAL)" #E8F5E9 {
+  [BusinessPolicy] as BP
+  [WorkflowActivity] as WA
+  [WorkflowTransition] as WT
+  [DynamicForm] as DF
+  BP --> WA : policyId
+  WA --> WT : from/to ActivityId
+  WA --> DF : formId / activityId
+}
+
+package "Ejecución (OFICIAL runtime)" #E3F2FD {
+  [Tramite] as T
+  [TramiteTask] as TT
+  [FormSubmission] as FS
+  [TraceItem] as TR
+  T --> TT
+  T --> TR
+  TT ..> FS : al completar
+}
+
+package "Deprecated B" #FFEBEE {
+  [ActivityDiagram] as AD
+  [DiagramNode / DiagramEdge] as DN
+  AD --> DN
+}
+
+package "Deprecated C" #FFF3E0 {
+  [ProcessInstance] as PI
+  [TaskInstance] as TI
+  [Activity / Transition / WorkflowDiagram] as LEG
+  PI --> TI
+  LEG ..> PI
+}
+
+WA ..> T : F1 currentWorkflowActivityId
+WT ..> T : F1 WorkflowRoutingService
+
+note right of AD
+  TramiteService usa B hoy (temporal).
+  Migrar en F1.
+end note
+
+note bottom of LEG
+  Sin uso en frontend Angular.
+  Mantener APIs por compatibilidad.
+end note
+
+@enduml

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, catchError, map, of, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
@@ -22,9 +22,7 @@ export class FormSubmissionService {
     formData.append('file', file, file.name);
     return this.http.post<Record<string, unknown>>(`${this.api}/files`, formData).pipe(
       map((response) => this.normalizeFileMeta(response, file.name)),
-      catchError((error) =>
-        throwError(() => error)
-      )
+      catchError((error) => throwError(() => error))
     );
   }
 
@@ -38,19 +36,31 @@ export class FormSubmissionService {
     return this.http.get<FormSubmission[]>(`${this.api}/tramite/${encodeURIComponent(tramiteId)}`);
   }
 
+  getForTask(
+    tramiteId: string,
+    taskOrder: number,
+    workflowActivityId?: string,
+    activityName?: string
+  ): Observable<FormSubmission | null> {
+    let params = new HttpParams().set('taskOrder', String(taskOrder));
+    if (workflowActivityId) {
+      params = params.set('workflowActivityId', workflowActivityId);
+    }
+    if (activityName) {
+      params = params.set('activity', activityName);
+    }
+    return this.http
+      .get<FormSubmission>(`${this.api}/tramite/${encodeURIComponent(tramiteId)}/activity`, { params })
+      .pipe(catchError(() => of(null)));
+  }
+
+  /** @deprecated Usar getForTask */
   getByActivity(
     tramiteId: string,
     activityName: string,
     taskOrder: number
   ): Observable<FormSubmission | null> {
-    return this.http
-      .get<FormSubmission>(`${this.api}/tramite/${encodeURIComponent(tramiteId)}/activity`, {
-        params: {
-          activity: activityName,
-          taskOrder: taskOrder.toString(),
-        },
-      })
-      .pipe(catchError(() => of(null)));
+    return this.getForTask(tramiteId, taskOrder, undefined, activityName);
   }
 
   private normalizeFileMeta(response: Record<string, unknown>, fallbackName: string): FormSubmissionFileMeta {

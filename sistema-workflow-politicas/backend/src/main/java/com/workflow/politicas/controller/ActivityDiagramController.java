@@ -6,6 +6,8 @@ import com.workflow.politicas.service.ActivityDiagramService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/** @deprecated API modelo B. Mantener hasta migración F1. Ver {@code docs/ciclo1-modelo-workflow.md}. */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @RestController
 @RequestMapping("/api/activity-diagrams")
 public class ActivityDiagramController {

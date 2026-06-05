@@ -7,6 +7,12 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * @deprecated Modelo paralelo pre-consolidación. Ciclo 1 oficial: {@link WorkflowActivity}
+ *             + {@link WorkflowTransition}. Mantener por compatibilidad con {@code TramiteService}
+ *             y {@code /api/activity-diagrams} hasta F1.
+ */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @Document(collection = "activity_diagrams")
 public class ActivityDiagram {
     @Id

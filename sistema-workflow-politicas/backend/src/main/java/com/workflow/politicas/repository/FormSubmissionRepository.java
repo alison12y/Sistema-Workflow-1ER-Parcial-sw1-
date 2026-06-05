@@ -16,4 +16,10 @@ public interface FormSubmissionRepository extends MongoRepository<FormSubmission
             String activityName,
             int taskOrder
     );
+
+    Optional<FormSubmission> findByTramiteIdAndWorkflowActivityIdAndTaskOrder(
+            String tramiteId,
+            String workflowActivityId,
+            int taskOrder
+    );
 }

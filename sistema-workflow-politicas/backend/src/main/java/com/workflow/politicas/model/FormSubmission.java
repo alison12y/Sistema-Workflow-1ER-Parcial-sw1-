@@ -13,6 +13,8 @@ public class FormSubmission {
     private String id;
     private String tramiteId;
     private String policyId;
+    /** Identificador oficial WorkflowActivity (Ciclo 1). */
+    private String workflowActivityId;
     private String activityName;
     private String taskKey;
     private int taskOrder;
@@ -21,6 +23,23 @@ public class FormSubmission {
     private List<ResponseItem> responses = new ArrayList<>();
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime submittedAt;
+
+    public String getWorkflowActivityId() {
+        return workflowActivityId;
+    }
+
+    public void setWorkflowActivityId(String workflowActivityId) {
+        this.workflowActivityId = workflowActivityId;
+    }
+
+    public LocalDateTime getSubmittedAt() {
+        return submittedAt;
+    }
+
+    public void setSubmittedAt(LocalDateTime submittedAt) {
+        this.submittedAt = submittedAt;
+    }
 
     public String getId() {
         return id;

@@ -76,12 +76,21 @@ public class FormSubmissionController {
     @GetMapping("/tramite/{tramiteId}/activity")
     public ResponseEntity<FormSubmissionResponse> findByActivity(
             @PathVariable String tramiteId,
-            @RequestParam String activity,
+            @RequestParam(required = false) String activity,
+            @RequestParam(required = false) String workflowActivityId,
             @RequestParam int taskOrder
     ) {
-        return formSubmissionService.findByTramiteAndActivity(tramiteId, activity, taskOrder)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        if (workflowActivityId != null && !workflowActivityId.isBlank()) {
+            return formSubmissionService.findForTask(tramiteId, workflowActivityId, activity, taskOrder)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        }
+        if (activity != null && !activity.isBlank()) {
+            return formSubmissionService.findByTramiteAndActivity(tramiteId, activity, taskOrder)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        }
+        return ResponseEntity.badRequest().build();
     }
 
     @GetMapping("/task/{taskKey}")

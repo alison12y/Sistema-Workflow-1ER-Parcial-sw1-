@@ -2,14 +2,31 @@ package com.workflow.politicas.model;
 
 import java.time.LocalDateTime;
 
+/**
+ * Tarea de bandeja del funcionario (runtime oficial Ciclo 1).
+ * F1 añadirá enlace a {@link WorkflowActivity#getId()}.
+ */
 public class TramiteTask {
+    private String workflowActivityId;
     private String name;
     private String responsible;
     private String status;
     private int order;
+    /** Ramas creadas por PARALLEL_SPLIT. */
+    private String parallelGroupId;
     private LocalDateTime startedAt;
+    private LocalDateTime takenAt;
+    private String takenBy;
     private LocalDateTime completedAt;
     private String notes;
+
+    public String getWorkflowActivityId() {
+        return workflowActivityId;
+    }
+
+    public void setWorkflowActivityId(String workflowActivityId) {
+        this.workflowActivityId = workflowActivityId;
+    }
 
     public String getName() {
         return name;
@@ -43,12 +60,36 @@ public class TramiteTask {
         this.order = order;
     }
 
+    public String getParallelGroupId() {
+        return parallelGroupId;
+    }
+
+    public void setParallelGroupId(String parallelGroupId) {
+        this.parallelGroupId = parallelGroupId;
+    }
+
     public LocalDateTime getStartedAt() {
         return startedAt;
     }
 
     public void setStartedAt(LocalDateTime startedAt) {
         this.startedAt = startedAt;
+    }
+
+    public LocalDateTime getTakenAt() {
+        return takenAt;
+    }
+
+    public void setTakenAt(LocalDateTime takenAt) {
+        this.takenAt = takenAt;
+    }
+
+    public String getTakenBy() {
+        return takenBy;
+    }
+
+    public void setTakenBy(String takenBy) {
+        this.takenBy = takenBy;
     }
 
     public LocalDateTime getCompletedAt() {

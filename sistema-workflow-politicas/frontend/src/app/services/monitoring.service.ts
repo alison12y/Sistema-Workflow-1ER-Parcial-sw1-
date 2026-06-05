@@ -13,6 +13,10 @@ export class MonitoringService {
     return this.http.get<MonitoringItem[]>(this.api);
   }
 
+  getDetail(tramiteId: string): Observable<MonitoringTrace> {
+    return this.http.get<MonitoringTrace>(`${this.api}/${encodeURIComponent(tramiteId)}`);
+  }
+
   getTrace(tramiteId: string): Observable<MonitoringTrace> {
     return this.http.get<MonitoringTrace>(`${this.api}/${encodeURIComponent(tramiteId)}/trace`);
   }

@@ -99,10 +99,24 @@
               <input
                 type="text"
                 [(ngModel)]="field.label"
+                (ngModelChange)="onFieldLabelChange(field)"
                 class="label-edit"
                 [placeholder]="getFieldPlaceholder(field.type)"
               />
               <span class="field-help">{{ getFieldHelpText(field.type) }}</span>
+            </div>
+            <div class="meta-row">
+              <label>Nombre técnico / variable *</label>
+              <input
+                type="text"
+                [(ngModel)]="field.name"
+                class="label-edit"
+                placeholder="valido"
+                spellcheck="false"
+              />
+              <span class="field-help">
+                Este valor se usa en condiciones del workflow, por ejemplo: <code>valido == true</code>
+              </span>
             </div>
             <div class="meta-row checkboxes">
               <label class="checkbox-label">

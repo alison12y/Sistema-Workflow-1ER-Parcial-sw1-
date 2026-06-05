@@ -5,6 +5,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+/** @deprecated Modelo BPM legacy (C). Usar {@link TramiteTask}. */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @Document(collection = "task_instances")
 public class TaskInstance {
     @Id

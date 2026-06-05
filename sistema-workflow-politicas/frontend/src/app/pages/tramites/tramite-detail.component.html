@@ -5,6 +5,9 @@
       <h1>Detalle del trámite</h1>
       @if (tramite) {
         <p class="subtitle">{{ tramite.code }} — {{ tramite.policyName }}</p>
+        @if (lastUpdated) {
+          <p class="sync-hint">Actualización automática cada 12 s · Última: {{ formatDate(lastUpdated.toISOString()) }}</p>
+        }
       }
     </div>
     <div class="toolbar-actions">
@@ -23,6 +26,9 @@
   @if (loading) {
     <div class="loading">Cargando detalle...</div>
   } @else if (tramite) {
+    @if (hasWorkflowError(tramite.workflowError)) {
+      <div class="alert error">{{ tramite.workflowError }}</div>
+    }
     <div class="detail-card data-card">
       <h2>Información general</h2>
       <div class="detail-grid">
@@ -81,7 +87,7 @@
             </thead>
             <tbody>
               @for (task of tramite.tasks; track task.order) {
-                <tr [class.task-current]="task.status === 'EN_CURSO'">
+                <tr [class.task-current]="task.status === 'EN_CURSO'" [class.row-pending]="task.status === 'PENDIENTE'" [class.row-done]="task.status === 'COMPLETADA'">
                   <td>{{ task.order }}</td>
                   <td>{{ task.name }}</td>
                   <td>{{ taskStatusLabel(task.status) }}</td>
@@ -105,12 +111,16 @@
         <p class="empty-hint">No hay respuestas registradas para este trámite</p>
       } @else {
         <div class="form-submissions-list">
-          @for (submission of formSubmissions; track submission.activityName + submission.updatedAt) {
+          @for (submission of formSubmissions; track submission.taskOrder + '-' + submission.activityName) {
             <article class="submission-block">
               <div class="submission-meta detail-grid">
                 <div><span>Actividad</span><strong>{{ submission.activityName }}</strong></div>
-                <div><span>Usuario</span><strong>{{ submission.submittedByName }}</strong></div>
-                <div><span>Fecha</span><strong>{{ formatDate(submission.updatedAt) }}</strong></div>
+                <div><span>Tarea #</span><strong>{{ submission.taskOrder }}</strong></div>
+                <div><span>Funcionario</span><strong>{{ submission.submittedByName }}</strong></div>
+                @if (submission.submittedBy) {
+                  <div><span>Usuario</span><strong>{{ submission.submittedBy }}</strong></div>
+                }
+                <div><span>Fecha envío</span><strong>{{ formatDate(submission.submittedAt ?? submission.updatedAt) }}</strong></div>
               </div>
               <div class="submission-fields">
                 @for (field of submission.fields; track field.label) {
@@ -159,7 +169,7 @@
             </thead>
             <tbody>
               @for (item of tramite.trace; track $index) {
-                <tr>
+                <tr [class]="traceEventClass(item.eventType)">
                   <td>{{ traceTitle(item) }}</td>
                   <td>{{ formatDate(item.occurredAt || item.startedAt) }}</td>
                   <td>{{ traceUser(item) }}</td>

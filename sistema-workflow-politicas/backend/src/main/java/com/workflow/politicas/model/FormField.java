@@ -3,6 +3,8 @@ package com.workflow.politicas.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDateTime;
+
 @Document(collection = "form_fields")
 public class FormField {
     @Id
@@ -10,23 +12,20 @@ public class FormField {
     private String formId;
     private String label;
     private String name;
-    private String type; // "TEXT", "NUMBER", "DATE", "SELECT", etc.
+    /** Tipo de campo: TEXT, TEXTAREA, NUMBER, DATE, SELECT, CHECKBOX, FILE, OBSERVATION */
+    private String type;
     private boolean required;
+    private String options;
+    /** Compatibilidad con datos anteriores (opciones almacenadas aquí). */
     private String validationRules;
     private int order;
+    private String placeholder;
+    private String helpText;
+    private Boolean active;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public FormField() {
-    }
-
-    public FormField(String id, String formId, String label, String name, String type, boolean required, String validationRules, int order) {
-        this.id = id;
-        this.formId = formId;
-        this.label = label;
-        this.name = name;
-        this.type = type;
-        this.required = required;
-        this.validationRules = validationRules;
-        this.order = order;
     }
 
     public String getId() {
@@ -77,6 +76,14 @@ public class FormField {
         this.required = required;
     }
 
+    public String getOptions() {
+        return options;
+    }
+
+    public void setOptions(String options) {
+        this.options = options;
+    }
+
     public String getValidationRules() {
         return validationRules;
     }
@@ -91,5 +98,52 @@ public class FormField {
 
     public void setOrder(int order) {
         this.order = order;
+    }
+
+    public String getPlaceholder() {
+        return placeholder;
+    }
+
+    public void setPlaceholder(String placeholder) {
+        this.placeholder = placeholder;
+    }
+
+    public String getHelpText() {
+        return helpText;
+    }
+
+    public void setHelpText(String helpText) {
+        this.helpText = helpText;
+    }
+
+    public boolean isActive() {
+        return active == null || Boolean.TRUE.equals(active);
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public String resolvedOptions() {
+        if (options != null && !options.isBlank()) {
+            return options;
+        }
+        return validationRules;
     }
 }

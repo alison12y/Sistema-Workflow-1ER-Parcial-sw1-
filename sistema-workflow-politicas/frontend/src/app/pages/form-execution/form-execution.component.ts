@@ -3,14 +3,17 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
-import { FormDesignerService } from '../../services/form-designer.service';
+import { FormService } from '../../services/form.service';
 import { FormSubmissionService } from '../../services/form-submission.service';
 import { MyActivitiesService } from '../../services/my-activities.service';
 import { AuthService } from '../../services/auth.service';
+import { AiService } from '../../services/ai.service';
 import {
   AiAssistantService,
   FormFieldSuggestion,
 } from '../../services/ai-assistant.service';
+import { AiFormAssistResponse } from '../../models/ai-form-assist.model';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   FormSubmissionFileMeta,
   MyActivity,
@@ -19,6 +22,10 @@ import {
 import { FormDesignerFieldPayload } from '../../models/form.model';
 import { httpErrorMessage, tramitePriorityLabel } from '../../utils/tramite-display.util';
 import { applySavedResponses, isFileFieldType } from '../../utils/form-submission-display.util';
+import {
+  mapDynamicFieldsToExecution,
+  NO_FORM_OBSERVATION_FIELD,
+} from '../../utils/form-field-mapper.util';
 
 @Component({
   selector: 'app-form-execution',
@@ -31,12 +38,14 @@ export class FormExecutionComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly myActivitiesService = inject(MyActivitiesService);
-  private readonly formDesignerService = inject(FormDesignerService);
+  private readonly formService = inject(FormService);
   private readonly formSubmissionService = inject(FormSubmissionService);
   private readonly authService = inject(AuthService);
+  private readonly aiService = inject(AiService);
   private readonly aiAssistant = inject(AiAssistantService);
 
   activity: MyActivity | null = null;
+  formId: string | null = null;
   fields: FormDesignerFieldPayload[] = [];
   values: Record<string, string> = {};
   fileSelections: Record<string, File | null> = {};
@@ -46,32 +55,66 @@ export class FormExecutionComponent implements OnInit {
   saving = false;
   completing = false;
   missingForm = false;
+  noFormMode = false;
+  readonly maxFileSizeBytes = 10 * 1024 * 1024;
   message = '';
   error = '';
 
-  showAiPanel = false;
+  aiReport = '';
+  aiAssistResponse: AiFormAssistResponse | null = null;
   aiSuggestions: FormFieldSuggestion[] = [];
   aiGenerating = false;
   aiInfoMessage = '';
   aiSkippedMessage = '';
+  aiError = '';
+  voiceListening = false;
+  readonly voiceSupported =
+    typeof window !== 'undefined' &&
+    (!!(window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition ||
+      !!(window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition);
+
+  private speechRecognition: {
+    lang: string;
+    continuous: boolean;
+    interimResults: boolean;
+    onresult: ((event: { results: { [index: number]: { [index: number]: { transcript: string } } } }) => void) | null;
+    onerror: ((event: { error: string }) => void) | null;
+    onend: (() => void) | null;
+    start: () => void;
+    stop: () => void;
+  } | null = null;
 
   readonly priorityLabel = tramitePriorityLabel;
+  readonly canUseFormAi = this.authService.canExecuteTasks();
 
   ngOnInit(): void {
     const tramiteId = this.route.snapshot.paramMap.get('tramiteId');
-    const activityName = this.route.snapshot.queryParamMap.get('activity')?.trim() ?? '';
+    const workflowActivityId = this.route.snapshot.queryParamMap.get('workflowActivityId')?.trim() ?? '';
     const taskOrder = Number(this.route.snapshot.queryParamMap.get('taskOrder') ?? '0');
 
-    if (!tramiteId || !activityName || taskOrder <= 0) {
+    if (!tramiteId || !workflowActivityId || taskOrder <= 0) {
       this.loading = false;
-      this.error = 'No se pudo identificar la actividad a completar';
+      this.error = 'No se pudo identificar la actividad de workflow a completar';
       return;
     }
 
-    this.myActivitiesService.getById(tramiteId).subscribe({
+    this.myActivitiesService.getById(tramiteId, taskOrder).subscribe({
       next: (activity) => {
+        if (activity.status !== 'EN_CURSO' && !activity.canComplete) {
+          this.loading = false;
+          this.error =
+            activity.status === 'PENDIENTE'
+              ? 'Debe tomar la tarea en la bandeja antes de completarla'
+              : 'Esta tarea ya no está en curso';
+          return;
+        }
         this.activity = activity;
-        this.loadForm(activity.policyId, activity.activityName, activity.tramiteId, activity.taskOrder);
+        this.loadForm(
+          workflowActivityId,
+          activity.tramiteId,
+          activity.taskOrder,
+          activity.activityName
+        );
       },
       error: (err) => {
         this.loading = false;
@@ -80,35 +123,50 @@ export class FormExecutionComponent implements OnInit {
     });
   }
 
-  loadForm(policyId: string, activityName: string, tramiteId: string, taskOrder: number): void {
+  loadForm(
+    workflowActivityId: string,
+    tramiteId: string,
+    taskOrder: number,
+    activityName: string
+  ): void {
     this.missingForm = false;
-    this.formDesignerService.getByPolicyAndActivity(policyId, activityName).subscribe({
+    this.noFormMode = false;
+    this.formService.getFormByActivity(workflowActivityId).subscribe({
       next: (form) => {
-        this.fields = (form.fields ?? []).sort((a, b) => a.order - b.order);
-        if (!this.fields.length) {
-          this.loading = false;
-          this.missingForm = true;
-          this.error = `No existe formulario configurado para la actividad ${activityName}`;
-          return;
+        const mapped = mapDynamicFieldsToExecution(form.fields ?? []);
+        if (!form.id || !mapped.length) {
+          this.noFormMode = true;
+          this.formId = null;
+          this.fields = [NO_FORM_OBSERVATION_FIELD];
+          this.message =
+            'No hay formulario configurado para esta actividad. Indique una observación para completar.';
+        } else {
+          this.formId = form.id ?? null;
+          this.fields = mapped;
         }
 
         this.initializeValues();
-        this.formSubmissionService.getByActivity(tramiteId, activityName, taskOrder).subscribe({
-          next: (saved) => {
-            if (saved?.responses?.length) {
-              applySavedResponses(this.fields, this.values, this.fileAttachments, saved.responses);
-            }
-            this.loading = false;
-          },
-          error: () => {
-            this.loading = false;
-          },
-        });
+        this.formSubmissionService
+          .getForTask(tramiteId, taskOrder, workflowActivityId, activityName)
+          .subscribe({
+            next: (saved) => {
+              if (saved?.responses?.length) {
+                applySavedResponses(this.fields, this.values, this.fileAttachments, saved.responses);
+              }
+              this.loading = false;
+            },
+            error: () => {
+              this.loading = false;
+            },
+          });
       },
       error: () => {
         this.loading = false;
-        this.missingForm = true;
-        this.error = `No existe formulario configurado para la actividad ${activityName}`;
+        this.noFormMode = true;
+        this.fields = [NO_FORM_OBSERVATION_FIELD];
+        this.initializeValues();
+        this.message =
+          'No se pudo cargar el formulario. Puede completar con una observación o configurarlo en el diseñador.';
       },
     });
   }
@@ -120,6 +178,12 @@ export class FormExecutionComponent implements OnInit {
 
     if (!file) {
       this.fileSelections[fieldKey] = null;
+      return;
+    }
+
+    if (file.size > this.maxFileSizeBytes) {
+      input.value = '';
+      this.error = 'El archivo no puede superar 10 MB';
       return;
     }
 
@@ -162,12 +226,10 @@ export class FormExecutionComponent implements OnInit {
   }
 
   goToFormDesigner(): void {
-    if (!this.activity) {
+    if (!this.activity?.workflowActivityId) {
       return;
     }
-    this.router.navigate(['/form-designer', this.activity.policyId], {
-      queryParams: { activity: this.activity.activityName },
-    });
+    this.router.navigate(['/activities', this.activity.workflowActivityId, 'form']);
   }
 
   saveDraft(): void {
@@ -193,45 +255,123 @@ export class FormExecutionComponent implements OnInit {
     return options.split(',').map((item) => item.trim()).filter(Boolean);
   }
 
-  openAiPanel(): void {
-    this.showAiPanel = true;
-    this.aiSkippedMessage = '';
-    this.aiInfoMessage = '';
-    this.generateAiSuggestions();
-  }
-
-  closeAiPanel(): void {
-    this.showAiPanel = false;
-    this.aiSuggestions = [];
-    this.aiInfoMessage = '';
-    this.aiSkippedMessage = '';
-  }
-
-  generateAiSuggestions(): void {
-    if (!this.activity) return;
+  assistFormFromReport(): void {
+    if (!this.canUseFormAi) {
+      this.aiError = 'No tiene permiso para usar asistencia IA en formularios.';
+      return;
+    }
+    if (!this.activity || !this.aiReport.trim()) {
+      this.aiError = 'Escriba o dicte un informe antes de solicitar asistencia.';
+      return;
+    }
 
     this.aiGenerating = true;
+    this.aiError = '';
+    this.aiAssistResponse = null;
     this.aiSuggestions = [];
+    this.aiSkippedMessage = '';
     this.aiInfoMessage = '';
 
-    const currentUser = this.authService.getCurrentUser();
+    const user = this.authService.getCurrentUser();
+    this.aiService
+      .assistForm({
+        report: this.aiReport.trim(),
+        policyId: this.activity.policyId,
+        tramiteId: this.activity.tramiteId,
+        workflowActivityId: this.activity.workflowActivityId,
+        formId: this.formId ?? undefined,
+        activityName: this.activity.activityName,
+        userId: user?.username,
+        fields: this.fields.map((f) => ({
+          name: f.name || f.label,
+          label: f.label,
+          type: (f.type || 'TEXT').toUpperCase(),
+          required: f.required,
+          options: f.options,
+        })),
+        currentValues: { ...this.values },
+      })
+      .subscribe({
+        next: (response) => {
+          this.aiGenerating = false;
+          this.aiAssistResponse = response;
+          this.aiSuggestions = this.mapApiSuggestions(response);
+          if (response.fallbackUsed) {
+            this.aiInfoMessage =
+              'Asistencia con parser local (IA externa no disponible). Revise antes de aplicar.';
+          } else if (response.explanation) {
+            this.aiInfoMessage = response.explanation;
+          }
+          if (response.unmatchedFields?.length) {
+            this.aiSkippedMessage =
+              'Campos no mapeados: ' + response.unmatchedFields.join(', ');
+          }
+        },
+        error: (err: HttpErrorResponse) => {
+          this.aiGenerating = false;
+          if (err.status === 403) {
+            this.aiError = 'No tiene permiso para asistencia IA.';
+            return;
+          }
+          this.fallbackLocalAssist();
+        },
+      });
+  }
+
+  private fallbackLocalAssist(): void {
+    if (!this.activity) return;
     const result = this.aiAssistant.suggestFormValues(
-      this.activity.activityName,
+      this.aiReport.trim() || this.activity.activityName,
       this.fields,
-      currentUser,
+      this.authService.getCurrentUser(),
       this.activity.policyName
     );
-
     this.aiSuggestions = result.suggestions;
-    this.aiGenerating = false;
+    this.aiAssistResponse = {
+      fallbackUsed: true,
+      explanation: 'Sugerencia local en el navegador (servicio IA no disponible).',
+      fieldSuggestions: [],
+    };
+    this.aiInfoMessage = this.aiAssistResponse.explanation ?? '';
+  }
 
-    const missing = this.aiAssistant.detectMissingRequiredFields(this.fields, this.values);
-    if (missing.length) {
-      this.aiInfoMessage = 'La IA detectó campos obligatorios pendientes';
-    }
+  private mapApiSuggestions(response: AiFormAssistResponse): FormFieldSuggestion[] {
+    const list = response.fieldSuggestions ?? [];
+    return list.map((s) => ({
+      fieldId: s.fieldName,
+      fieldLabel: s.fieldLabel,
+      fieldType: (s.fieldType || 'text').toLowerCase(),
+      suggestedValue: s.suggestedValue ?? null,
+      message: s.message,
+      applicable: s.applicable !== false && s.suggestedValue != null && s.suggestedValue !== '',
+    }));
   }
 
   applyAiSuggestions(): void {
+    if (!this.aiSuggestions.length) return;
+
+    const filledKeys = this.fields
+      .filter((f) => {
+        const key = f.name || f.label;
+        if (isFileFieldType(f.type)) return false;
+        const v = this.values[key];
+        return f.type === 'checkbox' ? v === 'true' : !!v?.trim();
+      })
+      .map((f) => f.name || f.label);
+
+    const wouldOverwrite = this.aiSuggestions.some((s) => {
+      if (!s.applicable) return false;
+      return filledKeys.includes(s.fieldId);
+    });
+
+    if (wouldOverwrite) {
+      const ok = confirm(
+        'Algunos campos ya tienen valor. ¿Desea aplicar la sugerencia de IA solo en campos vacíos? ' +
+          'Para sobrescribir, vacíe el campo manualmente primero.'
+      );
+      if (!ok) return;
+    }
+
     const { values, appliedCount, skippedCount } = this.aiAssistant.applyFormSuggestions(
       this.fields,
       this.aiSuggestions,
@@ -241,18 +381,75 @@ export class FormExecutionComponent implements OnInit {
     this.values = { ...values };
 
     if (appliedCount > 0) {
-      this.message = 'Se aplicaron sugerencias al formulario';
+      this.message = `Se aplicaron ${appliedCount} sugerencia(s) al formulario. Puede editar antes de enviar.`;
+      this.recordAiAssistTrace(appliedCount);
     }
     if (skippedCount > 0) {
-      this.aiSkippedMessage = 'No se sobrescribieron campos ya completados';
+      this.aiSkippedMessage = 'No se sobrescribieron campos ya completados.';
     }
 
     const stillMissing = this.aiAssistant.detectMissingRequiredFields(this.fields, this.values);
     if (stillMissing.length) {
-      this.aiInfoMessage = 'La IA detectó campos obligatorios pendientes';
-    } else if (appliedCount > 0) {
-      this.aiInfoMessage = '';
+      this.aiInfoMessage = 'Quedan campos obligatorios pendientes tras aplicar sugerencias.';
     }
+  }
+
+  private recordAiAssistTrace(appliedCount: number): void {
+    if (!this.activity) return;
+    this.myActivitiesService
+      .recordAiFormAssisted(this.activity.tramiteId, {
+        workflowActivityId: this.activity.workflowActivityId,
+        taskOrder: this.activity.taskOrder,
+        activityName: this.activity.activityName,
+        fieldsSuggested: this.aiSuggestions.filter((s) => s.applicable).length,
+        fieldsApplied: appliedCount,
+      })
+      .subscribe({ error: () => {} });
+  }
+
+  toggleVoiceDictation(): void {
+    if (this.voiceListening) {
+      this.stopVoiceDictation();
+    } else {
+      this.startVoiceDictation();
+    }
+  }
+
+  startVoiceDictation(): void {
+    if (!this.voiceSupported) {
+      this.aiError = 'El dictado por voz no está disponible en este navegador.';
+      return;
+    }
+    const w = window as unknown as {
+      SpeechRecognition?: new () => NonNullable<typeof this.speechRecognition>;
+      webkitSpeechRecognition?: new () => NonNullable<typeof this.speechRecognition>;
+    };
+    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+    if (!Ctor) return;
+
+    this.speechRecognition = new Ctor();
+    this.speechRecognition.lang = 'es-ES';
+    this.speechRecognition.continuous = false;
+    this.speechRecognition.interimResults = false;
+    this.speechRecognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      this.aiReport = (this.aiReport ? `${this.aiReport.trim()} ` : '') + transcript.trim();
+    };
+    this.speechRecognition.onerror = (event) => {
+      this.aiError = `Error de voz: ${event.error}`;
+      this.voiceListening = false;
+    };
+    this.speechRecognition.onend = () => {
+      this.voiceListening = false;
+    };
+    this.aiError = '';
+    this.voiceListening = true;
+    this.speechRecognition.start();
+  }
+
+  stopVoiceDictation(): void {
+    this.speechRecognition?.stop();
+    this.voiceListening = false;
   }
 
   formatSuggestionValue(suggestion: FormFieldSuggestion): string {
@@ -292,6 +489,7 @@ export class FormExecutionComponent implements OnInit {
           const payload = this.buildPayload();
           if (complete) {
             return this.myActivitiesService.complete(this.activity!.tramiteId, {
+              workflowActivityId: this.activity!.workflowActivityId,
               activityName: this.activity!.activityName,
               taskOrder: this.activity!.taskOrder,
               responses: payload.responses,
@@ -361,7 +559,7 @@ export class FormExecutionComponent implements OnInit {
     this.fileAttachments = {};
     this.uploadingFiles = {};
     for (const field of this.fields) {
-      const key = field.name || field.label;
+      const key = field.name?.trim() || field.label;
       this.values[key] = field.type === 'checkbox' ? 'false' : '';
       this.fileSelections[key] = null;
       this.fileAttachments[key] = null;
@@ -395,7 +593,7 @@ export class FormExecutionComponent implements OnInit {
 
   private buildResponses(): ResponseItemPayload[] {
     return this.fields.map((field) => {
-      const key = field.name || field.label;
+      const key = field.name?.trim() || field.label;
       if (isFileFieldType(field.type)) {
         const attachment = this.fileAttachments[key];
         return {
@@ -426,6 +624,7 @@ export class FormExecutionComponent implements OnInit {
     return {
       tramiteId: this.activity.tramiteId,
       policyId: this.activity.policyId,
+      workflowActivityId: this.activity.workflowActivityId,
       activityName: this.activity.activityName,
       taskOrder: this.activity.taskOrder,
       responses: this.buildResponses(),

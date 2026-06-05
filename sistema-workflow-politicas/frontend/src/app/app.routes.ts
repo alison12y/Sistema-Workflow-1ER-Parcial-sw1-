@@ -77,10 +77,26 @@ export const routes: Routes = [
         canActivate: [permissionGuard('WORKFLOW_MANAGE', 'WORKFLOW_DESIGN', 'WORKFLOW_VIEW', 'POLICIES_MANAGE')],
       },
       {
-        path: 'form-designer/:id',
+        path: 'activities/:activityId/form',
         loadComponent: () =>
-          import('./pages/form-designer/form-designer.component').then((m) => m.FormDesignerComponent),
-        canActivate: [permissionGuard('FORMS_MANAGE')],
+          import('./pages/activity-form-designer/activity-form-designer.component').then(
+            (m) => m.ActivityFormDesignerComponent,
+          ),
+        canActivate: [
+          permissionGuard(
+            'WORKFLOW_MANAGE',
+            'WORKFLOW_DESIGN',
+            'WORKFLOW_VIEW',
+            'POLICIES_MANAGE',
+            'FORMS_MANAGE',
+            'TASKS_EXECUTE',
+          ),
+        ],
+      },
+      {
+        path: 'form-designer/:id',
+        redirectTo: 'workflow-designer/:id',
+        pathMatch: 'full',
       },
       {
         path: 'users',
@@ -109,6 +125,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/tramites/tramites.component').then((m) => m.TramitesComponent),
         canActivate: [permissionGuard('TASKS_EXECUTE', 'POLICIES_MANAGE', 'MONITORING_VIEW', 'REPORTS_VIEW')],
+      },
+      {
+        path: 'my-activities',
+        redirectTo: 'mis-actividades',
+        pathMatch: 'full',
       },
       {
         path: 'mis-actividades',

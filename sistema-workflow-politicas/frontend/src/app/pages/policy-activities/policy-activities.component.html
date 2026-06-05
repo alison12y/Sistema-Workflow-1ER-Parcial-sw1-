@@ -39,6 +39,7 @@
               <th>Tipo</th>
               <th>Tiempo est.</th>
               <th>Estado</th>
+              <th>Formulario</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -56,8 +57,21 @@
                     {{ activityStatusLabel(a.status) }}
                   </span>
                 </td>
+                <td>
+                  <span class="badge" [class]="a.formId ? 'active' : 'draft'">
+                    {{ a.formId ? 'Formulario configurado' : 'Sin formulario' }}
+                  </span>
+                </td>
                 <td class="actions">
                   <button type="button" class="btn btn-secondary btn-sm" (click)="openView(a)">Ver</button>
+                  @if (canViewForms) {
+                    <a
+                      class="btn btn-secondary btn-sm"
+                      [routerLink]="['/activities', a.id, 'form']"
+                    >
+                      {{ a.formId ? 'Editar formulario' : 'Crear formulario' }}
+                    </a>
+                  }
                   @if (canManage) {
                     <button type="button" class="btn btn-secondary btn-sm" (click)="openEdit(a)">Editar</button>
                     @if (a.status === 'ACTIVA' && a.active !== false) {

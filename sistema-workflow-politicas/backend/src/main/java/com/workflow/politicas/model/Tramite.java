@@ -8,6 +8,12 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Instancia de trámite (runtime oficial Ciclo 1). El flujo diseñado vive en
+ * {@link WorkflowActivity}/{@link WorkflowTransition}; F1 enlazará {@code currentWorkflowActivityId}.
+ *
+ * @see com.workflow.politicas.workflow.cycle1.Cycle1WorkflowModel
+ */
 @Document(collection = "tramites")
 public class Tramite {
     @Id
@@ -26,8 +32,22 @@ public class Tramite {
     private String requesterName;
     private String status;
     private String currentActivity;
+    /** Actividad UML actual (modelo oficial Ciclo 1). */
+    private String currentWorkflowActivityId;
+    /**
+     * @deprecated ID de {@link DiagramNode} (modelo B). Usar {@link #currentWorkflowActivityId}.
+     */
+    @Deprecated(since = "0.0.1-cycle1-f0")
     @JsonIgnore
     private String currentNodeId;
+    /** Tras PARALLEL_SPLIT: actividad JOIN a alcanzar cuando todas las ramas terminen. */
+    @JsonIgnore
+    private String pendingJoinActivityId;
+    /** Grupo de tareas paralelas activas. */
+    @JsonIgnore
+    private String activeParallelGroupId;
+    /** Último error de enrutamiento (si aplica). */
+    private String workflowError;
     private String responsible;
     private int progress;
     @JsonIgnore
@@ -143,6 +163,38 @@ public class Tramite {
 
     public void setCurrentNodeId(String currentNodeId) {
         this.currentNodeId = currentNodeId;
+    }
+
+    public String getCurrentWorkflowActivityId() {
+        return currentWorkflowActivityId;
+    }
+
+    public void setCurrentWorkflowActivityId(String currentWorkflowActivityId) {
+        this.currentWorkflowActivityId = currentWorkflowActivityId;
+    }
+
+    public String getPendingJoinActivityId() {
+        return pendingJoinActivityId;
+    }
+
+    public void setPendingJoinActivityId(String pendingJoinActivityId) {
+        this.pendingJoinActivityId = pendingJoinActivityId;
+    }
+
+    public String getActiveParallelGroupId() {
+        return activeParallelGroupId;
+    }
+
+    public void setActiveParallelGroupId(String activeParallelGroupId) {
+        this.activeParallelGroupId = activeParallelGroupId;
+    }
+
+    public String getWorkflowError() {
+        return workflowError;
+    }
+
+    public void setWorkflowError(String workflowError) {
+        this.workflowError = workflowError;
     }
 
     public String getResponsible() {

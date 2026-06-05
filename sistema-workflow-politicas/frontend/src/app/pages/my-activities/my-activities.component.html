@@ -2,9 +2,47 @@
   <div class="page-toolbar">
     <div>
       <h1>Mis tareas</h1>
-      <p>Tareas asignadas dentro de trámites y flujos de trabajo de políticas de negocio</p>
+      <p>Bandeja del funcionario — tareas asignadas por usuario, rol o departamento</p>
+      @if (lastUpdated) {
+        <p class="sync-hint">Actualización automática cada 12 s · Última: {{ formatDate(lastUpdated.toISOString()) }}</p>
+      }
     </div>
     <button type="button" class="btn btn-secondary" (click)="load()">Actualizar</button>
+  </div>
+
+  <div class="filters data-card">
+    <div class="filter-row">
+      <label>
+        Estado
+        <select [(ngModel)]="filterStatus" (change)="applyFilters()">
+          @for (opt of statusFilterOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        Política
+        <select [(ngModel)]="filterPolicyId" (change)="applyFilters()">
+          <option value="">Todas las políticas</option>
+          @for (p of policies; track p.id) {
+            <option [value]="p.id">{{ p.name }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        Código trámite
+        <input type="text" [(ngModel)]="filterTramiteCode" placeholder="TRM-..." (keyup.enter)="applyFilters()" />
+      </label>
+      <label>
+        Prioridad
+        <select [(ngModel)]="filterPriority" (change)="applyFilters()">
+          @for (opt of priorityFilterOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </label>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="clearFilters()">Limpiar</button>
+    </div>
   </div>
 
   @if (error) { <div class="alert error">{{ error }}</div> }
@@ -12,40 +50,61 @@
   @if (loading) {
     <div class="loading">Cargando tareas...</div>
   } @else if (!hasAnyTasks()) {
-    <div class="empty-state">No tienes tareas asignadas actualmente.</div>
+    <div class="empty-state">No tienes tareas asignadas con los filtros actuales.</div>
   } @else {
     @for (section of sections; track section.key) {
-      <section class="task-section data-card">
-        <h2>{{ section.title }} <span class="count">({{ section.items.length }})</span></h2>
-        @if (!section.items.length) {
-          <p class="section-empty">{{ section.emptyMessage }}</p>
-        } @else {
+      @if (section.items.length) {
+        <section class="task-section data-card">
+          <h2>{{ section.title }} <span class="count">({{ section.items.length }})</span></h2>
           <div class="table-wrap">
             <table class="data-table">
               <thead>
                 <tr>
                   <th>Tarea</th>
                   <th>Trámite</th>
-                  <th>Política de negocio</th>
+                  <th>Política</th>
                   <th>Estado</th>
-                  <th>Responsable</th>
-                  <th>Fecha asignación</th>
+                  <th>Prioridad</th>
+                  <th>Asignación / toma</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                @for (activity of section.items; track activity.tramiteId + activity.taskOrder) {
-                  <tr>
-                    <td>{{ activity.activityName }}</td>
+                @for (activity of section.items; track activity.tramiteId + '-' + activity.taskOrder) {
+                  <tr [class.row-alert]="activity.inboxCategory === 'ERROR' || activity.inboxCategory === 'OBSERVADA'">
+                    <td>
+                      {{ activity.activityName }}
+                      @if (categoryBadge(activity); as badge) {
+                        <span class="badge-alert">{{ badge }}</span>
+                      }
+                      @if (activity.workflowError) {
+                        <small class="error-hint">{{ activity.workflowError }}</small>
+                      }
+                    </td>
                     <td><strong>{{ activity.code }}</strong></td>
                     <td>{{ activity.policyName }}</td>
                     <td>{{ taskStatusLabel(activity.status) }}</td>
-                    <td>{{ activity.responsible }}</td>
-                    <td>{{ formatDate(activity.assignedAt) }}</td>
+                    <td>{{ priorityLabel(activity.priority) }}</td>
+                    <td>
+                      <div>{{ formatDate(activity.assignedAt) }}</div>
+                      @if (activity.takenAt) {
+                        <small>Tomada: {{ formatDate(activity.takenAt) }}@if (activity.takenBy) { · {{ activity.takenBy }} }</small>
+                      }
+                    </td>
                     <td class="actions">
-                      <a [routerLink]="['/tramites', activity.tramiteId]" class="btn btn-secondary btn-sm">Ver detalle</a>
-                      @if (activity.status !== 'COMPLETADA') {
-                        <button type="button" class="btn btn-primary btn-sm" (click)="openForm(activity)">Atender</button>
+                      <a [routerLink]="['/tramites', activity.tramiteId]" class="btn btn-secondary btn-sm">Detalle</a>
+                      @if (activity.canTake) {
+                        <button
+                          type="button"
+                          class="btn btn-primary btn-sm"
+                          [disabled]="isTaking(activity)"
+                          (click)="takeTask(activity)"
+                        >
+                          {{ isTaking(activity) ? 'Tomando…' : 'Tomar' }}
+                        </button>
+                      }
+                      @if (activity.canComplete) {
+                        <button type="button" class="btn btn-primary btn-sm" (click)="openForm(activity)">Completar</button>
                       }
                     </td>
                   </tr>
@@ -53,8 +112,8 @@
               </tbody>
             </table>
           </div>
-        }
-      </section>
+        </section>
+      }
     }
   }
 </div>

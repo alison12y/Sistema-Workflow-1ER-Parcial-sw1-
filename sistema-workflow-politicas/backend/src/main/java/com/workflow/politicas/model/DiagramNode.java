@@ -1,5 +1,7 @@
 package com.workflow.politicas.model;
 
+/** @deprecated Parte de {@link ActivityDiagram} (modelo B). */
+@Deprecated(since = "0.0.1-cycle1-f0")
 public class DiagramNode {
     private String id;
     private String type;

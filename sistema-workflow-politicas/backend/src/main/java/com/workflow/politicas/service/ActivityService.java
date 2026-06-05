@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
+/** @deprecated Motor BPM legacy (C). */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @Service
 public class ActivityService {
 

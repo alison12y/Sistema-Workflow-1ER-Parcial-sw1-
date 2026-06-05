@@ -1,0 +1,52 @@
+@startuml Arquitectura-Capas-Ciclo1
+title Ciclo 1 - Arquitectura en capas
+skinparam componentStyle rectangle
+
+package "Capa de presentación" #E3F2FD {
+  [Angular 19 SPA] as NG
+  note right of NG
+    workflow-designer
+    mis-actividades
+    monitoring, kpis
+    users, roles, policies
+  end note
+}
+
+package "Capa de aplicación" #E8F5E9 {
+  [Spring Boot API] as SB
+  [WorkflowRoutingService] as Motor
+  [MyActivitiesService] as Bandeja
+  [MonitoringService] as Mon
+  [KpiService] as Kpi
+  [AiService] as AiBridge
+  [WorkflowCollaborationService] as Collab
+  SB --> Motor
+  SB --> Bandeja
+  SB --> Mon
+  SB --> Kpi
+  SB --> AiBridge
+  SB --> Collab
+}
+
+package "Capa de datos" #FFF3E0 {
+  database "MongoDB\nworkflow_db" as MONGO
+}
+
+package "Servicio externo IA" #F3E5F5 {
+  [FastAPI ai-service\nGemini + fallback] as AI
+}
+
+NG -down-> SB : REST / JWT
+SB -down-> MONGO
+AiBridge -right-> AI : HTTP
+AI ..> SB : JSON sugerencias
+
+legend right
+  |= Ciclo 1 oficial |
+  | Policy → Activity → Transition |
+  | Tramite → Task → FormSubmission |
+  |= Legacy deprecated |
+  | ActivityDiagram, ProcessInstance |
+endlegend
+
+@enduml

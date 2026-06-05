@@ -15,6 +15,7 @@ import org.springframework.web.client.RestTemplate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.core.ParameterizedTypeReference;
 
 @Service
 public class AiService {
@@ -32,6 +33,30 @@ public class AiService {
         this.objectMapper = objectMapper;
     }
 
+    public AiWorkflowSuggestResponse suggestWorkflow(AiWorkflowSuggestRequest request) {
+        validatePrompt(request.getPrompt());
+        if (request.getPolicyId() == null || request.getPolicyId().isBlank()) {
+            throw new IllegalArgumentException("policyId is required");
+        }
+        Map<String, Object> body = AiWorkflowSuggestMapper.toAiServiceBody(request);
+        try {
+            Map<String, Object> raw = postToAiMap("/workflow/suggest", body);
+            AiWorkflowSuggestResponse response = AiWorkflowSuggestMapper.fromMap(raw, objectMapper);
+            if (response.getRequiresConfirmation() == null) {
+                response.setRequiresConfirmation(true);
+            }
+            saveAiRequest(request.getPrompt(), response, "WORKFLOW_SUGGEST", request.getUserId());
+            return response;
+        } catch (RuntimeException ex) {
+            AiWorkflowSuggestResponse fallback = WorkflowSuggestLocalParser.parse(request);
+            fallback.setError(
+                    (fallback.getError() != null ? fallback.getError() + " " : "")
+                            + "Detalle: servicio IA no disponible.");
+            saveAiRequest(request.getPrompt(), fallback, "WORKFLOW_SUGGEST_FALLBACK", request.getUserId());
+            return fallback;
+        }
+    }
+
     public AiWorkflowGenerateResponse generateWorkflow(AiWorkflowGenerateRequest request) {
         validatePrompt(request.getPrompt());
         Map<String, Object> body = Map.of("prompt", request.getPrompt());
@@ -45,17 +70,32 @@ public class AiService {
     }
 
     public AiFormAssistResponse assistForm(AiFormAssistRequest request) {
-        validatePrompt(request.getPrompt());
-        if (request.getFieldName() == null || request.getFieldName().isBlank()) {
-            throw new IllegalArgumentException("fieldName is required");
+        String report = request.getReport();
+        if (report == null || report.isBlank()) {
+            throw new IllegalArgumentException("report is required");
         }
-        Map<String, Object> body = new HashMap<>();
-        body.put("prompt", request.getPrompt());
-        body.put("fieldName", request.getFieldName());
-        body.put("context", request.getContext() != null ? request.getContext() : Map.of());
-        AiFormAssistResponse response = postToAi("/assist-form", body, AiFormAssistResponse.class);
-        saveAiRequest(request.getPrompt(), response, "FORM_ASSISTANCE", request.getUserId());
-        return response;
+        if (request.getFields() == null || request.getFields().isEmpty()) {
+            throw new IllegalArgumentException("fields are required");
+        }
+        Map<String, Object> body = FormAssistResponseMapper.toAiServiceBody(request);
+        try {
+            Map<String, Object> raw = postToAiMap("/assist-form", body);
+            AiFormAssistResponse response = FormAssistResponseMapper.fromMap(raw, objectMapper);
+            String logSummary = "assist-form policy=" + request.getPolicyId()
+                    + " activity=" + request.getWorkflowActivityId()
+                    + " fields=" + request.getFields().size();
+            saveAiRequest(logSummary, response, "FORM_ASSISTANCE", request.getUserId());
+            return response;
+        } catch (RuntimeException ex) {
+            AiFormAssistResponse fallback = FormAssistLocalParser.parse(request);
+            saveAiRequest(
+                    "assist-form-fallback activity=" + request.getWorkflowActivityId(),
+                    fallback,
+                    "FORM_ASSISTANCE_FALLBACK",
+                    request.getUserId()
+            );
+            return fallback;
+        }
     }
 
     public AiAssistantResponse assistant(AiAssistantRequest request) {
@@ -78,6 +118,29 @@ public class AiService {
                 + request.getTransitions().size() + " transitions";
         saveAiRequest(promptSummary, response, "DIAGRAM_VALIDATION", request.getUserId());
         return response;
+    }
+
+    private Map<String, Object> postToAiMap(String path, Map<String, Object> body) {
+        String url = aiServiceUrl + path;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<>() {}
+            );
+            if (response.getBody() == null) {
+                throw new IllegalStateException("AI service returned an empty response");
+            }
+            return response.getBody();
+        } catch (ResourceAccessException e) {
+            throw new IllegalStateException("AI service is not available at " + aiServiceUrl, e);
+        } catch (HttpStatusCodeException e) {
+            throw new IllegalStateException("AI service error: " + e.getResponseBodyAsString(), e);
+        }
     }
 
     private <T> T postToAi(String path, Map<String, Object> body, Class<T> responseType) {

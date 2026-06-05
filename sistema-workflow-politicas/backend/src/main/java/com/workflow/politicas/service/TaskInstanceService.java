@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/** @deprecated Motor BPM legacy (C). */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @Service
 public class TaskInstanceService {
 

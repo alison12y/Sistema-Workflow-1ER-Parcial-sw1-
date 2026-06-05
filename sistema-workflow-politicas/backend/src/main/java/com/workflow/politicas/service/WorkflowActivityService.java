@@ -3,11 +3,13 @@ package com.workflow.politicas.service;
 import com.workflow.politicas.dto.WorkflowActivityPositionRequest;
 import com.workflow.politicas.dto.WorkflowActivityRequest;
 import com.workflow.politicas.dto.WorkflowActivityResponse;
+import com.workflow.politicas.dto.WorkflowCollaborationModificationRequest;
 import com.workflow.politicas.dto.WorkflowDeleteResponse;
 import com.workflow.politicas.model.BusinessPolicy;
 import com.workflow.politicas.model.WorkflowActivity;
 import com.workflow.politicas.model.WorkflowTransition;
 import com.workflow.politicas.repository.BusinessPolicyRepository;
+import com.workflow.politicas.repository.DepartmentRepository;
 import com.workflow.politicas.repository.WorkflowActivityRepository;
 import com.workflow.politicas.repository.WorkflowTransitionRepository;
 import org.springframework.stereotype.Service;
@@ -18,21 +20,28 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+/** CRUD de actividades UML — modelo oficial Ciclo 1. */
 @Service
 public class WorkflowActivityService {
 
     private final WorkflowActivityRepository workflowActivityRepository;
     private final BusinessPolicyRepository businessPolicyRepository;
     private final WorkflowTransitionRepository workflowTransitionRepository;
+    private final WorkflowCollaborationService workflowCollaborationService;
+    private final DepartmentRepository departmentRepository;
 
     public WorkflowActivityService(
             WorkflowActivityRepository workflowActivityRepository,
             BusinessPolicyRepository businessPolicyRepository,
-            WorkflowTransitionRepository workflowTransitionRepository
+            WorkflowTransitionRepository workflowTransitionRepository,
+            WorkflowCollaborationService workflowCollaborationService,
+            DepartmentRepository departmentRepository
     ) {
         this.workflowActivityRepository = workflowActivityRepository;
         this.businessPolicyRepository = businessPolicyRepository;
         this.workflowTransitionRepository = workflowTransitionRepository;
+        this.workflowCollaborationService = workflowCollaborationService;
+        this.departmentRepository = departmentRepository;
     }
 
     public List<WorkflowActivityResponse> findByPolicyId(String policyId) {
@@ -61,7 +70,9 @@ public class WorkflowActivityService {
         }
         activity.setActive(true);
 
-        return toResponse(workflowActivityRepository.save(activity));
+        WorkflowActivityResponse response = toResponse(workflowActivityRepository.save(activity));
+        registerActivityModification(policy.getId(), "CREATE", "creó", activity);
+        return response;
     }
 
     public WorkflowActivityResponse update(String id, WorkflowActivityRequest request) {
@@ -81,7 +92,9 @@ public class WorkflowActivityService {
         }
 
         activity.setUpdatedAt(LocalDateTime.now());
-        return toResponse(workflowActivityRepository.save(activity));
+        WorkflowActivityResponse response = toResponse(workflowActivityRepository.save(activity));
+        registerActivityModification(activity.getPolicyId(), "UPDATE", "editó", activity);
+        return response;
     }
 
     public WorkflowDeleteResponse delete(String id) {
@@ -121,6 +134,7 @@ public class WorkflowActivityService {
         activity.setStatus("INACTIVA");
         activity.setUpdatedAt(now);
         workflowActivityRepository.save(activity);
+        registerActivityModification(activity.getPolicyId(), "DELETE", "eliminó", activity);
 
         WorkflowDeleteResponse response = new WorkflowDeleteResponse();
         response.setLogicalDelete(true);
@@ -141,7 +155,9 @@ public class WorkflowActivityService {
         activity.setActive(true);
         activity.setStatus("ACTIVA");
         activity.setUpdatedAt(LocalDateTime.now());
-        return toResponse(workflowActivityRepository.save(activity));
+        WorkflowActivityResponse response = toResponse(workflowActivityRepository.save(activity));
+        registerActivityModification(activity.getPolicyId(), "ACTIVATE", "activó", activity);
+        return response;
     }
 
     public WorkflowActivityResponse deactivate(String id) {
@@ -150,7 +166,9 @@ public class WorkflowActivityService {
         activity.setActive(false);
         activity.setStatus("INACTIVA");
         activity.setUpdatedAt(LocalDateTime.now());
-        return toResponse(workflowActivityRepository.save(activity));
+        WorkflowActivityResponse response = toResponse(workflowActivityRepository.save(activity));
+        registerActivityModification(activity.getPolicyId(), "DEACTIVATE", "desactivó", activity);
+        return response;
     }
 
     public WorkflowActivityResponse updatePosition(String id, WorkflowActivityPositionRequest request) {
@@ -170,7 +188,9 @@ public class WorkflowActivityService {
         activity.setPositionX(request.getPositionX());
         activity.setPositionY(request.getPositionY());
         activity.setUpdatedAt(LocalDateTime.now());
-        return toResponse(workflowActivityRepository.save(activity));
+        WorkflowActivityResponse response = toResponse(workflowActivityRepository.save(activity));
+        registerActivityModification(activity.getPolicyId(), "MOVE", "movió", activity);
+        return response;
     }
 
     public WorkflowActivityResponse clearPosition(String id) {
@@ -179,7 +199,33 @@ public class WorkflowActivityService {
         activity.setPositionX(null);
         activity.setPositionY(null);
         activity.setUpdatedAt(LocalDateTime.now());
-        return toResponse(workflowActivityRepository.save(activity));
+        WorkflowActivityResponse response = toResponse(workflowActivityRepository.save(activity));
+        registerActivityModification(activity.getPolicyId(), "MOVE", "restableció posición de", activity);
+        return response;
+    }
+
+    private void registerActivityModification(
+            String policyId,
+            String actionType,
+            String actionLabel,
+            WorkflowActivity activity
+    ) {
+        workflowCollaborationService.registerModification(
+                policyId,
+                new WorkflowCollaborationModificationRequest(
+                        actionType,
+                        actionLabel,
+                        "ACTIVITY",
+                        activityName(activity)
+                )
+        );
+    }
+
+    private static String activityName(WorkflowActivity activity) {
+        if (activity.getName() != null && !activity.getName().isBlank()) {
+            return activity.getName().trim();
+        }
+        return "Actividad";
     }
 
     public int countByPolicyId(String policyId) {
@@ -247,6 +293,36 @@ public class WorkflowActivityService {
         if (request.getFormId() != null) {
             activity.setFormId(request.getFormId().trim());
         }
+        normalizeResponsibleFromLaneName(activity);
+    }
+
+    /**
+     * Carril del diseñador suele guardarse solo en {@code responsibleName}.
+     * Si coincide con un departamento del catálogo, tipamos DEPARTMENT + id real.
+     */
+    private void normalizeResponsibleFromLaneName(WorkflowActivity activity) {
+        if (activity.getResponsibleName() == null || activity.getResponsibleName().isBlank()) {
+            return;
+        }
+        String type = activity.getResponsibleType() != null
+                ? activity.getResponsibleType().trim().toUpperCase()
+                : "";
+        if ("USER".equals(type)) {
+            return;
+        }
+        if ("DEPARTMENT".equals(type) && activity.getResponsibleId() != null && !activity.getResponsibleId().isBlank()) {
+            return;
+        }
+        departmentRepository.findByNameIgnoreCase(activity.getResponsibleName().trim())
+                .or(() -> departmentRepository.findAll().stream()
+                        .filter(d -> d.getName() != null
+                                && d.getName().equalsIgnoreCase(activity.getResponsibleName().trim()))
+                        .findFirst())
+                .ifPresent(dept -> {
+                    activity.setResponsibleType("DEPARTMENT");
+                    activity.setResponsibleId(dept.getId());
+                    activity.setResponsibleName(dept.getName());
+                });
     }
 
     private WorkflowActivityResponse toResponse(WorkflowActivity activity) {

@@ -53,6 +53,16 @@ public class SecurityConfig {
             "/api/workflow-designer/policy/**"
     };
 
+    private static final String[] FORM_PATHS = {
+            "/api/forms",
+            "/api/forms/**"
+    };
+
+    private static final String[] FORM_FIELD_PATHS = {
+            "/api/form-fields",
+            "/api/form-fields/**"
+    };
+
     /** Permisos/roles que pueden leer actividades y conexiones workflow. */
     private static final String[] WORKFLOW_READ_AUTHORITIES = {
             "ROLE_ADMIN",
@@ -72,6 +82,42 @@ public class SecurityConfig {
             SystemPermissions.WORKFLOW_MANAGE,
             SystemPermissions.WORKFLOW_DESIGN,
             SystemPermissions.POLICIES_MANAGE
+    };
+
+    /** Permisos/roles que pueden ver formularios dinámicos. */
+    private static final String[] FORM_READ_AUTHORITIES = {
+            "ROLE_ADMIN",
+            "ROLE_PROCESS_OWNER",
+            "ROLE_SUPERVISOR",
+            "ROLE_CUSTOMER_SERVICE",
+            SystemPermissions.WORKFLOW_VIEW,
+            SystemPermissions.WORKFLOW_MANAGE,
+            SystemPermissions.WORKFLOW_DESIGN,
+            SystemPermissions.POLICIES_MANAGE,
+            SystemPermissions.FORMS_MANAGE,
+            SystemPermissions.TASKS_EXECUTE
+    };
+
+    /** Permisos/roles que pueden ejecutar tareas y usar IA de formularios. */
+    private static final String[] TASK_EXECUTE_AUTHORITIES = {
+            "ROLE_ADMIN",
+            "ROLE_PROCESS_OWNER",
+            "ROLE_SUPERVISOR",
+            "ROLE_CUSTOMER_SERVICE",
+            "ROLE_FUNCIONARIO",
+            SystemPermissions.TASKS_EXECUTE,
+            SystemPermissions.WORKFLOW_MANAGE,
+            SystemPermissions.POLICIES_MANAGE
+    };
+
+    /** Permisos/roles que pueden diseñar formularios dinámicos. */
+    private static final String[] FORM_MUTATION_AUTHORITIES = {
+            "ROLE_ADMIN",
+            "ROLE_PROCESS_OWNER",
+            SystemPermissions.WORKFLOW_MANAGE,
+            SystemPermissions.WORKFLOW_DESIGN,
+            SystemPermissions.POLICIES_MANAGE,
+            SystemPermissions.FORMS_MANAGE
     };
 
     private final JwtAuthenticationFilter jwtAuthFilter;
@@ -132,6 +178,38 @@ public class SecurityConfig {
                                 .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
                         .requestMatchers(HttpMethod.GET, WORKFLOW_DESIGNER_PATHS)
                                 .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/workflow-designer/policy/*/collaboration/open")
+                                .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/workflow-designer/policy/*/collaboration/heartbeat")
+                                .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/workflow-designer/policy/*/collaboration/close")
+                                .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/workflow-designer/policy/*/collaboration/conflict")
+                                .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/workflow-designer/policy/*/collaboration/editing")
+                                .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.DELETE, "/api/workflow-designer/policy/*/collaboration/editing/*")
+                                .hasAnyAuthority(WORKFLOW_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.GET, FORM_PATHS)
+                                .hasAnyAuthority(FORM_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.GET, FORM_FIELD_PATHS)
+                                .hasAnyAuthority(FORM_READ_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, FORM_PATHS)
+                                .hasAnyAuthority(FORM_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, FORM_FIELD_PATHS)
+                                .hasAnyAuthority(FORM_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.PUT, FORM_PATHS)
+                                .hasAnyAuthority(FORM_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.PUT, FORM_FIELD_PATHS)
+                                .hasAnyAuthority(FORM_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.PATCH, FORM_PATHS)
+                                .hasAnyAuthority(FORM_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.PATCH, FORM_FIELD_PATHS)
+                                .hasAnyAuthority(FORM_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.DELETE, FORM_PATHS)
+                                .hasAnyAuthority(FORM_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.DELETE, FORM_FIELD_PATHS)
+                                .hasAnyAuthority(FORM_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.GET, "/api/policies/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/policies/**")
                                 .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")
@@ -140,7 +218,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/policies/**")
                                 .hasAnyRole("ADMIN", "POLICY_DESIGNER", "DESIGNER")
                         .requestMatchers(HttpMethod.DELETE, "/api/policies/**").hasRole("ADMIN")
-                        .requestMatchers("/api/forms/**", "/api/form-fields/**").authenticated()
                         .requestMatchers("/api/activity-diagrams/**").authenticated()
                         .requestMatchers("/api/tramites", "/api/tramites/**").authenticated()
                         .requestMatchers("/api/bitacora/**").authenticated()
@@ -149,6 +226,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/my-activities/**").authenticated()
                         .requestMatchers("/api/form-submissions/**").authenticated()
                         .requestMatchers("/api/form-submissions/files/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/ai/workflow/suggest")
+                                .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/ai/assist-form")
+                                .hasAnyAuthority(TASK_EXECUTE_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/my-activities/*/ai-form-assisted")
+                                .hasAnyAuthority(TASK_EXECUTE_AUTHORITIES)
+                        .requestMatchers("/api/ai/**").authenticated()
                         .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/roles", "/api/roles/**").hasRole("ADMIN")
                         .requestMatchers("/api/departments", "/api/departments/**").hasRole("ADMIN")

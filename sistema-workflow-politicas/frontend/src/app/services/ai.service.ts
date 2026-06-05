@@ -2,6 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import {
+  AiWorkflowSuggestRequest,
+  AiWorkflowSuggestResponse,
+} from '../models/ai-workflow-suggest.model';
+import { AiFormAssistRequest, AiFormAssistResponse } from '../models/ai-form-assist.model';
 
 export interface AiAssistantRequest {
   prompt: string;
@@ -35,5 +40,13 @@ export class AiService {
 
   generateWorkflow(prompt: string): Observable<unknown> {
     return this.http.post(`${this.api}/generate-workflow`, { prompt });
+  }
+
+  suggestWorkflow(request: AiWorkflowSuggestRequest): Observable<AiWorkflowSuggestResponse> {
+    return this.http.post<AiWorkflowSuggestResponse>(`${this.api}/workflow/suggest`, request);
+  }
+
+  assistForm(request: AiFormAssistRequest): Observable<AiFormAssistResponse> {
+    return this.http.post<AiFormAssistResponse>(`${this.api}/assist-form`, request);
   }
 }

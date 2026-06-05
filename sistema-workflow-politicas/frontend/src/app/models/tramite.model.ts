@@ -37,6 +37,7 @@ export interface Tramite {
   currentActivity: string;
   responsible: string;
   progress: number;
+  workflowError?: string;
   createdAt?: string;
   updatedAt?: string;
   tasks?: TramiteTask[];

@@ -3,6 +3,8 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   TASK: 'Tarea',
   DECISION: 'Decisión',
   END: 'Fin',
+  FORK: 'Fork',
+  JOIN: 'Join',
 };
 
 const ACTIVITY_STATUS_LABELS: Record<string, string> = {

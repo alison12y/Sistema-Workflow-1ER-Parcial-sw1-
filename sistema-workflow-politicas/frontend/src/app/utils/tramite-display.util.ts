@@ -77,9 +77,14 @@ export function isDemoUsername(username: string): boolean {
 }
 
 export function httpErrorMessage(err: unknown, fallback: string): string {
-  const e = err as { status?: number; error?: { message?: string } };
+  const e = err as { status?: number; error?: { message?: string; details?: string } };
   if (e?.status === 401) {
     return 'Su sesión expiró. Inicie sesión nuevamente';
   }
-  return e?.error?.message ?? fallback;
+  const details = e?.error?.details?.trim();
+  const message = e?.error?.message?.trim();
+  if (details && message && details !== message) {
+    return `${message} ${details}`;
+  }
+  return details || message || fallback;
 }

@@ -63,6 +63,16 @@ export const GUIDED_ACTIVITY_TYPE_OPTIONS: GuidedActivityTypeOption[] = [
     label: 'Fin del trámite',
     help: 'Cierre del trámite cuando termina el proceso.',
   },
+  {
+    value: 'FORK',
+    label: 'Fork (bifurcación)',
+    help: 'Pasarela UML: abre ramas paralelas con conexiones PARALLEL_SPLIT. No genera tarea humana.',
+  },
+  {
+    value: 'JOIN',
+    label: 'Join (unión)',
+    help: 'Pasarela UML: une ramas con conexiones PARALLEL_JOIN. No genera tarea humana.',
+  },
 ];
 
 export const GUIDED_TRANSITION_TYPE_OPTIONS: GuidedTransitionTypeOption[] = [
@@ -81,20 +91,20 @@ export const GUIDED_TRANSITION_TYPE_OPTIONS: GuidedTransitionTypeOption[] = [
   {
     value: 'ITERATIVE',
     label: 'Iterativa',
-    help: 'Disponible en una fase posterior.',
-    enabled: false,
+    help: 'Vuelve a una actividad anterior; indique etiqueta de ciclo (recomendado).',
+    enabled: true,
   },
   {
     value: 'PARALLEL_SPLIT',
     label: 'División paralela',
-    help: 'Disponible en una fase posterior.',
-    enabled: false,
+    help: 'Abre varias ramas desde la misma actividad (mínimo dos salidas).',
+    enabled: true,
   },
   {
     value: 'PARALLEL_JOIN',
     label: 'Unión paralela',
-    help: 'Disponible en una fase posterior.',
-    enabled: false,
+    help: 'Une ramas hacia una actividad (mínimo dos entradas).',
+    enabled: true,
   },
 ];
 
@@ -104,7 +114,7 @@ export interface UmlToolboxItem {
   id: string;
   label: string;
   kind: 'activity' | 'transition';
-  activityType?: 'START' | 'TASK' | 'DECISION' | 'END';
+  activityType?: 'START' | 'TASK' | 'DECISION' | 'END' | 'FORK' | 'JOIN';
   symbol: 'initial' | 'action' | 'decision' | 'final' | 'arrow' | 'fork' | 'join';
   enabled: boolean;
   soon?: boolean;
@@ -114,8 +124,8 @@ export const UML_TOOLBOX_ITEMS: UmlToolboxItem[] = [
   { id: 'start', label: 'Inicio', kind: 'activity', activityType: 'START', symbol: 'initial', enabled: true },
   { id: 'task', label: 'Actividad', kind: 'activity', activityType: 'TASK', symbol: 'action', enabled: true },
   { id: 'decision', label: 'Decisión', kind: 'activity', activityType: 'DECISION', symbol: 'decision', enabled: true },
-  { id: 'fork', label: 'Fork', kind: 'activity', symbol: 'fork', enabled: false, soon: true },
-  { id: 'join', label: 'Join', kind: 'activity', symbol: 'join', enabled: false, soon: true },
+  { id: 'fork', label: 'Fork', kind: 'activity', activityType: 'FORK', symbol: 'fork', enabled: true },
+  { id: 'join', label: 'Join', kind: 'activity', activityType: 'JOIN', symbol: 'join', enabled: true },
   { id: 'end', label: 'Fin', kind: 'activity', activityType: 'END', symbol: 'final', enabled: true },
   { id: 'transition', label: 'Transición', kind: 'transition', symbol: 'arrow', enabled: true },
 ];
@@ -260,6 +270,12 @@ export function friendlyValidationMessage(raw: string): string {
   }
   if (lower.includes('no tiene etiqueta de condición')) {
     return 'Las conexiones condicionales deben indicar una etiqueta (por ejemplo: Aprobado).';
+  }
+  if (lower.includes('fork') && lower.includes('parallel_split')) {
+    return 'El nodo Fork necesita al menos dos salidas de tipo división paralela.';
+  }
+  if (lower.includes('join') && lower.includes('parallel_join')) {
+    return 'El nodo Join necesita al menos dos entradas de tipo unión paralela.';
   }
 
   return text

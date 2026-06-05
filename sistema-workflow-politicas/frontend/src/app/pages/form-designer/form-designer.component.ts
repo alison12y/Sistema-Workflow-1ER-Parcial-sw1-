@@ -11,6 +11,11 @@ import {
   DEFAULT_POLICY_ACTIVITIES,
   extractActivitiesFromDiagram,
 } from '../../utils/policy-activities.util';
+import {
+  ensureUniqueTechnicalName,
+  slugFieldNameFromLabel,
+  validateTechnicalName,
+} from '../../utils/form-field-key.util';
 
 const SELECT_DEFAULT_OPTIONS = 'Personal, Académico, Médico, Laboral, Otro';
 
@@ -129,10 +134,20 @@ export class FormDesignerComponent implements OnInit {
     this.fields.push({
       type,
       label: '',
+      name: '',
       required: false,
       options: type === 'select' ? SELECT_DEFAULT_OPTIONS : undefined,
     });
     this.error = '';
+  }
+
+  onFieldLabelChange(field: FormDesignerField): void {
+    if (!field.label?.trim()) {
+      return;
+    }
+    if (!field.name?.trim()) {
+      field.name = slugFieldNameFromLabel(field.label);
+    }
   }
 
   removeField(index: number): void {
@@ -193,25 +208,31 @@ export class FormDesignerComponent implements OnInit {
     }
 
     const usedNames = new Set<string>();
-    const payloadFields = this.fields.map((field, index) => {
-      const baseName = this.toFieldName(field.label);
-      let name = baseName;
-      let suffix = 1;
-      while (usedNames.has(name)) {
-        suffix += 1;
-        name = `${baseName}_${suffix}`;
-      }
-      usedNames.add(name);
+    let payloadFields;
+    try {
+      payloadFields = this.fields.map((field, index) => {
+        const baseName = field.name?.trim()
+          ? field.name.trim().toLowerCase()
+          : slugFieldNameFromLabel(field.label);
+        const nameError = validateTechnicalName(baseName);
+        if (nameError) {
+          throw new Error(nameError);
+        }
+        const name = ensureUniqueTechnicalName(baseName, usedNames);
 
-      return {
-        label: field.label.trim(),
-        name,
-        type: field.type,
-        required: !!field.required,
-        options: field.options?.trim() || undefined,
-        order: index,
-      };
-    });
+        return {
+          label: field.label.trim(),
+          name,
+          type: field.type,
+          required: !!field.required,
+          options: field.options?.trim() || undefined,
+          order: index,
+        };
+      });
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : 'Revise los nombres técnicos de los campos';
+      return;
+    }
 
     this.saving = true;
     this.formDesignerService
@@ -230,7 +251,10 @@ export class FormDesignerComponent implements OnInit {
         },
         error: (err) => {
           this.saving = false;
-          this.error = err.error?.message ?? 'No se pudo guardar el formulario';
+          this.error =
+            err instanceof Error
+              ? err.message
+              : (err.error?.message ?? 'No se pudo guardar el formulario');
         },
       });
   }
@@ -245,14 +269,4 @@ export class FormDesignerComponent implements OnInit {
     }
   }
 
-  private toFieldName(label: string): string {
-    return (
-      label
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_|_$/g, '') || 'campo'
-    );
-  }
 }

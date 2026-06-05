@@ -4,9 +4,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CompleteActivityRequest {
+    private String workflowActivityId;
     private String activityName;
     private int taskOrder;
     private List<ResponseItemDto> responses = new ArrayList<>();
+
+    public String getWorkflowActivityId() {
+        return workflowActivityId;
+    }
+
+    public void setWorkflowActivityId(String workflowActivityId) {
+        this.workflowActivityId = workflowActivityId;
+    }
 
     public String getActivityName() {
         return activityName;

@@ -1,10 +1,9 @@
-@startuml Arquitectura
-node "Frontend (Angular)" as FE
-node "Backend (Spring Boot)" as BE
-database "MongoDB" as DB
-node "AI Service (FastAPI)" as AI
-
-FE <--> BE : REST API / JWT
-BE <--> DB : Spring Data MongoDB
-BE <--> AI : REST / JSON
+@startuml Arquitectura-Referencia
+title Arquitectura - ver arquitectura-capas.puml y arquitectura-ciclo1-workflow.puml
+note as N
+  Diagramas oficiales Ciclo 1:
+  - arquitectura-capas.puml (capas Angular/Spring/Mongo/IA)
+  - arquitectura-ciclo1-workflow.puml (modelo de datos)
+  Documentación: docs/arquitectura.md
+end note
 @enduml

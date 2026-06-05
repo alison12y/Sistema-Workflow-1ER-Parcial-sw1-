@@ -8,6 +8,7 @@ import com.workflow.politicas.repository.UserRepository;
 import com.workflow.politicas.service.Phase1MigrationService;
 import com.workflow.politicas.service.Phase2MigrationService;
 import com.workflow.politicas.service.Phase3MigrationService;
+import com.workflow.politicas.service.FormFieldKeyMigrationService;
 import com.workflow.politicas.service.Phase4MigrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +30,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final Phase2MigrationService phase2MigrationService;
     private final Phase3MigrationService phase3MigrationService;
     private final Phase4MigrationService phase4MigrationService;
+    private final FormFieldKeyMigrationService formFieldKeyMigrationService;
 
     public DatabaseSeeder(
             RoleRepository roleRepository,
@@ -38,7 +40,8 @@ public class DatabaseSeeder implements CommandLineRunner {
             Phase1MigrationService phase1MigrationService,
             Phase2MigrationService phase2MigrationService,
             Phase3MigrationService phase3MigrationService,
-            Phase4MigrationService phase4MigrationService
+            Phase4MigrationService phase4MigrationService,
+            FormFieldKeyMigrationService formFieldKeyMigrationService
     ) {
         this.roleRepository = roleRepository;
         this.departmentRepository = departmentRepository;
@@ -48,6 +51,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         this.phase2MigrationService = phase2MigrationService;
         this.phase3MigrationService = phase3MigrationService;
         this.phase4MigrationService = phase4MigrationService;
+        this.formFieldKeyMigrationService = formFieldKeyMigrationService;
     }
 
     @Override
@@ -57,6 +61,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         phase2MigrationService.seedSamplePolicies();
         phase3MigrationService.seedSampleActivities();
         phase4MigrationService.seedSampleTransitions();
+        formFieldKeyMigrationService.migrateRecepcionValidoField();
         seedPolicies();
     }
 

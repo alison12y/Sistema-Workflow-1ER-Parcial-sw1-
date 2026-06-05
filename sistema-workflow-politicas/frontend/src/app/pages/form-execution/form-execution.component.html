@@ -19,21 +19,6 @@
 
   @if (loading) {
     <div class="loading">Cargando formulario...</div>
-  } @else if (activity && missingForm) {
-    <div class="data-card empty-form-card">
-      <div class="summary-grid">
-        <div><span>Trámite</span><strong>{{ activity.code }}</strong></div>
-        <div><span>Política</span><strong>{{ activity.policyName }}</strong></div>
-        <div><span>Actividad</span><strong>{{ activity.activityName }}</strong></div>
-      </div>
-      <p class="empty-form-message">{{ error }}</p>
-      <div class="form-actions">
-        <button type="button" class="btn btn-secondary" (click)="cancel()">Volver</button>
-        <button type="button" class="btn btn-primary" (click)="goToFormDesigner()">
-          Crear formulario para esta actividad
-        </button>
-      </div>
-    </div>
   } @else if (activity && fields.length) {
     <div class="summary-card data-card">
       <div class="summary-grid">
@@ -45,148 +30,195 @@
       </div>
     </div>
 
-    <div class="data-card form-card">
-      <div class="form-card-header">
-        <h2>Complete el formulario</h2>
-        <button type="button" class="btn btn-ai" (click)="openAiPanel()">
-          <i class="material-icons">psychology</i>
-          Ayuda IA
-        </button>
-      </div>
-      <div class="execution-form">
-        @for (field of fields; track field.name + field.order) {
-          <div class="form-field">
-            @if (field.type !== 'checkbox') {
-              <label>
-                {{ field.label }}
-                @if (field.required) { <span class="required">*</span> }
-              </label>
-            }
-
-            @switch (field.type) {
-              @case ('textarea') {
-                <textarea
-                  [(ngModel)]="values[field.name || field.label]"
-                  [required]="field.required"
-                  rows="4"
-                ></textarea>
-              }
-              @case ('select') {
-                <select [(ngModel)]="values[field.name || field.label]" [required]="field.required">
-                  <option value="">Seleccione...</option>
-                  @for (opt of getSelectOptions(field.options); track opt) {
-                    <option [value]="opt">{{ opt }}</option>
-                  }
-                </select>
-              }
-              @case ('checkbox') {
-                <label class="checkbox-field">
-                  <input
-                    type="checkbox"
-                    [checked]="values[field.name || field.label] === 'true'"
-                    (change)="values[field.name || field.label] = $any($event.target).checked ? 'true' : 'false'"
-                  />
-                  <span>
-                    {{ field.label }}
-                    @if (field.required) { <span class="required">*</span> }
-                  </span>
+    <div class="execution-layout">
+      <div class="data-card form-card">
+        @if (noFormMode) {
+          <div class="alert info">{{ message }}</div>
+        }
+        <h2>{{ noFormMode ? 'Completar sin formulario configurado' : 'Complete el formulario' }}</h2>
+        <div class="execution-form">
+          @for (field of fields; track field.name + field.order) {
+            <div class="form-field">
+              @if (field.type !== 'checkbox') {
+                <label>
+                  {{ field.label }}
+                  @if (field.required) { <span class="required">*</span> }
                 </label>
               }
-              @case ('date') {
-                <input
-                  type="date"
-                  [(ngModel)]="values[field.name || field.label]"
-                  [required]="field.required"
-                />
-              }
-              @case ('file') {
-                <input
-                  type="file"
-                  (change)="onFileSelected(field.name || field.label, $event)"
-                  [disabled]="isUploadingFile(field.name || field.label) || saving || completing"
-                />
-                @if (isUploadingFile(field.name || field.label)) {
-                  <small class="file-name">Subiendo archivo...</small>
-                } @else if (hasSelectedFile(field.name || field.label)) {
-                  <small class="file-name">Archivo listo: {{ getFileLabel(field.name || field.label) }}</small>
+
+              @switch (field.type) {
+                @case ('textarea') {
+                  <textarea
+                    [(ngModel)]="values[field.name || field.label]"
+                    [required]="field.required"
+                    rows="4"
+                  ></textarea>
+                }
+                @case ('select') {
+                  <select [(ngModel)]="values[field.name || field.label]" [required]="field.required">
+                    <option value="">Seleccione...</option>
+                    @for (opt of getSelectOptions(field.options); track opt) {
+                      <option [value]="opt">{{ opt }}</option>
+                    }
+                  </select>
+                }
+                @case ('radio') {
+                  <div class="radio-group">
+                    @for (opt of getSelectOptions(field.options); track opt) {
+                      <label class="radio-option">
+                        <input
+                          type="radio"
+                          [name]="field.name || field.label"
+                          [value]="opt"
+                          [checked]="values[field.name || field.label] === opt"
+                          (change)="values[field.name || field.label] = opt"
+                        />
+                        {{ opt }}
+                      </label>
+                    }
+                  </div>
+                }
+                @case ('checkbox') {
+                  <label class="checkbox-field">
+                    <input
+                      type="checkbox"
+                      [checked]="values[field.name || field.label] === 'true'"
+                      (change)="values[field.name || field.label] = $any($event.target).checked ? 'true' : 'false'"
+                    />
+                    <span>
+                      {{ field.label }}
+                      @if (field.required) { <span class="required">*</span> }
+                    </span>
+                  </label>
+                }
+                @case ('date') {
+                  <input
+                    type="date"
+                    [(ngModel)]="values[field.name || field.label]"
+                    [required]="field.required"
+                  />
+                }
+                @case ('number') {
+                  <input
+                    type="number"
+                    [(ngModel)]="values[field.name || field.label]"
+                    [required]="field.required"
+                  />
+                }
+                @case ('file') {
+                  <input
+                    type="file"
+                    (change)="onFileSelected(field.name || field.label, $event)"
+                    [disabled]="isUploadingFile(field.name || field.label) || saving || completing"
+                  />
+                  @if (isUploadingFile(field.name || field.label)) {
+                    <small class="file-name">Subiendo archivo...</small>
+                  } @else if (hasSelectedFile(field.name || field.label)) {
+                    <small class="file-name">Archivo listo: {{ getFileLabel(field.name || field.label) }}</small>
+                  }
+                }
+                @default {
+                  <input
+                    type="text"
+                    [(ngModel)]="values[field.name || field.label]"
+                    [required]="field.required"
+                  />
                 }
               }
-              @default {
-                <input
-                  type="text"
-                  [(ngModel)]="values[field.name || field.label]"
-                  [required]="field.required"
-                />
-              }
-            }
-          </div>
-        }
-      </div>
-
-      <div class="form-actions">
-        <button type="button" class="btn btn-secondary" (click)="cancel()">Cancelar</button>
-        <button type="button" class="btn btn-secondary" [disabled]="saving || completing" (click)="saveDraft()">
-          {{ saving ? 'Guardando...' : 'Guardar avance' }}
-        </button>
-        <button type="button" class="btn btn-primary" [disabled]="saving || completing" (click)="completeActivity()">
-          {{ completing ? 'Completando...' : 'Completar actividad' }}
-        </button>
-      </div>
-    </div>
-  }
-</div>
-
-@if (showAiPanel) {
-  <div class="modal-overlay" (click)="closeAiPanel()">
-    <div class="modal-card ai-form-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2><i class="material-icons">psychology</i> Ayuda IA — Formulario</h2>
-        <button type="button" class="btn-icon" (click)="closeAiPanel()">
-          <i class="material-icons">close</i>
-        </button>
-      </div>
-      <p class="modal-subtitle">
-        Asistente IA local basado en reglas. Sugiere valores según la actividad
-        @if (activity) { <strong>{{ activity.activityName }}</strong> }.
-      </p>
-
-      @if (aiGenerating) {
-        <div class="ai-loading">Generando sugerencias...</div>
-      }
-
-      @if (aiInfoMessage) {
-        <div class="alert info">{{ aiInfoMessage }}</div>
-      }
-      @if (aiSkippedMessage) {
-        <div class="alert warning">{{ aiSkippedMessage }}</div>
-      }
-
-      @if (aiSuggestions.length) {
-        <div class="suggestions-list">
-          @for (s of aiSuggestions; track s.fieldId) {
-            <div class="suggestion-item" [class.file-hint]="!s.applicable">
-              <strong>{{ s.fieldLabel }}</strong>
-              <span class="field-type">{{ s.fieldType }}</span>
-              <p>{{ formatSuggestionValue(s) }}</p>
             </div>
           }
         </div>
-      }
 
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" (click)="closeAiPanel()">Cancelar</button>
-        <button type="button" class="btn btn-secondary" [disabled]="aiGenerating" (click)="generateAiSuggestions()">
-          Regenerar
-        </button>
-        <button
-          type="button"
-          class="btn btn-ai"
-          [disabled]="aiGenerating || !aiSuggestions.length"
-          (click)="applyAiSuggestions()"
-        >
-          Aplicar sugerencias
-        </button>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="cancel()">Cancelar</button>
+          @if (noFormMode && activity?.workflowActivityId) {
+            <button type="button" class="btn btn-secondary" (click)="goToFormDesigner()">Configurar formulario</button>
+          }
+          <button type="button" class="btn btn-secondary" [disabled]="saving || completing" (click)="saveDraft()">
+            {{ saving ? 'Guardando...' : 'Guardar avance' }}
+          </button>
+          <button type="button" class="btn btn-primary" [disabled]="saving || completing" (click)="completeActivity()">
+            {{ completing ? 'Completando...' : 'Completar actividad' }}
+          </button>
+        </div>
       </div>
+
+      <aside class="data-card ai-form-panel">
+        <h2><i class="material-icons">psychology</i> Asistencia IA</h2>
+        <p class="panel-hint">
+          Describa el informe en lenguaje natural. La IA sugiere valores; usted revisa y aplica antes de enviar.
+        </p>
+        @if (!canUseFormAi) {
+          <p class="panel-hint">No tiene permiso para usar asistencia IA (TASKS_EXECUTE).</p>
+        } @else {
+          <label class="full-width"
+            >Informe libre
+            <textarea
+              rows="5"
+              [(ngModel)]="aiReport"
+              [disabled]="aiGenerating"
+              placeholder="Ej. El solicitante requiere permiso por motivos familiares desde el 15/06..."
+            ></textarea>
+          </label>
+          <div class="ai-form-actions">
+            <button
+              type="button"
+              class="btn btn-ai"
+              [disabled]="aiGenerating || !aiReport.trim()"
+              (click)="assistFormFromReport()"
+            >
+              {{ aiGenerating ? 'Asistiendo...' : 'Asistir formulario' }}
+            </button>
+            @if (voiceSupported) {
+              <button
+                type="button"
+                class="btn btn-secondary"
+                [class.voice-active]="voiceListening"
+                [disabled]="aiGenerating"
+                (click)="toggleVoiceDictation()"
+              >
+                {{ voiceListening ? 'Detener voz' : 'Dictar por voz' }}
+              </button>
+            }
+          </div>
+          @if (aiError) {
+            <div class="alert error">{{ aiError }}</div>
+          }
+          @if (aiInfoMessage) {
+            <div class="alert info">{{ aiInfoMessage }}</div>
+          }
+          @if (aiSkippedMessage) {
+            <div class="alert warning">{{ aiSkippedMessage }}</div>
+          }
+          @if (aiAssistResponse?.warnings?.length) {
+            <ul class="ai-warnings">
+              @for (w of aiAssistResponse!.warnings!; track w) {
+                <li>{{ w }}</li>
+              }
+            </ul>
+          }
+          @if (aiSuggestions.length) {
+            <h3 class="ai-preview-title">Valores sugeridos</h3>
+            <div class="suggestions-list">
+              @for (s of aiSuggestions; track s.fieldId) {
+                <div class="suggestion-item" [class.file-hint]="!s.applicable">
+                  <strong>{{ s.fieldLabel }}</strong>
+                  <span class="field-type">{{ s.fieldType }}</span>
+                  <p>{{ formatSuggestionValue(s) }}</p>
+                </div>
+              }
+            </div>
+            <button
+              type="button"
+              class="btn btn-ai btn-block"
+              [disabled]="aiGenerating"
+              (click)="applyAiSuggestions()"
+            >
+              Aplicar sugerencias
+            </button>
+          }
+        }
+      </aside>
     </div>
-  </div>
-}
+  }
+</div>

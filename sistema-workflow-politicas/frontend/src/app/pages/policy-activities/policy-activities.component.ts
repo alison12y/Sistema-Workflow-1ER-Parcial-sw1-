@@ -48,6 +48,7 @@ export class PolicyActivitiesComponent implements OnInit {
   form: WorkflowActivityRequest = this.emptyForm();
 
   readonly canManage = this.auth.canManageWorkflowActivities();
+  readonly canViewForms = this.auth.canViewDynamicForms();
   readonly activityTypeOptions = ACTIVITY_TYPE_OPTIONS;
   readonly activityStatusOptions = ACTIVITY_STATUS_OPTIONS;
   readonly responsibleOptions = RESPONSIBLE_OPTIONS;

@@ -1,16 +1,21 @@
 package com.workflow.politicas.controller;
 
+import com.workflow.politicas.dto.AiFormAssistTraceRequest;
 import com.workflow.politicas.dto.CompleteActivityRequest;
+import com.workflow.politicas.dto.MyActivitiesFilter;
 import com.workflow.politicas.dto.MyActivityDto;
 import com.workflow.politicas.model.Tramite;
 import com.workflow.politicas.service.MyActivitiesService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -26,15 +31,63 @@ public class MyActivitiesController {
     }
 
     @GetMapping
-    public List<MyActivityDto> list(Authentication authentication) {
-        return myActivitiesService.listForUser(resolveUsername(authentication));
+    public List<MyActivityDto> list(
+            Authentication authentication,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String policyId,
+            @RequestParam(required = false) String tramiteId,
+            @RequestParam(required = false) String tramiteCode,
+            @RequestParam(required = false) String priority
+    ) {
+        MyActivitiesFilter filter = new MyActivitiesFilter();
+        filter.setStatus(status);
+        filter.setPolicyId(policyId);
+        filter.setTramiteId(tramiteId);
+        filter.setTramiteCode(tramiteCode);
+        filter.setPriority(priority);
+        return myActivitiesService.listInbox(resolveUsername(authentication), filter);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MyActivityDto> getById(@PathVariable String id, Authentication authentication) {
-        return myActivitiesService.findForUser(id, resolveUsername(authentication))
+    public ResponseEntity<MyActivityDto> getById(
+            @PathVariable String id,
+            @RequestParam(required = false) Integer taskOrder,
+            Authentication authentication
+    ) {
+        String username = resolveUsername(authentication);
+        if (taskOrder != null && taskOrder > 0) {
+            return myActivitiesService.findForUser(id, taskOrder, username)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        }
+        return myActivitiesService.findForUser(id, username)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/tasks/{taskOrder}/take")
+    public Tramite takeTask(
+            @PathVariable String id,
+            @PathVariable int taskOrder,
+            Authentication authentication
+    ) {
+        return myActivitiesService.takeTask(id, taskOrder, resolveUsername(authentication));
+    }
+
+    @PostMapping("/{id}/ai-form-assisted")
+    public ResponseEntity<Void> recordAiFormAssisted(
+            @PathVariable String id,
+            @RequestBody AiFormAssistTraceRequest request,
+            Authentication authentication
+    ) {
+        try {
+            myActivitiesService.recordAiFormAssisted(id, request, resolveUsername(authentication));
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
     }
 
     @PutMapping("/{id}/complete")

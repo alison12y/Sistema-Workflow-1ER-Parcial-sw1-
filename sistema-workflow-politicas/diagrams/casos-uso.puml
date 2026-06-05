@@ -1,9 +1,9 @@
-@startuml Casos de Uso
-actor Usuario
-actor Administrador
-
-Usuario --> (Gestionar Tareas)
-Usuario --> (Ejecutar Trámites)
-Administrador --> (Diseñar Workflow)
-Administrador --> (Configurar Políticas)
+@startuml Casos-de-Uso-Legacy
+title Referencia - usar casos-uso-ciclo1.puml
+note as N
+  Diagrama histórico simplificado.
+  Documentación oficial Ciclo 1:
+  diagrams/casos-uso-ciclo1.puml
+  docs/casos-uso.md (CU1-CU16)
+end note
 @enduml

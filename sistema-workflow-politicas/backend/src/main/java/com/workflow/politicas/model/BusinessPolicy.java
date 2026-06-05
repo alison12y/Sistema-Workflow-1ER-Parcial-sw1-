@@ -4,6 +4,12 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 
+/**
+ * Política de negocio — raíz del modelo oficial Ciclo 1.
+ * El flujo UML se define con {@link WorkflowActivity} y {@link WorkflowTransition} por {@code policyId}.
+ *
+ * @see com.workflow.politicas.workflow.cycle1.Cycle1WorkflowModel
+ */
 @Document(collection = "business_policies")
 public class BusinessPolicy {
     @Id
@@ -17,6 +23,11 @@ public class BusinessPolicy {
     private String createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /**
+     * @deprecated Ciclo 1 usa actividades en {@code workflow_activities} por {@code policyId}.
+     *             Mantener solo por compatibilidad con modelo BPM legacy.
+     */
+    @Deprecated(since = "0.0.1-cycle1-f0")
     private String currentDiagramId;
 
     public BusinessPolicy() {

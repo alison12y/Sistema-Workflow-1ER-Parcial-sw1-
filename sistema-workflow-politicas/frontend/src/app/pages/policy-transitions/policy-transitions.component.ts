@@ -16,9 +16,13 @@ import {
 } from '../../models/workflow.model';
 import {
   TRANSITION_TYPE_OPTIONS,
+  transitionConditionRequired,
+  transitionShowsConditionField,
   transitionStatusClass,
   transitionStatusLabel,
+  transitionTypeHint,
   transitionTypeLabel,
+  validateTransitionFormInput,
 } from '../../utils/transition-display.util';
 import { isVisibleActivity, isVisibleTransition } from '../../utils/workflow-visibility.util';
 
@@ -56,6 +60,7 @@ export class PolicyTransitionsComponent implements OnInit {
   viewingTransition: WorkflowTransition | null = null;
 
   form: WorkflowTransitionRequest = this.emptyForm();
+  formValidationWarning = '';
 
   readonly canManage = this.auth.canManageWorkflowActivities();
   readonly transitionTypeOptions = TRANSITION_TYPE_OPTIONS;
@@ -148,7 +153,7 @@ export class PolicyTransitionsComponent implements OnInit {
       policyId: this.policyId,
       fromActivityId: transition.fromActivityId,
       toActivityId: transition.toActivityId,
-      transitionType: transition.transitionType ?? 'SEQUENTIAL',
+      transitionType: (transition.transitionType ?? 'SEQUENTIAL').toUpperCase(),
       conditionLabel: transition.conditionLabel ?? '',
       conditionExpression: transition.conditionExpression ?? '',
       orderIndex: transition.orderIndex,
@@ -186,16 +191,24 @@ export class PolicyTransitionsComponent implements OnInit {
       this.error = 'La actividad origen y destino no pueden ser iguales.';
       return;
     }
-    if (this.form.transitionType === 'CONDITIONAL' && !this.form.conditionLabel?.trim()) {
-      this.error = 'Debe indicar una condición para conexiones condicionales.';
+    const clientValidation = validateTransitionFormInput(
+      this.form,
+      this.transitions,
+      this.editingId,
+    );
+    if (clientValidation.error) {
+      this.error = clientValidation.error;
+      this.formValidationWarning = '';
       return;
     }
+    this.formValidationWarning = clientValidation.warning ?? '';
 
     this.saving = true;
     this.error = '';
     const payload: WorkflowTransitionRequest = {
       ...this.form,
       policyId: this.policyId,
+      transitionType: (this.form.transitionType ?? 'SEQUENTIAL').toUpperCase(),
       conditionLabel: this.form.conditionLabel?.trim() || undefined,
       conditionExpression: this.form.conditionExpression?.trim() || undefined,
     };
@@ -206,7 +219,9 @@ export class PolicyTransitionsComponent implements OnInit {
 
     request$.subscribe({
       next: () => {
-        this.message = this.editingId ? 'Conexión actualizada correctamente.' : 'Conexión creada correctamente.';
+        const base = this.editingId ? 'Conexión actualizada correctamente.' : 'Conexión creada correctamente.';
+        this.message = this.formValidationWarning ? `${base} ${this.formValidationWarning}` : base;
+        this.formValidationWarning = '';
         this.modalOpen = false;
         this.saving = false;
         this.validation = null;
@@ -299,8 +314,16 @@ export class PolicyTransitionsComponent implements OnInit {
     return s || '—';
   }
 
-  isConditionalType(): boolean {
-    return (this.form.transitionType ?? '').toUpperCase() === 'CONDITIONAL';
+  showsConditionField(): boolean {
+    return transitionShowsConditionField(this.form.transitionType);
+  }
+
+  conditionFieldRequired(): boolean {
+    return transitionConditionRequired(this.form.transitionType);
+  }
+
+  currentTransitionTypeHint(): string {
+    return transitionTypeHint(this.form.transitionType);
   }
 
   private refreshTransitionsView(): void {

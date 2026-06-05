@@ -6,6 +6,7 @@ import java.util.List;
 public class FormSubmissionRequest {
     private String tramiteId;
     private String policyId;
+    private String workflowActivityId;
     private String activityName;
     private int taskOrder;
     private List<ResponseItemDto> responses = new ArrayList<>();
@@ -24,6 +25,14 @@ public class FormSubmissionRequest {
 
     public void setPolicyId(String policyId) {
         this.policyId = policyId;
+    }
+
+    public String getWorkflowActivityId() {
+        return workflowActivityId;
+    }
+
+    public void setWorkflowActivityId(String workflowActivityId) {
+        this.workflowActivityId = workflowActivityId;
     }
 
     public String getActivityName() {

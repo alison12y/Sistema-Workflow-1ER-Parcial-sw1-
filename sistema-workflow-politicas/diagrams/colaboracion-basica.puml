@@ -1,0 +1,49 @@
+@startuml Colaboracion-Basica-F8
+title F8 - Colaboración básica en diseñador UML
+autonumber
+
+actor "Diseñador A" as A
+actor "Diseñador B" as B
+participant "Angular\nworkflow-designer" as UIA
+participant "Angular\nworkflow-designer" as UIB
+participant "WorkflowDesignerController" as WDC
+participant "WorkflowCollaborationService" as WCS
+database "workflow_collaboration" as DB
+participant "BitacoraService" as BIT
+
+== Apertura ==
+A -> UIA : Abrir diseñador policyId
+UIA -> WDC : POST .../collaboration/open
+WDC -> WCS : registerOpen
+WCS -> DB : sesión A
+WCS -> BIT : WORKFLOW_ABIERTO
+
+B -> UIB : Abrir mismo policyId
+UIB -> WDC : POST .../collaboration/open
+WDC -> WCS : registerOpen
+WCS -> DB : sesión A + B
+
+== Polling 11s ==
+loop cada 11 segundos
+  UIA -> WDC : GET .../collaboration?sessionId&baseRevision
+  WDC -> WCS : heartbeat + stale check
+  WCS --> UIA : connectedEditors, revision
+end
+
+== B modifica ==
+B -> UIB : Guardar actividad
+UIB -> WDC : POST /workflow-activities
+note right: WorkflowActivityService\nregisterModification → revision++
+
+== A detecta conflicto ==
+UIA -> WDC : GET collaboration (baseRevision antigua)
+WDC -> WCS : staleForClient = true
+UIA --> A : Aviso conflicto\nbloqueo guardado
+UIA -> WDC : POST .../collaboration/conflict
+WCS -> BIT : CONFLICTO_EDICION
+
+A -> UIA : Recargar diagrama
+UIA -> WDC : GET designer + collaboration
+note right: loadedRevision actualizada
+
+@enduml

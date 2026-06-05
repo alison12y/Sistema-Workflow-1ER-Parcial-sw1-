@@ -27,6 +27,15 @@ public class AiController {
         }
     }
 
+    @PostMapping("/workflow/suggest")
+    public ResponseEntity<AiWorkflowSuggestResponse> suggestWorkflow(@RequestBody AiWorkflowSuggestRequest request) {
+        try {
+            return ResponseEntity.ok(aiService.suggestWorkflow(request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @PostMapping("/generate-workflow")
     public ResponseEntity<AiWorkflowGenerateResponse> generateWorkflow(@RequestBody AiWorkflowGenerateRequest request) {
         try {

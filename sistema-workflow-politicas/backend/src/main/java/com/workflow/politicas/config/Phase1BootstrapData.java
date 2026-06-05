@@ -108,6 +108,22 @@ public final class Phase1BootstrapData {
                     "ana.rodriguez@empresa.com",
                     "Funcionario",
                     "Operaciones"
+            ),
+            new UserSeed(
+                    "luis.supervisor",
+                    "Luis.S2024!",
+                    "Luis Herrera Mora",
+                    "luis.supervisor@empresa.com",
+                    "Supervisor",
+                    "Operaciones"
+            ),
+            new UserSeed(
+                    "patricia.cliente",
+                    "Patricia.C2024!",
+                    "Patricia Solís Vega",
+                    "patricia.cliente@empresa.com",
+                    "Atención al cliente",
+                    "Operaciones"
             )
     );
 

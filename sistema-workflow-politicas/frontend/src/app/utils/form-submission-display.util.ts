@@ -2,7 +2,11 @@ import { FormSubmission, FormSubmissionFileMeta, ResponseItemPayload } from '../
 
 export interface FormSubmissionView {
   activityName: string;
+  workflowActivityId?: string;
+  taskOrder: number;
+  submittedBy?: string;
   submittedByName: string;
+  submittedAt?: string;
   updatedAt?: string;
   fields: FormSubmissionFieldView[];
 }
@@ -40,7 +44,11 @@ export function toFormSubmissionViews(submissions: FormSubmission[]): FormSubmis
     .sort((a, b) => a.taskOrder - b.taskOrder)
     .map((submission) => ({
       activityName: submission.activityName,
+      workflowActivityId: submission.workflowActivityId,
+      taskOrder: submission.taskOrder,
+      submittedBy: submission.submittedBy,
       submittedByName: submission.submittedByName?.trim() || '—',
+      submittedAt: submission.submittedAt ?? submission.updatedAt,
       updatedAt: submission.updatedAt,
       fields: mapResponseFields(submission.responses),
     }))

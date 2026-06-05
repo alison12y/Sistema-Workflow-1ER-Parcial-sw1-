@@ -14,6 +14,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+/**
+ * @deprecated Servicio del modelo B. Ciclo 1 oficial: {@link WorkflowActivityService}
+ *             + {@link WorkflowDesignerService}. API mantenida hasta F1.
+ */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @Service
 public class ActivityDiagramService {
 

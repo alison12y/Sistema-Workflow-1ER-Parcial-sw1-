@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+/** Vista diseñador UML 2.5 (swimlanes) — modelo oficial Ciclo 1. */
 @Service
 public class WorkflowDesignerService {
 
@@ -19,11 +20,13 @@ public class WorkflowDesignerService {
     private static final int NODE_HORIZONTAL_MIN = 220;
     private static final int NODE_TOP_PADDING = 50;
 
-    private static final Map<String, String> ACTIVITY_TYPE_LABELS = Map.of(
-            "START", "Inicio",
-            "TASK", "Tarea",
-            "DECISION", "Decisión",
-            "END", "Fin"
+    private static final Map<String, String> ACTIVITY_TYPE_LABELS = Map.ofEntries(
+            Map.entry("START", "Inicio"),
+            Map.entry("TASK", "Tarea"),
+            Map.entry("DECISION", "Decisión"),
+            Map.entry("END", "Fin"),
+            Map.entry("FORK", "Fork"),
+            Map.entry("JOIN", "Join")
     );
 
     private static final Map<String, String> TRANSITION_TYPE_LABELS = Map.of(

@@ -1,106 +1,254 @@
 <div class="page-crud">
   <div class="page-toolbar">
     <div>
-      <h1>KPIs e Indicadores</h1>
-      <p>Mediciones para analizar rendimiento y cuellos de botella del workflow</p>
+      <h1>KPIs y cuellos de botella</h1>
+      <p>Indicadores reales del motor workflow — datos de trámites, tareas y tiempos</p>
+      @if (lastUpdated) {
+        <p class="sync-hint">Actualización automática cada 12 s · Última: {{ formatDate(lastUpdated) }}</p>
+      }
     </div>
     <button type="button" class="btn btn-secondary" (click)="refresh()">Actualizar</button>
   </div>
 
-  @if (message) {
-    <div class="alert success">{{ message }}</div>
-  }
-  @if (error) {
-    <div class="alert error">{{ error }}</div>
-  }
+  <div class="filters data-card">
+    <label>
+      Política
+      <select [(ngModel)]="filterPolicyId" (change)="applyFilters()">
+        <option value="">Todas</option>
+        @for (p of policies; track p.id) {
+          <option [value]="p.id">{{ p.name }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Estado trámite
+      <select [(ngModel)]="filterStatus" (change)="applyFilters()">
+        @for (opt of statusOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      Desde
+      <input type="date" [(ngModel)]="filterFrom" (change)="applyFilters()" />
+    </label>
+    <label>
+      Hasta
+      <input type="date" [(ngModel)]="filterTo" (change)="applyFilters()" />
+    </label>
+    <button type="button" class="btn btn-secondary btn-sm" (click)="clearFilters()">Limpiar</button>
+  </div>
+
+  @if (message) { <div class="alert success">{{ message }}</div> }
+  @if (error) { <div class="alert error">{{ error }}</div> }
 
   @if (loading) {
-    <div class="loading">Cargando indicadores...</div>
-  } @else if (summary) {
+    <div class="loading">Calculando indicadores...</div>
+  } @else if (dashboard) {
     @if (!hasData) {
-      <div class="empty-state">Aún no existen trámites registrados. Los KPIs se calcularán cuando haya actividad en el workflow.</div>
-    }
-
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <span class="kpi-value">{{ summary.totalTramites }}</span>
-        <span class="kpi-label">Total de trámites</span>
-      </div>
-      <div class="kpi-card accent-blue">
-        <span class="kpi-value">{{ summary.enProceso }}</span>
-        <span class="kpi-label">En proceso</span>
-      </div>
-      <div class="kpi-card accent-success">
-        <span class="kpi-value">{{ summary.finalizados }}</span>
-        <span class="kpi-label">Finalizados</span>
-      </div>
-      <div class="kpi-card accent-danger">
-        <span class="kpi-value">{{ summary.cancelados }}</span>
-        <span class="kpi-label">Cancelados</span>
-      </div>
-      <div class="kpi-card accent-lavender">
-        <span class="kpi-value">{{ summary.tiempoPromedio }}</span>
-        <span class="kpi-label">Tiempo promedio</span>
-      </div>
-    </div>
-
-    <div class="summary-grid">
-      <div class="summary-card">
-        <span class="summary-label">Iniciados</span>
-        <strong>{{ summary.iniciados }}</strong>
-      </div>
-      <div class="summary-card">
-        <span class="summary-label">Actividad con mayor demora</span>
-        <strong>{{ summary.actividadMayorDemora }}</strong>
-      </div>
-      <div class="summary-card">
-        <span class="summary-label">Responsable con mayor carga</span>
-        <strong>{{ summary.responsableMayorCarga }}</strong>
-      </div>
-      <div class="summary-card highlight">
-        <span class="summary-label">Cuello de botella principal</span>
-        <strong>{{ summary.cuelloDeBotellaPrincipal }}</strong>
-      </div>
-    </div>
-
-    <div class="section-title">
-      <h2>Cuellos de botella detectados</h2>
-      <p>Análisis basado en trámites activos, actividades y tiempos de atención</p>
-    </div>
-
-    <div class="data-card">
-      @if (!hasBottlenecks) {
-        <div class="empty-state">No hay suficientes datos para detectar cuellos de botella</div>
-      } @else {
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Actividad</th>
-                <th>Responsable</th>
-                <th>Trámites detenidos</th>
-                <th>Tiempo promedio</th>
-                <th>Nivel</th>
-                <th>Observación</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of bottlenecks; track item.activityName + item.responsible + item.level) {
-                <tr>
-                  <td><strong>{{ item.activityName }}</strong></td>
-                  <td>{{ item.responsible }}</td>
-                  <td>{{ stuckCount(item) }}</td>
-                  <td>{{ item.averageTime }}</td>
-                  <td>
-                    <span class="level-badge" [class]="levelClass(item.level)">{{ item.level }}</span>
-                  </td>
-                  <td><small>{{ item.observation }}</small></td>
-                </tr>
-              }
-            </tbody>
-          </table>
+      <div class="empty-state">{{ dashboard.message ?? 'No hay trámites para calcular KPIs con los filtros actuales.' }}</div>
+    } @else if (summary) {
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-value">{{ summary.totalTramites }}</span>
+          <span class="kpi-label">Total trámites</span>
         </div>
-      }
-    </div>
+        <div class="kpi-card accent-blue">
+          <span class="kpi-value">{{ summary.tramitesActivos }}</span>
+          <span class="kpi-label">Activos</span>
+        </div>
+        <div class="kpi-card accent-success">
+          <span class="kpi-value">{{ summary.finalizados }}</span>
+          <span class="kpi-label">Finalizados</span>
+        </div>
+        <div class="kpi-card accent-danger">
+          <span class="kpi-value">{{ summary.tramitesConError }}</span>
+          <span class="kpi-label">Con error</span>
+        </div>
+        <div class="kpi-card task-pending">
+          <span class="kpi-value">{{ summary.tareasPendientes }}</span>
+          <span class="kpi-label">Tareas pendientes</span>
+        </div>
+        <div class="kpi-card task-progress">
+          <span class="kpi-value">{{ summary.tareasEnProceso }}</span>
+          <span class="kpi-label">Tareas en proceso</span>
+        </div>
+        <div class="kpi-card task-done">
+          <span class="kpi-value">{{ summary.tareasCompletadas }}</span>
+          <span class="kpi-label">Tareas completadas</span>
+        </div>
+        <div class="kpi-card accent-lavender">
+          <span class="kpi-value">{{ summary.tiempoPromedio }}</span>
+          <span class="kpi-label">Tiempo prom. trámite</span>
+        </div>
+        <div class="kpi-card accent-lavender">
+          <span class="kpi-value">{{ summary.tiempoPromedioActividad }}</span>
+          <span class="kpi-label">Tiempo prom. actividad</span>
+        </div>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card highlight">
+          <span class="summary-label">Cuello de botella principal</span>
+          <strong>{{ summary.cuelloDeBotellaPrincipal }}</strong>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">Actividad con mayor demora</span>
+          <strong>{{ summary.actividadMayorDemora }}</strong>
+        </div>
+        <div class="summary-card">
+          <span class="summary-label">Mayor carga (funcionario)</span>
+          <strong>{{ summary.responsableMayorCarga }}</strong>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <h2>Actividades con mayor demora</h2>
+        <p>Promedio de tiempo de ejecución (completadas) y espera (pendientes/en curso)</p>
+      </div>
+      <div class="data-card">
+        @if (!dashboard.slowActivities?.length) {
+          <p class="empty-hint">Sin datos de actividades.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Actividad</th>
+                  <th>Política</th>
+                  <th>P / E / C</th>
+                  <th>Demoradas</th>
+                  <th>T. ejecución prom.</th>
+                  <th>T. espera prom.</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (a of dashboard.slowActivities; track a.workflowActivityId + a.activityName) {
+                  <tr>
+                    <td><strong>{{ a.activityName }}</strong></td>
+                    <td>{{ a.policyName ?? '—' }}</td>
+                    <td>{{ a.pendingCount }} / {{ a.inProgressCount }} / {{ a.completedCount }}</td>
+                    <td>{{ a.overdueCount }}</td>
+                    <td>{{ a.averageDuration }}</td>
+                    <td>{{ a.averageActiveWait }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <div class="section-title"><h2>Carga por funcionario</h2></div>
+      <div class="data-card">
+        @if (!dashboard.employeeLoad?.length) {
+          <p class="empty-hint">Sin carga registrada por funcionario.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Funcionario</th>
+                  <th>Departamento</th>
+                  <th>Pendientes</th>
+                  <th>En curso</th>
+                  <th>Completadas</th>
+                  <th>Activas</th>
+                  <th>T. atención prom.</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (e of dashboard.employeeLoad; track e.key) {
+                  <tr>
+                    <td><strong>{{ e.displayName }}</strong></td>
+                    <td>{{ e.departmentName ?? '—' }}</td>
+                    <td>{{ e.pendingCount }}</td>
+                    <td>{{ e.inProgressCount }}</td>
+                    <td>{{ e.completedCount }}</td>
+                    <td>{{ e.totalActive }}</td>
+                    <td>{{ e.averageHandlingTime }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <div class="section-title"><h2>Carga por departamento</h2></div>
+      <div class="data-card">
+        @if (!dashboard.departmentLoad?.length) {
+          <p class="empty-hint">Sin carga por departamento.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Departamento</th>
+                  <th>Pendientes</th>
+                  <th>En curso</th>
+                  <th>Completadas</th>
+                  <th>Activas</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (d of dashboard.departmentLoad; track d.key) {
+                  <tr>
+                    <td><strong>{{ d.displayName }}</strong></td>
+                    <td>{{ d.pendingCount }}</td>
+                    <td>{{ d.inProgressCount }}</td>
+                    <td>{{ d.completedCount }}</td>
+                    <td>{{ d.totalActive }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <div class="section-title">
+        <h2>Cuellos de botella detectados</h2>
+        <p>Mayor tiempo, acumulación de tareas pendientes/en curso y tareas demoradas (SLA)</p>
+      </div>
+      <div class="data-card">
+        @if (!hasBottlenecks) {
+          <p class="empty-hint">No se detectaron cuellos de botella con los datos actuales.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Actividad</th>
+                  <th>Política</th>
+                  <th>Responsable</th>
+                  <th>Departamento</th>
+                  <th>Detenidas</th>
+                  <th>Demoradas</th>
+                  <th>Tiempo prom.</th>
+                  <th>Nivel</th>
+                  <th>Observación</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of dashboard.bottlenecks; track item.activityName + item.responsible + item.level) {
+                  <tr>
+                    <td><strong>{{ item.activityName }}</strong></td>
+                    <td>{{ item.policyName ?? '—' }}</td>
+                    <td>{{ item.responsible }}</td>
+                    <td>{{ item.departmentName ?? '—' }}</td>
+                    <td>{{ stuckCount(item) }}</td>
+                    <td>{{ item.overdueCount }}</td>
+                    <td>{{ item.averageTime }}</td>
+                    <td><span class="level-badge" [class]="levelClass(item.level)">{{ item.level }}</span></td>
+                    <td><small>{{ item.observation }}</small></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    }
   }
 </div>

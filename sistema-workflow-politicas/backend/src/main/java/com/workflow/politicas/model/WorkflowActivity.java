@@ -5,6 +5,12 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
+/**
+ * Actividad UML 2.5 del Ciclo 1 (modelo oficial). Pertenece a una {@link BusinessPolicy}
+ * y se organiza en swimlane mediante {@code responsibleName} / {@code responsibleType}.
+ *
+ * @see com.workflow.politicas.workflow.cycle1.Cycle1WorkflowModel
+ */
 @Document(collection = "workflow_activities")
 public class WorkflowActivity {
     @Id
@@ -16,7 +22,7 @@ public class WorkflowActivity {
     private String responsibleType;
     private String responsibleId;
     private String responsibleName;
-    /** START, TASK, DECISION, END */
+    /** START, TASK, DECISION, END, FORK, JOIN (pasarelas UML — sin tarea humana) */
     private String activityType;
     /** BORRADOR, ACTIVA, INACTIVA */
     private String status;

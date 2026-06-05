@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/** @deprecated API motor BPM legacy (C). Ciclo 1: {@code /api/workflow-activities}. */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @RestController
 @RequestMapping("/api/activities")
 public class ActivityController {

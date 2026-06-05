@@ -22,11 +22,21 @@
     </div>
   </header>
 
-  @if (message) {
+  @if (message && !showValidation) {
     <div class="alert success">{{ message }}</div>
   }
 
-  @if (error) {
+  @if (collaborationConflict) {
+    <div class="alert conflict-alert" role="alert">
+      <strong>Conflicto de edición</strong>
+      <p>{{ collaborationConflictMessage }}</p>
+      <button type="button" class="btn btn-primary btn-sm" (click)="reloadAfterConflict()">
+        Recargar diagrama
+      </button>
+    </div>
+  }
+
+  @if (error && !collaborationConflict) {
     <div class="alert error">{{ error }}</div>
   }
 
@@ -57,6 +67,14 @@
           </div>
         } @else {
           <p class="guided-readonly">Solo lectura: no tiene permiso para crear actividades.</p>
+        }
+        @if (canEdit) {
+          <div class="guided-ai-hint data-card">
+            <p class="panel-hint">
+              También puede describir el flujo con el <strong>Asistente IA</strong> en la barra lateral
+              una vez que agregue la primera actividad o carril.
+            </p>
+          </div>
         }
       </div>
     }
@@ -125,9 +143,10 @@
         </section>
       }
 
+      <div class="designer-layout">
       <div class="designer-workspace" [class.properties-hidden]="!propertiesPanelVisible">
-        <aside class="toolbox-column">
-          <div class="toolbox-panel data-card">
+        <aside class="designer-left-column">
+          <div class="toolbox-panel data-card sidebar-card">
           <h2 class="panel-title">Elementos UML</h2>
           <ul class="toolbox-list">
             @for (item of primaryToolboxItems; track item.id) {
@@ -144,14 +163,85 @@
               </li>
             }
           </ul>
-          @if (soonToolboxItems.length) {
-            <p class="toolbox-soon-line">Fork · Join — Próximamente</p>
-          }
+          <p class="toolbox-hint-line">Paralelismo: conecte con División / Unión paralela desde Fork y hacia Join.</p>
           </div>
 
-          <div class="lanes-sidebar-panel data-card">
+          <div class="collaboration-panel data-card sidebar-card">
+            <h2 class="panel-title">
+              <span class="collab-title-icon" aria-hidden="true">👥</span>
+              Colaboración en vivo
+            </h2>
+            @if (collaborationState) {
+              <p class="collab-meta collab-meta-block">
+                <span class="collab-meta-label">Última modificación</span>
+                <span class="collab-meta-value collab-last-change">{{ collaborationLastModifiedLabel() }}</span>
+              </p>
+              <p class="collab-meta">
+                <span class="collab-meta-label">Revisión</span>
+                <span class="collab-meta-value">#{{ collaborationState.revision }}</span>
+              </p>
+
+              <h3 class="collab-subtitle">Editando ahora</h3>
+              @if (activeEditsNow().length) {
+                <ul class="collab-editors-list collab-editing-list">
+                  @for (edit of activeEditsNow(); track edit.elementId + edit.username) {
+                    <li class="collab-activity-card" [class.action-editing]="edit.action === 'EDITING'" [class.action-moving]="edit.action === 'MOVING'">
+                      <span class="collab-avatar" [attr.data-initial]="(edit.fullName || edit.username || '?').charAt(0)"></span>
+                      <span class="collab-editor-name">{{ editingNowLabel(edit) }}</span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="panel-hint collab-empty-hint">Nadie está editando un elemento en este momento.</p>
+              }
+
+              <h3 class="collab-subtitle">Actividad reciente</h3>
+              @if (recentCollaborationActivity().length) {
+                <ul class="collab-recent-list">
+                  @for (action of recentCollaborationActivity(); track action.modifiedAt + (action.modifiedByUsername ?? '') + (action.elementName ?? '')) {
+                    <li class="collab-recent-item">
+                      <span class="collab-recent-text">{{ recentActivityLabel(action) }}</span>
+                      <span class="collab-recent-time">{{ recentActivityTime(action) }}</span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="panel-hint collab-empty-hint">Aún no hay cambios recientes en este workflow.</p>
+              }
+
+              <h3 class="collab-subtitle">Conectados ahora</h3>
+              @if (connectedCollaborators().length) {
+                <ul class="collab-editors-list">
+                  @for (user of connectedCollaborators(); track user.userId || user.username) {
+                    <li [class.is-self]="user.currentUser">
+                      <span class="collab-presence-dot" aria-hidden="true"></span>
+                      <span class="collab-editor-name">
+                        {{ user.fullName || user.username }}
+                        @if (user.currentUser) {
+                          <span class="collab-you">(usted)</span>
+                        }
+                      </span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="panel-hint">Nadie más en el diseñador en este momento.</p>
+              }
+              @if (collaborationPolling) {
+                <p class="collab-poll-hint">Actualización automática cada 11 s</p>
+              }
+            } @else {
+              <p class="panel-hint">Iniciando presencia colaborativa…</p>
+            }
+          </div>
+
+          <div class="lanes-sidebar-panel data-card sidebar-card">
             <h2 class="panel-title">Carriles / Swimlanes</h2>
+            <p class="panel-hint">Resumen de carriles en el diagrama.</p>
             @if (displayLaneNames.length) {
+              <p class="lanes-summary-count">
+                {{ displayLaneNames.length === 1 ? '1 carril detectado' : displayLaneNames.length + ' carriles detectados' }}
+              </p>
               <ul class="lanes-sidebar-list">
                 @for (lane of displayLaneNames; track lane) {
                   <li class="lanes-sidebar-row">
@@ -169,6 +259,124 @@
               </button>
             } @else if (canEdit) {
               <p class="panel-hint">Active modo edición para agregar carriles.</p>
+            }
+          </div>
+
+          <div class="ai-designer-panel data-card sidebar-card">
+            <h2 class="panel-title">Asistente IA</h2>
+            <p class="panel-hint">
+              Describa el cambio en texto o voz. La IA solo sugiere; usted confirma antes de modificar el diagrama.
+            </p>
+            @if (!canEdit) {
+              <p class="panel-hint ai-readonly">Solo lectura: requiere permiso de diseño (WORKFLOW_DESIGN).</p>
+            } @else {
+              <label class="full-width"
+                >Prompt
+                <textarea
+                  rows="4"
+                  [(ngModel)]="aiPrompt"
+                  [disabled]="aiLoading || aiApplying"
+                  placeholder="Ej. crear actividad, conectar, decisión condicional..."
+                ></textarea>
+              </label>
+              <button type="button" class="btn-link" (click)="useAiExamplePrompt()">
+                Usar ejemplo del curso
+              </button>
+              <div class="ai-actions">
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  [disabled]="aiLoading || aiApplying || !aiPrompt.trim()"
+                  (click)="generateAiSuggestion()"
+                >
+                  {{ aiLoading ? 'Generando...' : 'Generar sugerencia' }}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  [disabled]="!canApplyAiSuggestion || aiApplying"
+                  (click)="applyAiSuggestion()"
+                >
+                  {{ aiApplying ? 'Aplicando...' : 'Aplicar sugerencia' }}
+                </button>
+              </div>
+              <div class="ai-voice-row">
+                @if (voiceSupported) {
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    [class.ai-voice-active]="voiceListening"
+                    [disabled]="aiLoading"
+                    (click)="toggleVoiceDictation()"
+                  >
+                    {{ voiceListening ? 'Detener voz' : 'Dictar por voz' }}
+                  </button>
+                } @else {
+                  <span class="panel-hint">Voz no disponible en este navegador.</span>
+                }
+                @if (aiSuggestion) {
+                  <button type="button" class="btn-link" (click)="clearAiSuggestion()">Limpiar</button>
+                }
+              </div>
+              @if (aiError) {
+                <div class="alert error">{{ aiError }}</div>
+              }
+              @if (aiSuggestion) {
+                <div class="ai-preview">
+                  @if (aiSuggestion.fallbackUsed) {
+                    <span class="ai-badge fallback">Parser local</span>
+                  } @else if (aiSuggestion.aiAvailable) {
+                    <span class="ai-badge gemini">IA</span>
+                  }
+                  <p class="panel-hint">{{ aiSuggestion.explanation }}</p>
+                  @if (aiSuggestion.flowType) {
+                    <p class="panel-hint"><strong>Flujo:</strong> {{ aiSuggestion.flowType }}</p>
+                  }
+                  @if (aiSuggestion.suggestedActivities?.length) {
+                    <h3>Actividades</h3>
+                    <ul>
+                      @for (a of aiSuggestion.suggestedActivities; track a.name) {
+                        <li>
+                          {{ a.name }}
+                          @if (a.responsibleName) {
+                            <span> — {{ a.responsibleName }}</span>
+                          }
+                          ({{ a.activityType }})
+                        </li>
+                      }
+                    </ul>
+                  }
+                  @if (aiSuggestion.suggestedTransitions?.length) {
+                    <h3>Conexiones</h3>
+                    <ul>
+                      @for (t of aiSuggestion.suggestedTransitions; track $index) {
+                        <li>
+                          {{ t.fromActivityName }} → {{ t.toActivityName }}
+                          ({{ t.transitionType }})
+                          @if (t.conditionLabel) {
+                            [{{ t.conditionLabel }}]
+                          }
+                        </li>
+                      }
+                    </ul>
+                  }
+                  @if (aiSuggestion.suggestedResponsibles?.length) {
+                    <h3>Responsables</h3>
+                    <ul>
+                      @for (r of aiSuggestion.suggestedResponsibles; track r.name) {
+                        <li>{{ r.name }} ({{ r.type }})</li>
+                      }
+                    </ul>
+                  }
+                  @if (aiSuggestion.warnings?.length) {
+                    <ul class="ai-warnings">
+                      @for (w of aiSuggestion.warnings; track w) {
+                        <li>{{ w }}</li>
+                      }
+                    </ul>
+                  }
+                </div>
+              }
             }
           </div>
         </aside>
@@ -250,6 +458,8 @@
                   <path
                     class="edge-path"
                     [class.selected]="isEdgeSelected(edge)"
+                    [class.parallel-split]="edge.transitionType?.toUpperCase() === 'PARALLEL_SPLIT'"
+                    [class.parallel-join]="edge.transitionType?.toUpperCase() === 'PARALLEL_JOIN'"
                     [attr.d]="getEdgePath(edge)"
                     marker-end="url(#uml-arrowhead)"
                   />
@@ -321,6 +531,26 @@
                     }
                   }
 
+                  @case ("FORK") {
+                    <div class="uml-gateway uml-fork-gateway" aria-hidden="true">
+                      <span class="uml-gateway-bar"></span>
+                    </div>
+                    <p class="uml-gateway-caption">Fork</p>
+                    @if (node.name && node.name.toLowerCase() !== "fork") {
+                      <p class="uml-gateway-subcaption">{{ node.name }}</p>
+                    }
+                  }
+
+                  @case ("JOIN") {
+                    <div class="uml-gateway uml-join-gateway" aria-hidden="true">
+                      <span class="uml-gateway-bar"></span>
+                    </div>
+                    <p class="uml-gateway-caption">Join</p>
+                    @if (node.name && node.name.toLowerCase() !== "join") {
+                      <p class="uml-gateway-subcaption">{{ node.name }}</p>
+                    }
+                  }
+
                   @default {
                     <div class="uml-action">
                       <span class="uml-action-name">{{ node.name }}</span>
@@ -347,7 +577,7 @@
                 </div>
               </div>
             </div>
-            <p class="diagram-hint">{{ diagramHint }}</p>
+            <p class="diagram-hint diagram-hint-compact">{{ diagramHint }}</p>
           </section>
         </div>
 
@@ -362,33 +592,53 @@
           }
           @if (propertiesActivityForm && selectedNodeId) {
             <div class="properties-form">
-              <label>Nombre<input type="text" [(ngModel)]="propertiesActivityForm.name" [readonly]="!canEditProperties()" /></label>
-              <label>Descripción<textarea rows="2" [(ngModel)]="propertiesActivityForm.description" [readonly]="!canEditProperties()"></textarea></label>
-              <label>Tipo
-                <select [(ngModel)]="propertiesActivityForm.activityType" [disabled]="!canEditProperties()">
-                  @for (opt of guidedActivityTypeOptions; track opt.value) {
-                    <option [value]="opt.value">{{ opt.label }}</option>
-                  }
-                </select>
-              </label>
-              <label>Responsable / Carril
-                <input
-                  type="text"
-                  [(ngModel)]="propertiesActivityForm.responsibleName"
-                  [readonly]="!canEditProperties()"
-                  list="properties-lane-options"
-                  placeholder="Ej. Funcionario, Recursos Humanos"
-                />
-                <datalist id="properties-lane-options">
-                  @for (lane of displayLaneNames; track lane) {
-                    <option [value]="lane"></option>
-                  }
-                  @for (r of responsibleOptions; track r) {
-                    <option [value]="r"></option>
-                  }
-                </datalist>
-                <span class="field-hint">El carril define dónde aparece la actividad en el diagrama.</span>
-              </label>
+              <label>Nombre<input type="text" [(ngModel)]="propertiesActivityForm.name" (ngModelChange)="onCollaborationPropertyEdit()" [readonly]="!canEditProperties()" /></label>
+              <label>Descripción<textarea rows="2" [(ngModel)]="propertiesActivityForm.description" (ngModelChange)="onCollaborationPropertyEdit()" [readonly]="!canEditProperties()"></textarea></label>
+              @if (isGatewayPropertiesNode()) {
+                <p class="field-hint gateway-type-hint">{{ gatewayPropertiesTypeHint() }}</p>
+                <label>Carril (posición en diagrama)
+                  <input
+                    type="text"
+                    [(ngModel)]="propertiesActivityForm.responsibleName"
+                    (ngModelChange)="onCollaborationPropertyEdit()"
+                    [readonly]="!canEditProperties()"
+                    list="properties-lane-options"
+                    placeholder="Ej. Técnico, Supervisor"
+                  />
+                  <datalist id="properties-lane-options">
+                    @for (lane of displayLaneNames; track lane) {
+                      <option [value]="lane"></option>
+                    }
+                  </datalist>
+                </label>
+              } @else {
+                <label>Tipo
+                  <select [(ngModel)]="propertiesActivityForm.activityType" (ngModelChange)="onCollaborationPropertyEdit()" [disabled]="!canEditProperties()">
+                    @for (opt of guidedActivityTypeOptions; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                </label>
+                <label>Responsable / Carril
+                  <input
+                    type="text"
+                    [(ngModel)]="propertiesActivityForm.responsibleName"
+                    (ngModelChange)="onCollaborationPropertyEdit()"
+                    [readonly]="!canEditProperties()"
+                    list="properties-lane-options"
+                    placeholder="Ej. Funcionario, Recursos Humanos"
+                  />
+                  <datalist id="properties-lane-options">
+                    @for (lane of displayLaneNames; track lane) {
+                      <option [value]="lane"></option>
+                    }
+                    @for (r of responsibleOptions; track r) {
+                      <option [value]="r"></option>
+                    }
+                  </datalist>
+                  <span class="field-hint">El carril define dónde aparece la actividad en el diagrama.</span>
+                </label>
+              }
               <label>Orden<input type="number" min="1" [(ngModel)]="propertiesActivityForm.orderIndex" [readonly]="!canEditProperties()" /></label>
               @if (propertiesPositionX != null && propertiesPositionY != null) {
                 <div class="properties-position-row">
@@ -429,6 +679,14 @@
                 </div>
                 <div class="properties-actions properties-actions-secondary">
                   <button type="button" class="btn btn-secondary btn-sm" (click)="openConnectFromSelectedNode()">Conectar</button>
+                  @if (canViewForms && selectedNode?.id) {
+                    <a
+                      class="btn btn-secondary btn-sm"
+                      [routerLink]="['/activities', selectedNode!.id, 'form']"
+                    >
+                      {{ activityHasForm(selectedNode!) ? 'Editar formulario' : 'Crear formulario' }}
+                    </a>
+                  }
                   <button type="button" class="btn btn-secondary btn-sm" (click)="deactivateActivityNode(selectedNode!)">Desactivar</button>
                   <button type="button" class="btn btn-secondary btn-sm" (click)="removeActivityNode(selectedNode!)">Eliminar</button>
                 </div>
@@ -438,30 +696,48 @@
           @if (propertiesTransitionForm && selectedEdgeId) {
             <div class="properties-form">
               <label>Desde
-                <select [(ngModel)]="propertiesTransitionForm.fromActivityId" [disabled]="!canEditProperties()">
+                <select [(ngModel)]="propertiesTransitionForm.fromActivityId" (ngModelChange)="onPropertiesTransitionEndpointChange()" [disabled]="!canEditProperties()">
                   @for (a of activityOptionsForSelect(); track a.id) {
                     <option [value]="a.id">{{ a.name }}</option>
                   }
                 </select>
               </label>
               <label>Hacia
-                <select [(ngModel)]="propertiesTransitionForm.toActivityId" [disabled]="!canEditProperties()">
+                <select [(ngModel)]="propertiesTransitionForm.toActivityId" (ngModelChange)="onPropertiesTransitionEndpointChange()" [disabled]="!canEditProperties()">
                   @for (a of activityOptionsForSelect(); track a.id) {
                     <option [value]="a.id">{{ a.name }}</option>
                   }
                 </select>
               </label>
               <label>Tipo
-                <select [(ngModel)]="propertiesTransitionForm.transitionType" [disabled]="!canEditProperties()">
-                  @for (opt of guidedTransitionTypeOptions; track opt.value) {
-                    @if (opt.enabled) {
-                      <option [value]="opt.value">{{ opt.label }}</option>
-                    }
+                <select [(ngModel)]="propertiesTransitionForm.transitionType" (ngModelChange)="onCollaborationPropertyEdit()" [disabled]="!canEditProperties()">
+                  @for (opt of transitionTypeOptions; track opt.value) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
                   }
                 </select>
+                @if (propertiesTransitionTypeHint()) {
+                  <span class="field-hint">{{ propertiesTransitionTypeHint() }}</span>
+                }
               </label>
-              @if (propertiesTransitionForm.transitionType === 'CONDITIONAL') {
-                <label>Condición<input type="text" [(ngModel)]="propertiesTransitionForm.conditionLabel" [readonly]="!canEditProperties()" /></label>
+              @if (propertiesTransitionShowsCondition()) {
+                <label>
+                  Condición
+                  {{ propertiesTransitionConditionRequired() ? '*' : '(recomendado)' }}
+                  <input
+                    type="text"
+                    [(ngModel)]="propertiesTransitionForm.conditionLabel"
+                    (ngModelChange)="onCollaborationPropertyEdit()"
+                    [readonly]="!canEditProperties()"
+                  />
+                </label>
+                <label>Expresión (opcional)
+                  <input
+                    type="text"
+                    [(ngModel)]="propertiesTransitionForm.conditionExpression"
+                    (ngModelChange)="onCollaborationPropertyEdit()"
+                    [readonly]="!canEditProperties()"
+                  />
+                </label>
               }
               <label>Estado
                 <select [(ngModel)]="propertiesTransitionForm.active" [disabled]="!canEditProperties()">
@@ -481,14 +757,15 @@
         }
       </div>
 
-      <div class="designer-bottom-panels">
-        <section class="data-card collapsible-panel">
+      <div class="designer-bottom-panels designer-bottom-panels-compact">
+        <section class="data-card collapsible-panel" [class.is-expanded]="connectionsPanelOpen">
           <button type="button" class="collapsible-toggle" (click)="connectionsPanelOpen = !connectionsPanelOpen">
             <span class="collapsible-title">Conexiones del flujo</span>
             <span class="collapsible-summary">{{ connectionsCountLabel }}</span>
             <span class="collapsible-chevron">{{ connectionsPanelOpen ? "▼" : "▶" }}</span>
           </button>
           @if (connectionsPanelOpen) {
+            <div class="collapsible-panel-body">
             @if (!connectionsPanelRows.length) {
               <p class="panel-empty">{{ emptyTransitionsMessage }}</p>
               @if (editMode && canEdit) {
@@ -631,109 +908,176 @@
               </button>
             </div>
           }
-
             }
+            </div>
           }
         </section>
 
-        <section class="data-card collapsible-panel">
+        <section class="data-card collapsible-panel" [class.is-expanded]="lanesPanelOpen">
           <button type="button" class="collapsible-toggle" (click)="lanesPanelOpen = !lanesPanelOpen">
             <span class="collapsible-title">Carriles / Swimlanes</span>
             <span class="collapsible-summary">{{ lanesCountLabel }}</span>
             <span class="collapsible-chevron">{{ lanesPanelOpen ? "▼" : "▶" }}</span>
           </button>
           @if (lanesPanelOpen) {
-            <ul class="lanes-list lanes-list-compact">
-              @for (lane of displayLaneNames; track lane) {
-                <li class="lane-row">
-                  <span class="lane-name">{{ lane }}</span>
-                  <span class="lane-count">{{ activitiesInLane(lane) }}</span>
-                  @if (canEdit && editMode) {
-                    <button type="button" class="btn-link" (click)="removeCustomLane(lane)">Quitar</button>
-                  }
-                </li>
-              }
-            </ul>
+            <div class="collapsible-panel-body">
+            @if (displayLaneNames.length) {
+              <ul class="lanes-list lanes-list-compact">
+                @for (lane of displayLaneNames; track lane) {
+                  <li class="lane-row">
+                    <span class="lane-name">{{ lane }}</span>
+                    <span class="lane-count">{{ activitiesInLane(lane) }}</span>
+                    @if (canEdit && editMode) {
+                      <button type="button" class="btn-link" (click)="removeCustomLane(lane)">Quitar</button>
+                    }
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="panel-empty">No hay carriles definidos todavía.</p>
+            }
             @if (canEdit && editMode) {
               <button type="button" class="btn btn-secondary btn-sm" (click)="openAddLaneModal()">+ Agregar carril</button>
+            } @else if (canEdit) {
+              <p class="panel-hint">Active modo edición para agregar o quitar carriles.</p>
             }
+            </div>
           }
         </section>
 
-        <section class="data-card collapsible-panel">
+        <section class="data-card collapsible-panel" [class.is-expanded]="flowTextPanelOpen">
           <button type="button" class="collapsible-toggle" (click)="flowTextPanelOpen = !flowTextPanelOpen">
             <span class="collapsible-title">Vista textual del flujo</span>
             <span class="collapsible-summary">{{ hasTransitions ? (data.flowPreview?.length ?? 0) + " pasos" : "Sin conexiones" }}</span>
             <span class="collapsible-chevron">{{ flowTextPanelOpen ? "▼" : "▶" }}</span>
           </button>
           @if (flowTextPanelOpen) {
-            @if (!hasTransitions) {
-              <p class="panel-empty">{{ emptyTransitionsMessage }}</p>
-            } @else {
-              <ol class="flow-text-list flow-text-compact">
-                @for (line of data.flowPreview; track line) {
-                  <li>{{ line }}</li>
-                }
-              </ol>
-            }
+            <div class="collapsible-panel-body">
+              @if (!hasTransitions) {
+                <p class="panel-empty">{{ emptyTransitionsMessage }}</p>
+              } @else {
+                <ol class="flow-text-list flow-text-compact">
+                  @for (line of data.flowPreview; track line) {
+                    <li>{{ line }}</li>
+                  }
+                </ol>
+              }
+            </div>
           }
         </section>
+      </div>
       </div>
     }
   }
 
-  @if (showValidation && validationResult) {
-    <div class="modal-overlay" (click)="closeValidation()">
-      <div class="modal validation-modal" (click)="$event.stopPropagation()">
-        <h2>Validación del flujo</h2>
-
-        <p
-          class="validation-message"
-          [class.valid]="validationResult.valid"
-          [class.invalid]="!validationResult.valid"
-        >
-          {{ validationResult.message }}
-        </p>
-
-        @if (validationResult.errors?.length) {
-          <div class="validation-block errors">
-            <h3>Errores</h3>
-
-            <ul>
-              @for (e of validationResult.errors; track e) {
-                <li>{{ friendlyValidationMessage(e) }}</li>
-              }
-            </ul>
-          </div>
-        }
-
-        @if (validationResult.warnings?.length) {
-          <div class="validation-block warnings">
-            <h3>Advertencias</h3>
-
-            <ul>
-              @for (w of validationResult.warnings; track w) {
-                <li>{{ friendlyValidationMessage(w) }}</li>
-              }
-            </ul>
-          </div>
-        }
-
-        @if (validationResult.valid) {
-          <p class="validation-ok">
-            El flujo cumple las reglas básicas de inicio, fin y conexiones.
-          </p>
-        }
-
-        <div class="modal-actions">
+  @if (showValidation) {
+    <div
+      class="validation-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="validation-dialog-title"
+      (click)="closeValidation()"
+    >
+      <div class="validation-dialog" (click)="$event.stopPropagation()">
+        <header class="validation-dialog-header">
+          <h2 id="validation-dialog-title">Validación del Workflow</h2>
           <button
             type="button"
-            class="btn btn-primary"
+            class="validation-close-btn"
+            aria-label="Cerrar"
             (click)="closeValidation()"
           >
+            ×
+          </button>
+        </header>
+
+        @if (validating) {
+          <div class="validation-loading">
+            <span class="validation-spinner" aria-hidden="true"></span>
+            <p>Validando flujo UML…</p>
+          </div>
+        } @else if (validationResult) {
+          <div class="validation-dialog-body">
+          <div
+            class="validation-status-banner"
+            [class.is-valid]="validationResult.valid"
+            [class.is-invalid]="!validationResult.valid"
+          >
+            @if (validationResult.valid) {
+              <p class="validation-status-title">
+                <span class="validation-status-mark" aria-hidden="true">✓</span>
+                Flujo válido
+              </p>
+              <p class="validation-status-hint">
+                La política cumple las reglas básicas de inicio, fin y conexiones.
+              </p>
+            } @else {
+              <p class="validation-status-title">
+                <span class="validation-status-mark is-error" aria-hidden="true">✕</span>
+                Flujo inválido
+              </p>
+              <p class="validation-status-hint">
+                Corrija los errores indicados antes de publicar o ejecutar el trámite.
+              </p>
+            }
+          </div>
+
+          <div class="validation-summary">
+            <span class="validation-chip chip-errors">
+              {{ validationErrorCount() }} error{{ validationErrorCount() === 1 ? '' : 'es' }}
+            </span>
+            <span class="validation-chip chip-warnings">
+              {{ validationWarningCount() }} advertencia{{ validationWarningCount() === 1 ? '' : 's' }}
+            </span>
+            <span class="validation-chip chip-passed">
+              {{ validationPassedCheckCount() }}/{{ validationChecklist().length }} verificaciones OK
+            </span>
+          </div>
+
+          <section class="validation-checklist">
+            <h3>Verificaciones básicas</h3>
+            <ul>
+              @for (check of validationChecklist(); track check.id) {
+                <li [class]="'check-' + check.status">
+                  <span class="check-icon" aria-hidden="true">{{ validationCheckIcon(check.status) }}</span>
+                  <span class="check-label">{{ check.label }}</span>
+                  @if (check.detail) {
+                    <span class="check-detail">{{ check.detail }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+
+          @if (validationResult.errors?.length) {
+            <section class="validation-list-block validation-errors">
+              <h3>Errores</h3>
+              <ul>
+                @for (e of validationResult.errors; track e) {
+                  <li>{{ e }}</li>
+                }
+              </ul>
+            </section>
+          }
+
+          @if (validationResult.warnings?.length) {
+            <section class="validation-list-block validation-warnings">
+              <h3><span class="validation-section-mark" aria-hidden="true">!</span> Advertencias</h3>
+              <ul>
+                @for (w of validationResult.warnings; track w) {
+                  <li>{{ w }}</li>
+                }
+              </ul>
+            </section>
+          }
+          </div>
+        }
+
+        <footer class="validation-dialog-footer">
+          <button type="button" class="btn btn-primary" (click)="closeValidation()">
             Cerrar
           </button>
-        </div>
+        </footer>
       </div>
     </div>
   }
@@ -845,43 +1189,64 @@
           <input type="text" [(ngModel)]="activityForm.name" placeholder="Ej. Revisar solicitud" />
         </label>
 
-        <label
-          >Responsable / Carril
-          <input
-            type="text"
-            [(ngModel)]="activityForm.responsibleName"
-            list="activity-lane-options"
-            placeholder="Ej. Funcionario, Recursos Humanos"
-          />
-          <datalist id="activity-lane-options">
-            @for (lane of displayLaneNames; track lane) {
-              <option [value]="lane"></option>
-            }
-            @for (r of responsibleOptions; track r) {
-              <option [value]="r"></option>
-            }
-            @for (s of suggestedLaneNames; track s) {
-              <option [value]="s"></option>
-            }
-          </datalist>
-          <span class="field-hint">Seleccione un carril existente o escriba uno nuevo.</span>
-        </label>
+        @if (isGatewayActivityForm()) {
+          <p class="field-hint full-width">{{ gatewayActivityFormHint() }}</p>
+          <label
+            >Carril (posición en diagrama)
+            <input
+              type="text"
+              [(ngModel)]="activityForm.responsibleName"
+              list="activity-lane-options"
+              placeholder="Ej. Técnico, Supervisor"
+            />
+            <datalist id="activity-lane-options">
+              @for (lane of displayLaneNames; track lane) {
+                <option [value]="lane"></option>
+              }
+              @for (s of suggestedLaneNames; track s) {
+                <option [value]="s"></option>
+              }
+            </datalist>
+          </label>
+        } @else {
+          <label
+            >Responsable / Carril
+            <input
+              type="text"
+              [(ngModel)]="activityForm.responsibleName"
+              list="activity-lane-options"
+              placeholder="Ej. Funcionario, Recursos Humanos"
+            />
+            <datalist id="activity-lane-options">
+              @for (lane of displayLaneNames; track lane) {
+                <option [value]="lane"></option>
+              }
+              @for (r of responsibleOptions; track r) {
+                <option [value]="r"></option>
+              }
+              @for (s of suggestedLaneNames; track s) {
+                <option [value]="s"></option>
+              }
+            </datalist>
+            <span class="field-hint">Seleccione un carril existente o escriba uno nuevo.</span>
+          </label>
 
-        <label
-          >Tipo de actividad
-          <select [(ngModel)]="activityForm.activityType">
-            @for (opt of guidedActivityTypeOptions; track opt.value) {
-              <option [value]="opt.value">{{ opt.label }}</option>
-            }
-          </select>
-          <span class="field-hint">{{ activityTypeHelpText() }}</span>
-        </label>
+          <label
+            >Tipo de actividad
+            <select [(ngModel)]="activityForm.activityType">
+              @for (opt of guidedActivityTypeOptions; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+            <span class="field-hint">{{ activityTypeHelpText() }}</span>
+          </label>
 
-        <label
-          >Tiempo estimado (horas)
-          <input type="number" min="1" [(ngModel)]="activityForm.estimatedTimeHours" />
-          <span class="field-hint">Servirá después para medir retrasos y cuellos de botella.</span>
-        </label>
+          <label
+            >Tiempo estimado (horas)
+            <input type="number" min="1" [(ngModel)]="activityForm.estimatedTimeHours" />
+            <span class="field-hint">Servirá después para medir retrasos y cuellos de botella.</span>
+          </label>
+        }
 
         <label class="full-width"
           >Descripción
@@ -990,7 +1355,7 @@
       <div class="form-grid">
         <label
           >Conectar desde
-          <select [(ngModel)]="transitionForm.fromActivityId">
+          <select [(ngModel)]="transitionForm.fromActivityId" (ngModelChange)="onTransitionFormEndpointChange()">
             <option value="">Seleccione...</option>
             @for (a of activityOptionsForSelect(); track a.id) {
               <option [value]="a.id">{{ a.name }}</option>
@@ -1000,7 +1365,7 @@
 
         <label
           >Conectar hacia
-          <select [(ngModel)]="transitionForm.toActivityId">
+          <select [(ngModel)]="transitionForm.toActivityId" (ngModelChange)="onTransitionFormEndpointChange()">
             <option value="">Seleccione...</option>
             @for (a of activityOptionsForSelect(); track a.id) {
               <option [value]="a.id">{{ a.name }}</option>
@@ -1011,30 +1376,34 @@
         <label class="full-width"
           >Tipo de conexión
           <select [(ngModel)]="transitionForm.transitionType">
-            @for (opt of guidedTransitionTypeOptions; track opt.value) {
-              <option [value]="opt.value" [disabled]="!opt.enabled">
-                {{ opt.label }}{{ !opt.enabled ? " (Próximamente)" : "" }}
-              </option>
+            @for (opt of transitionTypeOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
             }
           </select>
-          @if (transitionForm.transitionType === 'SEQUENTIAL') {
-            <span class="field-hint">Pasa directamente a la siguiente actividad.</span>
-          }
-          @if (isConditionalTransitionType()) {
-            <span class="field-hint">Depende de una respuesta como Aprobado, Observado o Rechazado.</span>
+          @if (currentTransitionFormHint()) {
+            <span class="field-hint">{{ currentTransitionFormHint() }}</span>
           }
         </label>
 
         @if (isConditionalTransitionType()) {
           <label class="full-width"
-            >Etiqueta de condición *
+            >Etiqueta de condición {{ transitionConditionRequired() ? '*' : '(recomendado)' }}
             <input
               type="text"
               [(ngModel)]="transitionForm.conditionLabel"
-              placeholder="Ej. Aprobado, Observado, Rechazado"
+              [placeholder]="transitionConditionRequired() ? 'Ej. Aprobado, Observado' : 'Ej. Reintentar, Corregir'"
             />
-            <span class="field-hint">Ejemplos: {{ conditionLabelExamples.join(', ') }}</span>
+            @if (transitionConditionRequired()) {
+              <span class="field-hint">Ejemplos: {{ conditionLabelExamples.join(', ') }}</span>
+            }
           </label>
+          <label class="full-width">Expresión de condición (opcional)
+            <input type="text" [(ngModel)]="transitionForm.conditionExpression" />
+          </label>
+        }
+
+        @if (transitionFormWarning) {
+          <p class="transition-form-warning" role="status">{{ transitionFormWarning }}</p>
         }
 
         @if (!editingTransitionId) {
@@ -1240,18 +1609,23 @@
       @if (transitionWizardStep === 3) {
         <label class="full-width">Tipo de conexión
           <select [(ngModel)]="transitionWizardForm.transitionType">
-            @for (opt of guidedTransitionTypeOptions; track opt.value) {
-              @if (opt.enabled) {
-                <option [value]="opt.value">{{ opt.label }}</option>
-              }
+            @for (opt of transitionTypeOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
             }
           </select>
-          <span class="field-hint">{{ transitionWizardForm.transitionType === 'CONDITIONAL' ? 'Depende de una respuesta.' : 'Pasa a la siguiente actividad.' }}</span>
+          @if (wizardTransitionTypeHint()) {
+            <span class="field-hint">{{ wizardTransitionTypeHint() }}</span>
+          }
         </label>
       }
-      @if (transitionWizardStep === 4) {
-        <label class="full-width">Etiqueta de condición *
-          <input type="text" [(ngModel)]="transitionWizardForm.conditionLabel" placeholder="Ej. Aprobado" />
+      @if (transitionWizardStep === 4 && wizardShowsConditionStep()) {
+        <label class="full-width">
+          Etiqueta de condición {{ wizardConditionRequired() ? '*' : '(recomendado)' }}
+          <input
+            type="text"
+            [(ngModel)]="transitionWizardForm.conditionLabel"
+            [placeholder]="wizardConditionRequired() ? 'Ej. Aprobado' : 'Ej. Reintentar'"
+          />
         </label>
       }
       @if (transitionWizardStep === 5) {

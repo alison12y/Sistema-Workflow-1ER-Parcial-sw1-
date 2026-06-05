@@ -9,10 +9,20 @@ public class MyActivityDto {
     private String code;
     private String policyName;
     private String activityName;
+    private String workflowActivityId;
     private String status;
     private String responsible;
     private String priority;
+    private String tramiteStatus;
     private LocalDateTime assignedAt;
+    private LocalDateTime takenAt;
+    private LocalDateTime completedAt;
+    private String takenBy;
+    /** NORMAL, OBSERVADA, ERROR */
+    private String inboxCategory;
+    private boolean canTake;
+    private boolean canComplete;
+    private String workflowError;
 
     public String getTramiteId() {
         return tramiteId;
@@ -62,6 +72,14 @@ public class MyActivityDto {
         this.activityName = activityName;
     }
 
+    public String getWorkflowActivityId() {
+        return workflowActivityId;
+    }
+
+    public void setWorkflowActivityId(String workflowActivityId) {
+        this.workflowActivityId = workflowActivityId;
+    }
+
     public String getStatus() {
         return status;
     }
@@ -92,5 +110,69 @@ public class MyActivityDto {
 
     public void setAssignedAt(LocalDateTime assignedAt) {
         this.assignedAt = assignedAt;
+    }
+
+    public String getTramiteStatus() {
+        return tramiteStatus;
+    }
+
+    public void setTramiteStatus(String tramiteStatus) {
+        this.tramiteStatus = tramiteStatus;
+    }
+
+    public LocalDateTime getTakenAt() {
+        return takenAt;
+    }
+
+    public void setTakenAt(LocalDateTime takenAt) {
+        this.takenAt = takenAt;
+    }
+
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public String getTakenBy() {
+        return takenBy;
+    }
+
+    public void setTakenBy(String takenBy) {
+        this.takenBy = takenBy;
+    }
+
+    public String getInboxCategory() {
+        return inboxCategory;
+    }
+
+    public void setInboxCategory(String inboxCategory) {
+        this.inboxCategory = inboxCategory;
+    }
+
+    public boolean isCanTake() {
+        return canTake;
+    }
+
+    public void setCanTake(boolean canTake) {
+        this.canTake = canTake;
+    }
+
+    public boolean isCanComplete() {
+        return canComplete;
+    }
+
+    public void setCanComplete(boolean canComplete) {
+        this.canComplete = canComplete;
+    }
+
+    public String getWorkflowError() {
+        return workflowError;
+    }
+
+    public void setWorkflowError(String workflowError) {
+        this.workflowError = workflowError;
     }
 }

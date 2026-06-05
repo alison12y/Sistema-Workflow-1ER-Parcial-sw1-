@@ -5,6 +5,10 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+/**
+ * @deprecated Motor BPM legacy (C). Ciclo 1 usa {@link Tramite}. API mantenida sin uso en frontend.
+ */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @Document(collection = "process_instances")
 public class ProcessInstance {
     @Id

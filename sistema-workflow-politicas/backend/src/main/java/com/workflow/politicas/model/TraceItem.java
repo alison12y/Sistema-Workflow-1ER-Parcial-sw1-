@@ -8,6 +8,10 @@ public class TraceItem {
     private String eventType;
     private String eventLabel;
     private String activityName;
+    @JsonIgnore
+    private String workflowActivityId;
+    @JsonIgnore
+    private String nextWorkflowActivityId;
     private String responsible;
     private String status;
     @JsonIgnore
@@ -43,6 +47,22 @@ public class TraceItem {
 
     public void setActivityName(String activityName) {
         this.activityName = activityName;
+    }
+
+    public String getWorkflowActivityId() {
+        return workflowActivityId;
+    }
+
+    public void setWorkflowActivityId(String workflowActivityId) {
+        this.workflowActivityId = workflowActivityId;
+    }
+
+    public String getNextWorkflowActivityId() {
+        return nextWorkflowActivityId;
+    }
+
+    public void setNextWorkflowActivityId(String nextWorkflowActivityId) {
+        this.nextWorkflowActivityId = nextWorkflowActivityId;
     }
 
     public String getResponsible() {

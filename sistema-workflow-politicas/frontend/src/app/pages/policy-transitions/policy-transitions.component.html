@@ -146,20 +146,26 @@
         <label>Tipo de conexión
           <select [(ngModel)]="form.transitionType">
             @for (opt of transitionTypeOptions; track opt.value) {
-              <option [value]="opt.value" [disabled]="!opt.enabled">
-                {{ opt.label }}{{ !opt.enabled ? ' (Próximamente)' : '' }}
-              </option>
+              <option [value]="opt.value">{{ opt.label }}</option>
             }
           </select>
+          @if (currentTransitionTypeHint()) {
+            <span class="field-hint">{{ currentTransitionTypeHint() }}</span>
+          }
         </label>
-        @if (isConditionalType()) {
-          <label>Condición / etiqueta *
-            <input type="text" [(ngModel)]="form.conditionLabel" placeholder="Ej. Aprobado, Observado" />
+        @if (showsConditionField()) {
+          <label>
+            Condición / etiqueta {{ conditionFieldRequired() ? '*' : '(recomendado)' }}
+            <input
+              type="text"
+              [(ngModel)]="form.conditionLabel"
+              [placeholder]="conditionFieldRequired() ? 'Ej. Aprobado, Observado' : 'Ej. Reintentar, Corregir'"
+            />
+          </label>
+          <label class="full-width">Expresión de condición (opcional)
+            <input type="text" [(ngModel)]="form.conditionExpression" placeholder="Expresión técnica opcional" />
           </label>
         }
-        <label class="full-width">Expresión de condición (opcional)
-          <input type="text" [(ngModel)]="form.conditionExpression" placeholder="Expresión técnica opcional" />
-        </label>
         <label>Orden
           <input type="number" min="1" [(ngModel)]="form.orderIndex" placeholder="Automático si se deja vacío" />
         </label>

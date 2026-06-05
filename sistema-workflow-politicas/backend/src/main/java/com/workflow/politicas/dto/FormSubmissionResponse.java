@@ -8,9 +8,12 @@ public class FormSubmissionResponse {
     private String id;
     private String tramiteId;
     private String policyId;
+    private String workflowActivityId;
     private String activityName;
     private int taskOrder;
+    private String submittedBy;
     private String submittedByName;
+    private LocalDateTime submittedAt;
     private List<ResponseItemDto> responses = new ArrayList<>();
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -37,6 +40,30 @@ public class FormSubmissionResponse {
 
     public void setPolicyId(String policyId) {
         this.policyId = policyId;
+    }
+
+    public String getWorkflowActivityId() {
+        return workflowActivityId;
+    }
+
+    public void setWorkflowActivityId(String workflowActivityId) {
+        this.workflowActivityId = workflowActivityId;
+    }
+
+    public String getSubmittedBy() {
+        return submittedBy;
+    }
+
+    public void setSubmittedBy(String submittedBy) {
+        this.submittedBy = submittedBy;
+    }
+
+    public LocalDateTime getSubmittedAt() {
+        return submittedAt;
+    }
+
+    public void setSubmittedAt(LocalDateTime submittedAt) {
+        this.submittedAt = submittedAt;
     }
 
     public String getActivityName() {

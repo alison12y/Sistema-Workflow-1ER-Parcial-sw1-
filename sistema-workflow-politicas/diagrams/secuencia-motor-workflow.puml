@@ -1,0 +1,33 @@
+@startuml Secuencia-Motor-Workflow-Ciclo1
+title Ciclo 1 - Secuencia: completar actividad y enrutamiento automático
+autonumber
+
+actor Funcionario
+participant "Angular\n(Mis actividades)" as UI
+participant "MyActivitiesController" as MAC
+participant "MyActivitiesService" as MAS
+participant "FormSubmissionService" as FSS
+participant "TramiteService" as TS
+participant "WorkflowRoutingService" as WRS
+database "MongoDB" as DB
+
+Funcionario -> UI : Completar actividad + formulario
+UI -> MAC : PUT /api/my-activities/{id}/complete
+MAC -> MAS : completeActivity(...)
+MAS -> FSS : validate + save FormSubmission
+FSS -> DB : form_submissions
+MAS -> TS : advance after completion
+TS -> WRS : resolveNextActivities(tramite, responses)
+WRS -> DB : workflow_transitions\n+ workflow_activities
+WRS --> TS : siguiente(s) actividad(es)
+TS -> DB : actualizar Tramite\n+ TramiteTask nuevas
+TS -> DB : TraceItem\n(ACTIVIDAD_COMPLETADA, TAREA_ASIGNADA...)
+MAS --> UI : OK
+UI --> Funcionario : Bandeja actualizada\n(polling 12s)
+
+note over Funcionario, WRS
+  El funcionario NO invoca /advance.
+  Solo administradores (depuración).
+end note
+
+@enduml

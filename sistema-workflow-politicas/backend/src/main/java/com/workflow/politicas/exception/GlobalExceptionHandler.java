@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -23,6 +24,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
         return error(HttpStatus.BAD_REQUEST, "No se pudo completar la operación.", ex.getMessage());
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex) {
+        String details = ex.getMessage() != null ? ex.getMessage() : "Estado inválido del proceso.";
+        if (isWorkflowRelated(details)) {
+            log.warn("Workflow state error: {}", details);
+            return error(HttpStatus.BAD_REQUEST, "Error en el flujo de trabajo.", details);
+        }
+        log.error("Illegal state", ex);
+        return error(HttpStatus.CONFLICT, "No se pudo completar la operación.", details);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -61,6 +73,25 @@ public class GlobalExceptionHandler {
             return error(HttpStatus.NOT_FOUND, "Recurso no encontrado", details);
         }
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "No se pudo completar la operación.", details);
+    }
+
+    private boolean isWorkflowRelated(String details) {
+        if (details == null || details.isBlank()) {
+            return false;
+        }
+        String lower = details.toLowerCase(Locale.ROOT);
+        return lower.contains("workflow")
+                || lower.contains("transición")
+                || lower.contains("transicion")
+                || lower.contains("actividad")
+                || lower.contains("paralel")
+                || lower.contains("trámite")
+                || lower.contains("tramite")
+                || lower.contains("motor")
+                || lower.contains("diagrama")
+                || lower.contains("responsable")
+                || lower.contains("iterativ")
+                || lower.contains("start");
     }
 
     private ResponseEntity<Map<String, String>> error(HttpStatus status, String message, String details) {

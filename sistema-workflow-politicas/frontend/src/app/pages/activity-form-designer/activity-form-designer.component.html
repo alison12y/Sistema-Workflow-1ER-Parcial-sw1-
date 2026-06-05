@@ -1,0 +1,251 @@
+<div class="page-crud activity-form-page">
+  <div class="page-toolbar">
+    <div>
+      @if (activity?.policyId) {
+        <a [routerLink]="['/policies', activity!.policyId, 'actividades']" class="back-link">
+          ← Volver a actividades
+        </a>
+      }
+      <h1>Diseñar formulario</h1>
+      @if (activity) {
+        <p class="policy-meta">
+          <strong>{{ activity.name }}</strong>
+          · {{ formStatusText() }}
+        </p>
+        <p class="policy-desc">
+          {{ activity.description || 'Configure los campos que el funcionario completará al atender esta actividad.' }}
+        </p>
+      }
+    </div>
+    @if (canManage) {
+      @if (!hasForm) {
+        <button type="button" class="btn btn-primary" (click)="openCreateForm()">Crear formulario</button>
+      } @else {
+        <button type="button" class="btn btn-secondary" (click)="openEditForm()">Editar formulario</button>
+        <button type="button" class="btn btn-primary" (click)="openCreateField()">+ Agregar campo</button>
+      }
+    }
+  </div>
+
+  @if (message) { <div class="alert success">{{ message }}</div> }
+  @if (error && !formModalOpen && !fieldModalOpen) { <div class="alert error">{{ error }}</div> }
+
+  @if (loading) {
+    <div class="loading">Cargando formulario...</div>
+  } @else if (!hasForm) {
+    <div class="data-card empty-form-card">
+      <div class="empty-state">
+        <h2>Esta actividad aún no tiene formulario.</h2>
+        <p>Defina los campos que el funcionario deberá completar al ejecutar esta actividad.</p>
+        @if (canManage) {
+          <button type="button" class="btn btn-primary" (click)="openCreateForm()">Crear formulario</button>
+        } @else {
+          <p class="hint">No tiene permiso para diseñar formularios.</p>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="form-layout">
+      <section class="data-card">
+        <h2>Datos del formulario</h2>
+        <dl class="detail-list compact">
+          <dt>Nombre</dt><dd>{{ form!.name }}</dd>
+          <dt>Descripción</dt><dd>{{ form!.description || '—' }}</dd>
+          <dt>Estado</dt><dd>{{ form!.active !== false ? 'Activo' : 'Inactivo' }}</dd>
+        </dl>
+      </section>
+
+      <section class="data-card">
+        <h2>Campos ({{ visibleFields.length }})</h2>
+        @if (!visibleFields.length) {
+          <div class="empty-state">Aún no hay campos configurados.</div>
+        } @else {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Orden</th>
+                  <th>Etiqueta</th>
+                  <th>Nombre técnico</th>
+                  <th>Tipo</th>
+                  <th>Requerido</th>
+                  <th>Opciones</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (field of visibleFields; track field.id || field.label + field.orderIndex) {
+                  <tr>
+                    <td>{{ field.orderIndex ?? '—' }}</td>
+                    <td>{{ field.label }}</td>
+                    <td><code>{{ field.name || '—' }}</code></td>
+                    <td>{{ field.fieldTypeLabel || fieldTypeLabel(field.fieldType) }}</td>
+                    <td>{{ requiredText(field.required) }}</td>
+                    <td>{{ field.options || '—' }}</td>
+                    <td>{{ fieldStatusText(field.active) }}</td>
+                    <td class="actions">
+                      @if (canManage) {
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="openEditField(field)">Editar</button>
+                        @if (field.active !== false) {
+                          <button type="button" class="btn btn-secondary btn-sm" (click)="toggleFieldActive(field)">Desactivar</button>
+                        } @else {
+                          <button type="button" class="btn btn-primary btn-sm" (click)="toggleFieldActive(field)">Activar</button>
+                        }
+                        <button type="button" class="btn btn-secondary btn-sm" (click)="removeField(field)">Eliminar</button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section class="data-card preview-card">
+        <h2>Vista previa</h2>
+        <p class="preview-hint">Así verá el funcionario el formulario al atender la tarea.</p>
+        <div class="form-preview">
+          @for (field of previewFields; track field.id || field.label) {
+            <div class="preview-field">
+              <label>
+                {{ field.label }}
+                @if (field.required) { <span class="required-mark">*</span> }
+              </label>
+              @if (field.helpText) {
+                <small class="help-text">{{ field.helpText }}</small>
+              }
+              @switch ((field.fieldType ?? 'TEXT').toUpperCase()) {
+                @case ('TEXTAREA') {
+                  <textarea rows="3" [placeholder]="field.placeholder || ''" disabled></textarea>
+                }
+                @case ('OBSERVATION') {
+                  <textarea rows="4" [placeholder]="field.placeholder || 'Observaciones...'" disabled></textarea>
+                }
+                @case ('NUMBER') {
+                  <input type="number" [placeholder]="field.placeholder || ''" disabled />
+                }
+                @case ('DATE') {
+                  <input type="date" disabled />
+                }
+                @case ('SELECT') {
+                  <select disabled>
+                    @for (opt of parseSelectOptions(field.options); track opt) {
+                      <option>{{ opt }}</option>
+                    }
+                  </select>
+                }
+                @case ('CHECKBOX') {
+                  <label class="checkbox-preview">
+                    <input type="checkbox" disabled />
+                    {{ field.placeholder || field.label }}
+                  </label>
+                }
+                @case ('FILE') {
+                  <input type="file" disabled />
+                }
+                @default {
+                  <input type="text" [placeholder]="field.placeholder || ''" disabled />
+                }
+              }
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+  }
+</div>
+
+@if (formModalOpen) {
+  <div class="modal-backdrop" (click)="closeFormModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>{{ form?.id ? 'Editar formulario' : 'Nuevo formulario' }}</h2>
+      @if (error) { <div class="alert error">{{ error }}</div> }
+      <div class="form-grid">
+        <label class="full-width">Nombre *
+          <input type="text" [(ngModel)]="formData.name" />
+        </label>
+        <label class="full-width">Descripción
+          <textarea rows="3" [(ngModel)]="formData.description"></textarea>
+        </label>
+        <label>Estado
+          <select [(ngModel)]="formData.active">
+            <option [ngValue]="true">Activo</option>
+            <option [ngValue]="false">Inactivo</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeFormModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving" (click)="saveForm()">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (fieldModalOpen) {
+  <div class="modal-backdrop" (click)="closeFieldModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>{{ editingFieldId ? 'Editar campo' : 'Nuevo campo' }}</h2>
+      @if (error) { <div class="alert error">{{ error }}</div> }
+      <div class="form-grid">
+        <label class="full-width">Etiqueta visible *
+          <input type="text" [(ngModel)]="fieldForm.label" (ngModelChange)="onFieldLabelChange()" />
+        </label>
+        <label class="full-width">Nombre técnico / variable *
+          <input
+            type="text"
+            [(ngModel)]="fieldForm.name"
+            placeholder="valido"
+            spellcheck="false"
+          />
+          <span class="field-help">
+            Este valor se usa en condiciones del workflow, por ejemplo: <code>valido == true</code>
+          </span>
+        </label>
+        <label>Tipo de campo *
+          <select [(ngModel)]="fieldForm.fieldType">
+            @for (opt of fieldTypeOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+        <label>Requerido
+          <select [(ngModel)]="fieldForm.required">
+            <option [ngValue]="true">Sí</option>
+            <option [ngValue]="false">No</option>
+          </select>
+        </label>
+        @if (isSelectFieldType) {
+          <label class="full-width">Opciones (separadas por coma) *
+            <input type="text" [(ngModel)]="fieldForm.options" placeholder="Aprobado, Observado, Rechazado" />
+          </label>
+        }
+        <label>Orden
+          <input type="number" min="1" [(ngModel)]="fieldForm.orderIndex" placeholder="Automático si se deja vacío" />
+        </label>
+        <label>Placeholder
+          <input type="text" [(ngModel)]="fieldForm.placeholder" />
+        </label>
+        <label class="full-width">Texto de ayuda
+          <textarea rows="2" [(ngModel)]="fieldForm.helpText"></textarea>
+        </label>
+        <label>Estado
+          <select [(ngModel)]="fieldForm.active">
+            <option [ngValue]="true">Activo</option>
+            <option [ngValue]="false">Inactivo</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeFieldModal()">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving" (click)="saveField()">
+          {{ saving ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

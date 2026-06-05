@@ -1,0 +1,31 @@
+@startuml IA-Formularios-F7-CU15
+title F7 / CU15 - Asistencia IA para formularios
+autonumber
+
+actor Funcionario
+participant "form-execution\n(Angular)" as UI
+participant "AiController" as AC
+participant "AiService" as AS
+participant "ai-service" as PY
+participant "MyActivitiesController" as MAC
+database "tramites / bitacora" as DB
+
+Funcionario -> UI : Informe libre / dictado voz
+UI -> AC : POST /api/ai/assist-form
+AC -> AS : assistForm(fields, informe)
+AS -> PY : POST /assist-form
+PY --> AS : sugerencias por campo
+AS --> UI : vista previa
+Funcionario -> UI : Aplicar (solo vacíos)
+UI -> UI : Llenar campos locales
+Funcionario -> UI : Completar actividad
+UI -> MAC : PUT .../complete
+MAC -> DB : FormSubmission + avance motor
+UI -> MAC : POST .../ai-form-assisted
+MAC -> DB : traza IA_FORMULARIO_ASISTIDO\n(sin texto completo del informe)
+
+note over Funcionario, DB
+  IA asiste; el funcionario valida y envía (RN-26, RN-21)
+end note
+
+@enduml

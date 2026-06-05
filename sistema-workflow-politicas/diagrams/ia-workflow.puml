@@ -1,0 +1,31 @@
+@startuml IA-Workflow-F6-CU14
+title F6 / CU14 - IA para diseño de workflow
+autonumber
+
+actor Diseñador
+participant "workflow-designer\n(Angular)" as UI
+participant "AiController" as AC
+participant "AiService\n(Spring)" as AS
+participant "ai-service\n(FastAPI)" as PY
+participant "Gemini API" as GEM
+participant "WorkflowActivityService" as WAS
+
+Diseñador -> UI : Prompt texto / voz
+UI -> AC : POST /api/ai/workflow/suggest
+AC -> AS : suggestWorkflow(context)
+alt AI_API_KEY configurada
+  AS -> PY : POST /workflow/suggest
+  PY -> GEM : generate_structured
+  GEM --> PY : JSON sugerencias
+  PY --> AS : activities, transitions, lanes
+else Fallback
+  AS -> AS : WorkflowSuggestLocalParser
+end
+AS --> UI : vista previa\nrequiresConfirmation=true
+Diseñador -> UI : Aplicar sugerencia (confirmar)
+UI -> WAS : create/update activities\n+ transitions
+note over Diseñador, WAS
+  La IA NO persiste sin confirmación humana (RN-26)
+end note
+
+@enduml

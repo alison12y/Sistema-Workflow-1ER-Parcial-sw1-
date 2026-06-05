@@ -1,0 +1,38 @@
+@startuml Tramite-Actividad-General-Ciclo1
+title Ciclo 1 - Flujo general de un trámite
+|Diseñador|
+start
+:Definir BusinessPolicy;
+:Diseñar WorkflowActivity\n+ WorkflowTransition (UML);
+:Configurar DynamicForm por actividad;
+:Activar política (ACTIVE);
+|Administrador / Solicitante|
+:Iniciar Tramite (CU9);
+|Sistema / Motor F1|
+:Crear TramiteTask(s);
+:Registrar traza TRAMITE_CREADO\n/ TAREA_ASIGNADA;
+|Funcionario|
+:Ver bandeja Mis tareas (CU12);
+if (Tarea PENDIENTE?) then (sí)
+  :Tomar tarea (EN_CURSO);
+endif
+:Completar formulario (CU10);
+if (Usar IA?) then (sí)
+  :Asistencia IA formulario (CU15)\nconfirmación humana;
+endif
+:FormSubmission;
+|Sistema / Motor F1|
+:WorkflowRoutingService\nresuelve transición;
+if (¿Más actividades?) then (sí)
+  :Nuevas TramiteTask\npara siguiente responsable;
+  |Funcionario|
+  :Siguiente funcionario ejecuta;
+else (no)
+  :Tramite FINALIZADO;
+endif
+|Supervisor|
+:Monitorear timeline (CU11)\npolling 12s;
+:Consultar KPI (CU13);
+stop
+
+@enduml

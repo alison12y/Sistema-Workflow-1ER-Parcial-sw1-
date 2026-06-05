@@ -1,37 +1,194 @@
 package com.workflow.politicas.service;
 
-import com.workflow.politicas.dto.KpiBottleneckDto;
-import com.workflow.politicas.dto.KpiSummaryResponse;
+import com.workflow.politicas.dto.*;
+import com.workflow.politicas.model.Department;
 import com.workflow.politicas.model.KpiReport;
 import com.workflow.politicas.model.Tramite;
 import com.workflow.politicas.model.TramiteTask;
+import com.workflow.politicas.model.User;
+import com.workflow.politicas.model.WorkflowActivity;
+import com.workflow.politicas.repository.DepartmentRepository;
 import com.workflow.politicas.repository.KpiReportRepository;
 import com.workflow.politicas.repository.TramiteRepository;
+import com.workflow.politicas.repository.UserRepository;
+import com.workflow.politicas.repository.WorkflowActivityRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
+/**
+ * KPI y cuellos de botella (F5) sobre runtime oficial: Tramite, TramiteTask, Trace, WorkflowActivity.
+ */
 @Service
 public class KpiService {
 
+    private static final String TASK_PENDIENTE = "PENDIENTE";
+    private static final String TASK_EN_CURSO = "EN_CURSO";
+    private static final String TASK_COMPLETADA = "COMPLETADA";
+    private static final double DEFAULT_SLA_HOURS = 48.0;
+
     private final TramiteRepository tramiteRepository;
     private final KpiReportRepository kpiReportRepository;
+    private final UserRepository userRepository;
+    private final DepartmentRepository departmentRepository;
+    private final WorkflowActivityRepository workflowActivityRepository;
 
-    public KpiService(TramiteRepository tramiteRepository, KpiReportRepository kpiReportRepository) {
+    public KpiService(
+            TramiteRepository tramiteRepository,
+            KpiReportRepository kpiReportRepository,
+            UserRepository userRepository,
+            DepartmentRepository departmentRepository,
+            WorkflowActivityRepository workflowActivityRepository
+    ) {
         this.tramiteRepository = tramiteRepository;
         this.kpiReportRepository = kpiReportRepository;
+        this.userRepository = userRepository;
+        this.departmentRepository = departmentRepository;
+        this.workflowActivityRepository = workflowActivityRepository;
     }
 
-    public KpiSummaryResponse getSummary() {
-        List<Tramite> tramites = tramiteRepository.findAll();
-        List<KpiBottleneckDto> bottlenecks = calculateBottlenecks(tramites);
+    public KpiDashboardFullResponse getDashboard(KpiFilter filter) {
+        KpiFilter effective = filter != null ? filter : new KpiFilter();
+        List<Tramite> tramites = filterTramites(loadTramitesForKpi(effective), effective);
+        KpiContext ctx = buildContext(tramites);
+
+        KpiDashboardFullResponse response = new KpiDashboardFullResponse();
+        response.setGeneratedAt(LocalDateTime.now());
+        response.setSufficientData(!tramites.isEmpty());
+        response.setMessage(tramites.isEmpty()
+                ? "No hay trámites en el periodo seleccionado. Cree trámites y complete actividades para generar indicadores."
+                : null);
+
+        response.setSummary(buildSummary(ctx));
+        response.setTareasPendientes(ctx.taskPending);
+        response.setTareasEnProceso(ctx.taskInProgress);
+        response.setTareasCompletadas(ctx.taskCompleted);
+        response.setTramitesActivos(ctx.tramitesActivos);
+        response.setTramitesConError(ctx.tramitesConError);
+        response.setSlowActivities(buildSlowActivities(ctx));
+        response.setEmployeeLoad(buildEmployeeLoad(ctx));
+        response.setDepartmentLoad(buildDepartmentLoad(ctx));
+        response.setBottlenecks(calculateBottlenecks(ctx));
+
+        saveKpiReport("DASHBOARD_F5", Map.of(
+                "tramites", tramites.size(),
+                "bottlenecks", response.getBottlenecks().size()
+        ));
+        return response;
+    }
+
+    public KpiSummaryResponse getSummary(KpiFilter filter) {
+        return getDashboard(filter != null ? filter : new KpiFilter()).getSummary();
+    }
+
+    public List<KpiBottleneckDto> getBottlenecks(KpiFilter filter) {
+        return getDashboard(filter != null ? filter : new KpiFilter()).getBottlenecks();
+    }
+
+    private KpiContext buildContext(List<Tramite> tramites) {
+        KpiContext ctx = new KpiContext();
+        ctx.tramites = tramites;
+        ctx.now = LocalDateTime.now();
+        ctx.usersByUsername = userRepository.findAll().stream()
+                .collect(Collectors.toMap(
+                        u -> u.getUsername().toLowerCase(Locale.ROOT),
+                        u -> u,
+                        (a, b) -> a
+                ));
+        ctx.usersByFullName = userRepository.findAll().stream()
+                .filter(u -> u.getFullName() != null && !u.getFullName().isBlank())
+                .collect(Collectors.toMap(
+                        u -> normalizeKey(u.getFullName()),
+                        u -> u,
+                        (a, b) -> a
+                ));
+        ctx.departmentsById = departmentRepository.findAll().stream()
+                .collect(Collectors.toMap(Department::getId, d -> d, (a, b) -> a));
+        ctx.activitiesById = loadActivitiesForTramites(tramites);
+
+        for (Tramite tramite : tramites) {
+            if (hasWorkflowError(tramite)) {
+                ctx.tramitesConError++;
+            }
+            if (isActivo(tramite.getStatus())) {
+                ctx.tramitesActivos++;
+            }
+
+            if (tramite.getTasks() == null || tramite.getTasks().isEmpty()) {
+                continue;
+            }
+
+            for (TramiteTask task : tramite.getTasks()) {
+                String status = normalizeTaskStatus(task.getStatus());
+                if (TASK_PENDIENTE.equals(status)) {
+                    ctx.taskPending++;
+                } else if (TASK_EN_CURSO.equals(status)) {
+                    ctx.taskInProgress++;
+                } else if (TASK_COMPLETADA.equals(status)) {
+                    ctx.taskCompleted++;
+                } else {
+                    continue;
+                }
+
+                String activityKey = activityKey(task, tramite);
+                ActivityAccumulator acc = ctx.activityMetrics.computeIfAbsent(activityKey, k -> {
+                    ActivityAccumulator a = new ActivityAccumulator();
+                    a.workflowActivityId = task.getWorkflowActivityId();
+                    a.activityName = normalizeActivity(task.getName());
+                    a.policyId = tramite.getPolicyId();
+                    a.policyName = tramite.getPolicyName();
+                    return a;
+                });
+
+                if (TASK_PENDIENTE.equals(status)) {
+                    acc.pendingCount++;
+                } else if (TASK_EN_CURSO.equals(status)) {
+                    acc.inProgressCount++;
+                } else {
+                    acc.completedCount++;
+                }
+
+                LocalDateTime waitStart = taskWaitStart(task, tramite);
+                if (TASK_COMPLETADA.equals(status)) {
+                    LocalDateTime end = task.getCompletedAt();
+                    LocalDateTime start = taskHandlingStart(task);
+                    if (start != null && end != null) {
+                        acc.completedDurationHours += hoursBetween(start, end);
+                        acc.completedSamples++;
+                    }
+                } else if (waitStart != null) {
+                    double hours = hoursBetween(waitStart, ctx.now);
+                    acc.activeWaitHours += hours;
+                    acc.activeWaitSamples++;
+                    if (isOverdue(task, hours, ctx.activitiesById)) {
+                        acc.overdueCount++;
+                    }
+                }
+
+                String employeeKey = resolveEmployeeKey(task, tramite, ctx);
+                String deptKey = resolveDepartmentKey(task, tramite, ctx);
+                String deptDisplay = ctx.departmentsById.values().stream()
+                        .filter(d -> deptKey.equals(d.getName()))
+                        .map(Department::getName)
+                        .findFirst()
+                        .orElse(deptKey);
+                accumulateLoad(ctx.employeeLoads, employeeKey, employeeKey, deptDisplay, status, task, tramite, ctx.now);
+                accumulateLoad(ctx.departmentLoads, deptKey, deptKey, deptDisplay, status, task, tramite, ctx.now);
+                acc.responsibleCounts.merge(employeeKey, 1L, Long::sum);
+                acc.departmentCounts.merge(deptKey, 1L, Long::sum);
+            }
+        }
+
+        return ctx;
+    }
+
+    private KpiSummaryResponse buildSummary(KpiContext ctx) {
+        List<Tramite> tramites = ctx.tramites;
+        List<KpiBottleneckDto> bottlenecks = calculateBottlenecks(ctx);
 
         KpiSummaryResponse summary = new KpiSummaryResponse();
         summary.setTotalTramites(tramites.size());
@@ -39,64 +196,128 @@ public class KpiService {
         summary.setEnProceso(tramites.stream().filter(t -> isEnProceso(t.getStatus())).count());
         summary.setFinalizados(tramites.stream().filter(t -> isFinalizado(t.getStatus())).count());
         summary.setCancelados(tramites.stream().filter(t -> isCancelado(t.getStatus())).count());
-        summary.setTiempoPromedio(formatDays(calculateAverageAttentionDays(tramites)));
+        summary.setTramitesActivos(ctx.tramitesActivos);
+        summary.setTramitesConError(ctx.tramitesConError);
+        summary.setTareasPendientes(ctx.taskPending);
+        summary.setTareasEnProceso(ctx.taskInProgress);
+        summary.setTareasCompletadas(ctx.taskCompleted);
+        summary.setTiempoPromedio(formatDurationHours(averageTramiteDurationHours(tramites, ctx.now)));
 
-        ActivityMetric topActivity = findActivityWithHighestDelay(tramites);
-        summary.setActividadMayorDemora(
-                topActivity != null ? topActivity.activityName : "Sin datos"
-        );
-        summary.setResponsableMayorCarga(findResponsibleWithHighestLoad(tramites));
+        double avgActivityHours = ctx.activityMetrics.values().stream()
+                .filter(a -> a.completedSamples > 0)
+                .mapToDouble(a -> a.completedDurationHours / a.completedSamples)
+                .average()
+                .orElse(0);
+        summary.setTiempoPromedioActividad(formatDurationHours(avgActivityHours));
+
+        ActivityAccumulator topSlow = ctx.activityMetrics.values().stream()
+                .max(Comparator
+                        .comparingDouble(ActivityAccumulator::activeWaitScore)
+                        .thenComparingLong(a -> a.pendingCount + a.inProgressCount))
+                .orElse(null);
+        summary.setActividadMayorDemora(topSlow != null ? topSlow.activityName : "Sin datos");
+
+        KpiLoadMetricDto topEmployee = ctx.employeeLoads.values().stream()
+                .max(Comparator.comparingLong(LoadAccumulator::totalActive))
+                .map(this::toLoadDto)
+                .orElse(null);
+        summary.setResponsableMayorCarga(topEmployee != null ? topEmployee.getDisplayName() : "Sin datos");
+
         summary.setCuelloDeBotellaPrincipal(
                 bottlenecks.isEmpty()
                         ? "Sin datos"
                         : bottlenecks.get(0).getActivityName() + " (" + bottlenecks.get(0).getLevel() + ")"
         );
-
-        saveKpiReport("SUMMARY", buildSummaryMetrics(summary, bottlenecks.size()));
         return summary;
     }
 
-    public List<KpiBottleneckDto> getBottlenecks() {
-        List<KpiBottleneckDto> bottlenecks = calculateBottlenecks(tramiteRepository.findAll());
-        saveKpiReport("BOTTLENECKS", Map.of("count", bottlenecks.size()));
-        return bottlenecks;
+    private List<KpiActivityMetricDto> buildSlowActivities(KpiContext ctx) {
+        return ctx.activityMetrics.values().stream()
+                .filter(a -> a.pendingCount + a.inProgressCount + a.completedCount > 0)
+                .sorted(Comparator
+                        .comparingDouble(ActivityAccumulator::sortScore).reversed()
+                        .thenComparing(a -> a.activityName))
+                .limit(20)
+                .map(a -> {
+                    KpiActivityMetricDto dto = new KpiActivityMetricDto();
+                    dto.setWorkflowActivityId(a.workflowActivityId);
+                    dto.setActivityName(a.activityName);
+                    dto.setPolicyId(a.policyId);
+                    dto.setPolicyName(a.policyName);
+                    dto.setPendingCount(a.pendingCount);
+                    dto.setInProgressCount(a.inProgressCount);
+                    dto.setCompletedCount(a.completedCount);
+                    dto.setOverdueCount(a.overdueCount);
+                    dto.setAverageDuration(a.completedSamples > 0
+                            ? formatDurationHours(a.completedDurationHours / a.completedSamples)
+                            : "—");
+                    dto.setAverageActiveWait(a.activeWaitSamples > 0
+                            ? formatDurationHours(a.activeWaitHours / a.activeWaitSamples)
+                            : "—");
+                    return dto;
+                })
+                .toList();
     }
 
-    private List<KpiBottleneckDto> calculateBottlenecks(List<Tramite> tramites) {
-        Map<String, ActivityGroup> groups = new HashMap<>();
-        LocalDateTime now = LocalDateTime.now();
+    private List<KpiLoadMetricDto> buildEmployeeLoad(KpiContext ctx) {
+        return ctx.employeeLoads.values().stream()
+                .sorted(Comparator.comparingLong(LoadAccumulator::totalActive).reversed())
+                .map(this::toLoadDto)
+                .toList();
+    }
 
-        for (Tramite tramite : tramites) {
-            if (isFinalizado(tramite.getStatus()) || isCancelado(tramite.getStatus())) {
-                continue;
-            }
+    private List<KpiLoadMetricDto> buildDepartmentLoad(KpiContext ctx) {
+        return ctx.departmentLoads.values().stream()
+                .sorted(Comparator.comparingLong(LoadAccumulator::totalActive).reversed())
+                .map(this::toLoadDto)
+                .toList();
+    }
 
-            if (tramite.getTasks() != null && !tramite.getTasks().isEmpty()) {
-                accumulateTaskGroups(tramite, groups, now);
-            } else {
-                accumulateTramiteGroup(tramite, groups, now);
-            }
-        }
+    private KpiLoadMetricDto toLoadDto(LoadAccumulator load) {
+        KpiLoadMetricDto dto = new KpiLoadMetricDto();
+        dto.setKey(load.key);
+        dto.setDisplayName(load.displayName);
+        dto.setDepartmentName(load.departmentName);
+        dto.setPendingCount(load.pendingCount);
+        dto.setInProgressCount(load.inProgressCount);
+        dto.setCompletedCount(load.completedCount);
+        dto.setTotalActive(load.pendingCount + load.inProgressCount);
+        dto.setAverageHandlingTime(load.handlingSamples > 0
+                ? formatDurationHours(load.handlingHours / load.handlingSamples)
+                : "—");
+        return dto;
+    }
 
+    private List<KpiBottleneckDto> calculateBottlenecks(KpiContext ctx) {
         List<KpiBottleneckDto> bottlenecks = new ArrayList<>();
-        for (ActivityGroup group : groups.values()) {
-            long stuckCount = group.pendingCount + group.inProgressCount;
-            if (stuckCount <= 0) {
+
+        for (ActivityAccumulator group : ctx.activityMetrics.values()) {
+            long stuck = group.pendingCount + group.inProgressCount;
+            if (stuck <= 0 && group.overdueCount <= 0) {
                 continue;
             }
 
-            double averageDays = group.samples == 0 ? 0 : group.totalDays / group.samples;
-            String level = determineLevel(stuckCount, averageDays);
+            double avgWaitDays = group.activeWaitSamples == 0
+                    ? 0
+                    : (group.activeWaitHours / group.activeWaitSamples) / 24.0;
+            String level = determineLevel(stuck, avgWaitDays, group.overdueCount);
             if (level == null) {
                 continue;
             }
 
             KpiBottleneckDto dto = new KpiBottleneckDto();
+            dto.setWorkflowActivityId(group.workflowActivityId);
             dto.setActivityName(group.activityName);
-            dto.setResponsible(group.responsible);
+            dto.setPolicyId(group.policyId);
+            dto.setPolicyName(group.policyName);
+            dto.setResponsible(resolveDominantResponsible(group));
+            dto.setDepartmentName(resolveDominantDepartment(group, ctx));
             dto.setPendingCount(group.pendingCount);
             dto.setInProgressCount(group.inProgressCount);
-            dto.setAverageTime(formatDays(averageDays));
+            dto.setOverdueCount(group.overdueCount);
+            dto.setAverageTime(group.activeWaitSamples > 0
+                    ? formatDurationHours(group.activeWaitHours / group.activeWaitSamples)
+                    : "—");
             dto.setLevel(level);
             dto.setObservation(buildObservation(group, level));
             bottlenecks.add(dto);
@@ -104,179 +325,245 @@ public class KpiService {
 
         bottlenecks.sort(Comparator
                 .comparingInt((KpiBottleneckDto dto) -> levelPriority(dto.getLevel()))
-                .thenComparing(
-                        (KpiBottleneckDto dto) -> dto.getPendingCount() + dto.getInProgressCount(),
-                        Comparator.reverseOrder()
-                )
+                .thenComparingLong(dto -> dto.getOverdueCount() + dto.getPendingCount() + dto.getInProgressCount())
+                .reversed()
                 .thenComparing(KpiBottleneckDto::getActivityName));
 
         return bottlenecks;
     }
 
-    private void accumulateTramiteGroup(Tramite tramite, Map<String, ActivityGroup> groups, LocalDateTime now) {
-        String activity = normalizeActivity(tramite.getCurrentActivity());
-        String responsible = normalizeResponsible(tramite.getResponsible());
-        ActivityGroup group = getOrCreateGroup(groups, activity, responsible);
-
-        if (isIniciado(tramite.getStatus())) {
-            group.pendingCount++;
-        } else if (isEnProceso(tramite.getStatus())) {
-            group.inProgressCount++;
-        } else {
-            group.pendingCount++;
-        }
-
-        addTimeSample(group, resolveAttentionStart(tramite), now);
-    }
-
-    private void accumulateTaskGroups(Tramite tramite, Map<String, ActivityGroup> groups, LocalDateTime now) {
-        for (TramiteTask task : tramite.getTasks()) {
-            if (task.getStatus() == null) {
-                continue;
-            }
-            String status = task.getStatus().trim().toUpperCase(Locale.ROOT);
-            if (!"PENDIENTE".equals(status) && !"EN_CURSO".equals(status)) {
-                continue;
-            }
-
-            String activity = normalizeActivity(task.getName());
-            String responsible = normalizeResponsible(
-                    task.getResponsible() != null ? task.getResponsible() : tramite.getResponsible()
-            );
-            ActivityGroup group = getOrCreateGroup(groups, activity, responsible);
-
-            if ("PENDIENTE".equals(status)) {
-                group.pendingCount++;
-            } else {
-                group.inProgressCount++;
-            }
-
-            LocalDateTime start = task.getStartedAt() != null ? task.getStartedAt() : tramite.getCreatedAt();
-            if (start == null) {
-                start = tramite.getUpdatedAt();
-            }
-            addTimeSample(group, start, now);
-        }
-    }
-
-    private ActivityGroup getOrCreateGroup(Map<String, ActivityGroup> groups, String activity, String responsible) {
-        String key = activity + "||" + responsible;
-        return groups.computeIfAbsent(key, ignored -> {
-            ActivityGroup group = new ActivityGroup();
-            group.activityName = activity;
-            group.responsible = responsible;
-            return group;
+    private void accumulateLoad(
+            Map<String, LoadAccumulator> loads,
+            String key,
+            String displayName,
+            String departmentName,
+            String status,
+            TramiteTask task,
+            Tramite tramite,
+            LocalDateTime now
+    ) {
+        LoadAccumulator load = loads.computeIfAbsent(key, k -> {
+            LoadAccumulator l = new LoadAccumulator();
+            l.key = key;
+            l.displayName = displayName;
+            l.departmentName = departmentName;
+            return l;
         });
-    }
 
-    private void addTimeSample(ActivityGroup group, LocalDateTime start, LocalDateTime end) {
-        if (start == null || end == null) {
-            return;
+        if (TASK_PENDIENTE.equals(status)) {
+            load.pendingCount++;
+        } else if (TASK_EN_CURSO.equals(status)) {
+            load.inProgressCount++;
+        } else if (TASK_COMPLETADA.equals(status)) {
+            load.completedCount++;
+            LocalDateTime start = taskHandlingStart(task);
+            LocalDateTime end = task.getCompletedAt();
+            if (start != null && end != null) {
+                load.handlingHours += hoursBetween(start, end);
+                load.handlingSamples++;
+            }
         }
-        group.totalDays += calculateDaysBetween(start, end);
-        group.samples++;
     }
 
-    private double calculateAverageAttentionDays(List<Tramite> tramites) {
+    private List<Tramite> loadTramitesForKpi(KpiFilter filter) {
+        if (filter.getPolicyId() != null && !filter.getPolicyId().isBlank()) {
+            return tramiteRepository.findByPolicyId(filter.getPolicyId().trim());
+        }
+        LocalDateTime from = filter.getFromDate() != null ? filter.getFromDate().atStartOfDay() : null;
+        LocalDateTime to = filter.getToDate() != null ? filter.getToDate().atTime(23, 59, 59) : null;
+        if (from != null && to != null) {
+            return tramiteRepository.findByCreatedAtBetween(from, to);
+        }
+        if (from != null) {
+            return tramiteRepository.findByCreatedAtGreaterThanEqual(from);
+        }
+        return tramiteRepository.findByStatusNot("CANCELADO");
+    }
+
+    private Map<String, WorkflowActivity> loadActivitiesForTramites(List<Tramite> tramites) {
+        Set<String> policyIds = tramites.stream()
+                .map(Tramite::getPolicyId)
+                .filter(Objects::nonNull)
+                .filter(id -> !id.isBlank())
+                .collect(Collectors.toSet());
+        Map<String, WorkflowActivity> map = new HashMap<>();
+        for (String policyId : policyIds) {
+            for (WorkflowActivity activity : workflowActivityRepository.findByPolicyId(policyId)) {
+                if (activity.getId() != null) {
+                    map.putIfAbsent(activity.getId(), activity);
+                }
+            }
+        }
+        return map;
+    }
+
+    private List<Tramite> filterTramites(List<Tramite> all, KpiFilter filter) {
+        return all.stream()
+                .filter(t -> matchesPolicy(t, filter.getPolicyId()))
+                .filter(t -> matchesStatus(t, filter.getStatus()))
+                .filter(t -> matchesDateRange(t, filter.getFromDate(), filter.getToDate()))
+                .toList();
+    }
+
+    private boolean matchesPolicy(Tramite tramite, String policyId) {
+        if (policyId == null || policyId.isBlank()) {
+            return true;
+        }
+        return policyId.equals(tramite.getPolicyId());
+    }
+
+    private boolean matchesStatus(Tramite tramite, String status) {
+        if (status == null || status.isBlank()) {
+            return true;
+        }
+        String normalized = status.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "INICIADO" -> isIniciado(tramite.getStatus());
+            case "EN_PROCESO" -> isEnProceso(tramite.getStatus());
+            case "ACTIVO" -> isActivo(tramite.getStatus());
+            case "FINALIZADO", "COMPLETADO" -> isFinalizado(tramite.getStatus());
+            case "CANCELADO" -> isCancelado(tramite.getStatus());
+            case "ERROR" -> hasWorkflowError(tramite);
+            default -> true;
+        };
+    }
+
+    private boolean matchesDateRange(Tramite tramite, LocalDate from, LocalDate to) {
+        if (tramite.getCreatedAt() == null) {
+            return from == null && to == null;
+        }
+        LocalDate created = tramite.getCreatedAt().toLocalDate();
+        if (from != null && created.isBefore(from)) {
+            return false;
+        }
+        if (to != null && created.isAfter(to)) {
+            return false;
+        }
+        return true;
+    }
+
+    private double averageTramiteDurationHours(List<Tramite> tramites, LocalDateTime now) {
         if (tramites.isEmpty()) {
             return 0;
         }
-
-        LocalDateTime now = LocalDateTime.now();
-        double totalDays = 0;
+        double total = 0;
         int count = 0;
-
         for (Tramite tramite : tramites) {
             if (tramite.getCreatedAt() == null) {
                 continue;
             }
-            LocalDateTime end = resolveAttentionEnd(tramite, now);
-            totalDays += calculateDaysBetween(tramite.getCreatedAt(), end);
+            LocalDateTime end = isFinalizado(tramite.getStatus()) || isCancelado(tramite.getStatus())
+                    ? (tramite.getUpdatedAt() != null ? tramite.getUpdatedAt() : now)
+                    : now;
+            total += hoursBetween(tramite.getCreatedAt(), end);
             count++;
         }
-
-        return count == 0 ? 0 : totalDays / count;
+        return count == 0 ? 0 : total / count;
     }
 
-    private LocalDateTime resolveAttentionEnd(Tramite tramite, LocalDateTime now) {
-        if (isFinalizado(tramite.getStatus()) || isCancelado(tramite.getStatus())) {
-            return tramite.getUpdatedAt() != null ? tramite.getUpdatedAt() : now;
+    private boolean isOverdue(TramiteTask task, double elapsedHours, Map<String, WorkflowActivity> activitiesById) {
+        double slaHours = DEFAULT_SLA_HOURS;
+        if (task.getWorkflowActivityId() != null) {
+            WorkflowActivity activity = activitiesById.get(task.getWorkflowActivityId());
+            if (activity != null && activity.getEstimatedTimeHours() != null && activity.getEstimatedTimeHours() > 0) {
+                slaHours = activity.getEstimatedTimeHours();
+            }
         }
-        return tramite.getUpdatedAt() != null ? tramite.getUpdatedAt() : now;
+        return elapsedHours > slaHours;
     }
 
-    private LocalDateTime resolveAttentionStart(Tramite tramite) {
-        if (tramite.getUpdatedAt() != null) {
-            return tramite.getUpdatedAt();
+    private LocalDateTime taskWaitStart(TramiteTask task, Tramite tramite) {
+        if (task.getStartedAt() != null) {
+            return task.getStartedAt();
         }
         return tramite.getCreatedAt();
     }
 
-    private ActivityMetric findActivityWithHighestDelay(List<Tramite> tramites) {
-        Map<String, ActivityMetric> metrics = new HashMap<>();
-        LocalDateTime now = LocalDateTime.now();
-
-        for (Tramite tramite : tramites) {
-            if (isFinalizado(tramite.getStatus()) || isCancelado(tramite.getStatus())) {
-                continue;
-            }
-
-            String activity = normalizeActivity(tramite.getCurrentActivity());
-            ActivityMetric metric = metrics.computeIfAbsent(activity, ActivityMetric::new);
-            metric.stuckCount++;
-
-            LocalDateTime start = resolveAttentionStart(tramite);
-            if (start != null) {
-                metric.totalDays += calculateDaysBetween(start, now);
-                metric.samples++;
-            }
+    private LocalDateTime taskHandlingStart(TramiteTask task) {
+        if (task.getTakenAt() != null) {
+            return task.getTakenAt();
         }
-
-        return metrics.values().stream()
-                .max(Comparator
-                        .comparingDouble(ActivityMetric::averageDays)
-                        .thenComparingInt(metric -> metric.stuckCount))
-                .orElse(null);
+        if (task.getStartedAt() != null) {
+            return task.getStartedAt();
+        }
+        return null;
     }
 
-    private String findResponsibleWithHighestLoad(List<Tramite> tramites) {
-        Map<String, Long> loadByResponsible = new HashMap<>();
+    private String activityKey(TramiteTask task, Tramite tramite) {
+        if (task.getWorkflowActivityId() != null && !task.getWorkflowActivityId().isBlank()) {
+            return task.getWorkflowActivityId();
+        }
+        return tramite.getPolicyId() + "||" + normalizeActivity(task.getName());
+    }
 
-        for (Tramite tramite : tramites) {
-            if (isFinalizado(tramite.getStatus()) || isCancelado(tramite.getStatus())) {
-                continue;
+    private String resolveEmployeeKey(TramiteTask task, Tramite tramite, KpiContext ctx) {
+        if (task.getTakenBy() != null && !task.getTakenBy().isBlank()) {
+            User user = ctx.usersByUsername.get(task.getTakenBy().trim().toLowerCase(Locale.ROOT));
+            if (user != null) {
+                return user.getFullName() != null && !user.getFullName().isBlank()
+                        ? user.getFullName().trim()
+                        : user.getUsername();
             }
+            return task.getTakenBy().trim();
+        }
+        String responsible = task.getResponsible() != null ? task.getResponsible() : tramite.getResponsible();
+        User byName = ctx.usersByFullName.get(normalizeKey(responsible));
+        if (byName != null) {
+            return byName.getFullName() != null ? byName.getFullName().trim() : byName.getUsername();
+        }
+        return normalizeResponsible(responsible);
+    }
 
-            if (tramite.getTasks() != null && !tramite.getTasks().isEmpty()) {
-                for (TramiteTask task : tramite.getTasks()) {
-                    if (task.getStatus() == null) {
-                        continue;
-                    }
-                    String status = task.getStatus().trim().toUpperCase(Locale.ROOT);
-                    if ("PENDIENTE".equals(status) || "EN_CURSO".equals(status)) {
-                        String responsible = normalizeResponsible(
-                                task.getResponsible() != null ? task.getResponsible() : tramite.getResponsible()
-                        );
-                        loadByResponsible.merge(responsible, 1L, Long::sum);
-                    }
+    private String resolveDepartmentKey(TramiteTask task, Tramite tramite, KpiContext ctx) {
+        if (task.getTakenBy() != null && !task.getTakenBy().isBlank()) {
+            User user = ctx.usersByUsername.get(task.getTakenBy().trim().toLowerCase(Locale.ROOT));
+            if (user != null && user.getDepartmentId() != null) {
+                Department dept = ctx.departmentsById.get(user.getDepartmentId());
+                if (dept != null) {
+                    return dept.getName();
                 }
-            } else {
-                String responsible = normalizeResponsible(tramite.getResponsible());
-                loadByResponsible.merge(responsible, 1L, Long::sum);
             }
         }
+        if (task.getWorkflowActivityId() != null) {
+            WorkflowActivity wa = ctx.activitiesById.get(task.getWorkflowActivityId());
+            if (wa != null && "DEPARTMENT".equalsIgnoreCase(wa.getResponsibleType()) && wa.getResponsibleName() != null) {
+                return wa.getResponsibleName().trim();
+            }
+        }
+        String responsible = task.getResponsible() != null ? task.getResponsible() : tramite.getResponsible();
+        for (Department dept : ctx.departmentsById.values()) {
+            if (responsible != null && normalizeKey(responsible).contains(normalizeKey(dept.getName()))) {
+                return dept.getName();
+            }
+        }
+        return "Sin departamento";
+    }
 
-        return loadByResponsible.entrySet().stream()
+    private String resolveDominantResponsible(ActivityAccumulator group) {
+        return group.responsibleCounts.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
-                .orElse("Sin datos");
+                .orElse("Sin asignar");
     }
 
-    private String determineLevel(long stuckCount, double averageDays) {
-        if (stuckCount >= 3 || averageDays > 2.0) {
+    private String resolveDominantDepartment(ActivityAccumulator group, KpiContext ctx) {
+        if (group.workflowActivityId != null) {
+            WorkflowActivity wa = ctx.activitiesById.get(group.workflowActivityId);
+            if (wa != null && "DEPARTMENT".equalsIgnoreCase(wa.getResponsibleType()) && wa.getResponsibleName() != null) {
+                return wa.getResponsibleName().trim();
+            }
+        }
+        return group.departmentCounts.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse("Sin departamento");
+    }
+
+    private String determineLevel(long stuckCount, double averageDays, long overdueCount) {
+        if (overdueCount >= 2 || stuckCount >= 4 || averageDays > 2.0) {
             return "Alto";
         }
-        if (stuckCount >= 2 || averageDays >= 1.0) {
+        if (overdueCount >= 1 || stuckCount >= 2 || averageDays >= 1.0) {
             return "Medio";
         }
         if (stuckCount >= 1) {
@@ -294,57 +581,56 @@ public class KpiService {
         };
     }
 
-    private String buildObservation(ActivityGroup group, String level) {
-        long stuckCount = group.pendingCount + group.inProgressCount;
+    private String buildObservation(ActivityAccumulator group, String level) {
+        long stuck = group.pendingCount + group.inProgressCount;
         if ("Alto".equals(level)) {
-            return "Existen varios trámites acumulados en esta actividad.";
+            return "Mayor tiempo de espera y acumulación (" + stuck + " tarea(s) activa(s), "
+                    + group.overdueCount + " demorada(s)).";
         }
         if ("Medio".equals(level)) {
-            return "La actividad presenta demora moderada con " + stuckCount + " trámite(s) detenido(s).";
+            return "Demora moderada con " + stuck + " tarea(s) en bandeja.";
         }
-        return "Actividad con ligera acumulación de trámites.";
+        return "Ligera acumulación en esta actividad.";
+    }
+
+    private boolean hasWorkflowError(Tramite tramite) {
+        return tramite.getWorkflowError() != null && !tramite.getWorkflowError().isBlank();
+    }
+
+    private boolean isActivo(String status) {
+        return isIniciado(status) || isEnProceso(status);
     }
 
     private boolean isIniciado(String status) {
-        if (status == null) {
-            return false;
-        }
-        String normalized = status.trim().toUpperCase(Locale.ROOT);
-        return "INICIADO".equals(normalized) || "CREATED".equals(normalized);
+        if (status == null) return false;
+        String n = status.trim().toUpperCase(Locale.ROOT);
+        return "INICIADO".equals(n) || "CREATED".equals(n);
     }
 
     private boolean isEnProceso(String status) {
-        if (status == null) {
-            return false;
-        }
-        String normalized = status.trim().toUpperCase(Locale.ROOT);
-        return "EN_PROCESO".equals(normalized) || "IN_PROGRESS".equals(normalized);
+        if (status == null) return false;
+        String n = status.trim().toUpperCase(Locale.ROOT);
+        return "EN_PROCESO".equals(n) || "IN_PROGRESS".equals(n);
     }
 
     private boolean isFinalizado(String status) {
-        if (status == null) {
-            return false;
-        }
-        String normalized = status.trim().toUpperCase(Locale.ROOT);
-        return "COMPLETADO".equals(normalized)
-                || "FINALIZADO".equals(normalized)
-                || "COMPLETED".equals(normalized)
-                || "DONE".equals(normalized);
+        if (status == null) return false;
+        String n = status.trim().toUpperCase(Locale.ROOT);
+        return "COMPLETADO".equals(n) || "FINALIZADO".equals(n) || "COMPLETED".equals(n) || "DONE".equals(n);
     }
 
     private boolean isCancelado(String status) {
-        if (status == null) {
-            return false;
-        }
-        String normalized = status.trim().toUpperCase(Locale.ROOT);
-        return "CANCELADO".equals(normalized) || "CANCELLED".equals(normalized);
+        if (status == null) return false;
+        String n = status.trim().toUpperCase(Locale.ROOT);
+        return "CANCELADO".equals(n) || "CANCELLED".equals(n);
+    }
+
+    private String normalizeTaskStatus(String status) {
+        return status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
     }
 
     private String normalizeActivity(String activity) {
-        if (activity == null || activity.isBlank()) {
-            return "Sin actividad";
-        }
-        return activity.trim();
+        return activity == null || activity.isBlank() ? "Sin actividad" : activity.trim();
     }
 
     private String normalizeResponsible(String responsible) {
@@ -354,24 +640,34 @@ public class KpiService {
         return responsible.trim();
     }
 
-    private double calculateDaysBetween(LocalDateTime start, LocalDateTime end) {
+    private String normalizeKey(String value) {
+        return value.trim().toUpperCase(Locale.ROOT)
+                .replace("Á", "A").replace("É", "E").replace("Í", "I")
+                .replace("Ó", "O").replace("Ú", "U").replace("Ñ", "N");
+    }
+
+    private double hoursBetween(LocalDateTime start, LocalDateTime end) {
         if (start == null || end == null || end.isBefore(start)) {
             return 0;
         }
-        return Duration.between(start, end).toMinutes() / (60.0 * 24.0);
+        return Duration.between(start, end).toMinutes() / 60.0;
     }
 
-    private String formatDays(double days) {
-        if (days <= 0) {
-            return "0 días";
+    private String formatDurationHours(double hours) {
+        if (hours <= 0) {
+            return "0 h";
         }
-        if (days < 1) {
-            int hours = Math.max(1, (int) Math.round(days * 24));
-            return hours + (hours == 1 ? " hora" : " horas");
+        if (hours < 1) {
+            int minutes = Math.max(1, (int) Math.round(hours * 60));
+            return minutes + " min";
         }
+        if (hours < 24) {
+            return String.format(Locale.ROOT, "%.1f h", hours);
+        }
+        double days = hours / 24.0;
         if (Math.abs(days - Math.rint(days)) < 0.05) {
-            int wholeDays = (int) Math.round(days);
-            return wholeDays + (wholeDays == 1 ? " día" : " días");
+            int whole = (int) Math.round(days);
+            return whole + (whole == 1 ? " día" : " días");
         }
         return String.format(Locale.ROOT, "%.1f días", days);
     }
@@ -385,42 +681,63 @@ public class KpiService {
         kpiReportRepository.save(report);
     }
 
-    private Map<String, Object> buildSummaryMetrics(KpiSummaryResponse summary, int bottleneckCount) {
-        Map<String, Object> metrics = new HashMap<>();
-        metrics.put("totalTramites", summary.getTotalTramites());
-        metrics.put("iniciados", summary.getIniciados());
-        metrics.put("enProceso", summary.getEnProceso());
-        metrics.put("finalizados", summary.getFinalizados());
-        metrics.put("cancelados", summary.getCancelados());
-        metrics.put("tiempoPromedio", summary.getTiempoPromedio());
-        metrics.put("actividadMayorDemora", summary.getActividadMayorDemora());
-        metrics.put("responsableMayorCarga", summary.getResponsableMayorCarga());
-        metrics.put("cuelloDeBotellaPrincipal", summary.getCuelloDeBotellaPrincipal());
-        metrics.put("bottleneckCount", bottleneckCount);
-        return metrics;
+    private static final class KpiContext {
+        List<Tramite> tramites = List.of();
+        LocalDateTime now;
+        long taskPending;
+        long taskInProgress;
+        long taskCompleted;
+        long tramitesActivos;
+        long tramitesConError;
+        Map<String, User> usersByUsername = Map.of();
+        Map<String, User> usersByFullName = Map.of();
+        Map<String, Department> departmentsById = Map.of();
+        Map<String, WorkflowActivity> activitiesById = Map.of();
+        Map<String, ActivityAccumulator> activityMetrics = new HashMap<>();
+        Map<String, LoadAccumulator> employeeLoads = new HashMap<>();
+        Map<String, LoadAccumulator> departmentLoads = new HashMap<>();
     }
 
-    private static final class ActivityGroup {
-        private String activityName;
-        private String responsible;
-        private long pendingCount;
-        private long inProgressCount;
-        private double totalDays;
-        private int samples;
-    }
+    private static final class ActivityAccumulator {
+        String workflowActivityId;
+        String activityName;
+        String policyId;
+        String policyName;
+        long pendingCount;
+        long inProgressCount;
+        long completedCount;
+        long overdueCount;
+        Map<String, Long> responsibleCounts = new HashMap<>();
+        Map<String, Long> departmentCounts = new HashMap<>();
+        double completedDurationHours;
+        int completedSamples;
+        double activeWaitHours;
+        int activeWaitSamples;
 
-    private static final class ActivityMetric {
-        private final String activityName;
-        private int stuckCount;
-        private double totalDays;
-        private int samples;
-
-        private ActivityMetric(String activityName) {
-            this.activityName = activityName;
+        double activeWaitScore() {
+            double avgWait = activeWaitSamples == 0 ? 0 : activeWaitHours / activeWaitSamples;
+            return avgWait + (pendingCount + inProgressCount) * 8.0 + overdueCount * 12.0;
         }
 
-        private double averageDays() {
-            return samples == 0 ? 0 : totalDays / samples;
+        double sortScore() {
+            double completedAvg = completedSamples == 0 ? 0 : completedDurationHours / completedSamples;
+            double waitAvg = activeWaitSamples == 0 ? 0 : activeWaitHours / activeWaitSamples;
+            return Math.max(completedAvg, waitAvg) + (pendingCount + inProgressCount) * 4.0 + overdueCount * 6.0;
+        }
+    }
+
+    private static final class LoadAccumulator {
+        String key;
+        String displayName;
+        String departmentName;
+        long pendingCount;
+        long inProgressCount;
+        long completedCount;
+        double handlingHours;
+        int handlingSamples;
+
+        long totalActive() {
+            return pendingCount + inProgressCount;
         }
     }
 }

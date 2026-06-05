@@ -102,3 +102,11 @@
   padding-left: 1.25rem;
   font-size: 0.9rem;
 }
+
+.field-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #5c5670);
+  line-height: 1.35;
+}

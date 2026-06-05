@@ -1,5 +1,6 @@
 package com.workflow.politicas.service;
 
+import com.workflow.politicas.dto.WorkflowCollaborationModificationRequest;
 import com.workflow.politicas.dto.WorkflowDeleteResponse;
 import com.workflow.politicas.dto.WorkflowFlowValidationResponse;
 import com.workflow.politicas.dto.WorkflowTransitionCleanupResponse;
@@ -19,6 +20,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/** CRUD y validación de transiciones — modelo oficial Ciclo 1. */
 @Service
 public class WorkflowTransitionService {
 
@@ -33,15 +35,24 @@ public class WorkflowTransitionService {
     private final WorkflowTransitionRepository workflowTransitionRepository;
     private final WorkflowActivityRepository workflowActivityRepository;
     private final BusinessPolicyRepository businessPolicyRepository;
+    private final WorkflowCollaborationService workflowCollaborationService;
+    private final WorkflowRoutingService workflowRoutingService;
+    private final WorkflowFormConditionValidationService workflowFormConditionValidationService;
 
     public WorkflowTransitionService(
             WorkflowTransitionRepository workflowTransitionRepository,
             WorkflowActivityRepository workflowActivityRepository,
-            BusinessPolicyRepository businessPolicyRepository
+            BusinessPolicyRepository businessPolicyRepository,
+            WorkflowCollaborationService workflowCollaborationService,
+            WorkflowRoutingService workflowRoutingService,
+            WorkflowFormConditionValidationService workflowFormConditionValidationService
     ) {
         this.workflowTransitionRepository = workflowTransitionRepository;
         this.workflowActivityRepository = workflowActivityRepository;
         this.businessPolicyRepository = businessPolicyRepository;
+        this.workflowCollaborationService = workflowCollaborationService;
+        this.workflowRoutingService = workflowRoutingService;
+        this.workflowFormConditionValidationService = workflowFormConditionValidationService;
     }
 
     public List<WorkflowTransitionResponse> findByPolicyId(String policyId) {
@@ -82,6 +93,7 @@ public class WorkflowTransitionService {
             transition.setUpdatedAt(LocalDateTime.now());
             WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
             response.setReactivated(true);
+            registerTransitionModification(policy.getId(), "CREATE", "creó", from, to);
             return response;
         }
 
@@ -94,7 +106,9 @@ public class WorkflowTransitionService {
             transition.setActive(true);
         }
 
-        return toResponse(workflowTransitionRepository.save(transition));
+        WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
+        registerTransitionModification(policy.getId(), "CREATE", "creó", from, to);
+        return response;
     }
 
     public WorkflowTransitionResponse update(String id, WorkflowTransitionRequest request) {
@@ -121,14 +135,20 @@ public class WorkflowTransitionService {
             transition.setOrderIndex(request.getOrderIndex());
         }
         transition.setUpdatedAt(LocalDateTime.now());
-        return toResponse(workflowTransitionRepository.save(transition));
+        WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
+        registerTransitionModification(policyId, "UPDATE", "editó", from, to);
+        return response;
     }
 
     public WorkflowDeleteResponse delete(String id) {
         WorkflowTransition transition = workflowTransitionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Conexión no encontrada"));
 
+        String policyId = transition.getPolicyId();
+        WorkflowActivity from = workflowActivityRepository.findById(transition.getFromActivityId()).orElse(null);
+        WorkflowActivity to = workflowActivityRepository.findById(transition.getToActivityId()).orElse(null);
         workflowTransitionRepository.deleteById(id);
+        registerTransitionModification(policyId, "DELETE", "eliminó", from, to);
 
         WorkflowDeleteResponse response = new WorkflowDeleteResponse();
         response.setLogicalDelete(false);
@@ -156,7 +176,11 @@ public class WorkflowTransitionService {
 
         transition.setActive(true);
         transition.setUpdatedAt(LocalDateTime.now());
-        return toResponse(workflowTransitionRepository.save(transition));
+        WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
+        WorkflowActivity from = workflowActivityRepository.findById(transition.getFromActivityId()).orElse(null);
+        WorkflowActivity to = workflowActivityRepository.findById(transition.getToActivityId()).orElse(null);
+        registerTransitionModification(transition.getPolicyId(), "ACTIVATE", "activó", from, to);
+        return response;
     }
 
     public WorkflowTransitionResponse deactivate(String id) {
@@ -164,7 +188,11 @@ public class WorkflowTransitionService {
                 .orElseThrow(() -> new IllegalArgumentException("Conexión no encontrada"));
         transition.setActive(false);
         transition.setUpdatedAt(LocalDateTime.now());
-        return toResponse(workflowTransitionRepository.save(transition));
+        WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
+        WorkflowActivity from = workflowActivityRepository.findById(transition.getFromActivityId()).orElse(null);
+        WorkflowActivity to = workflowActivityRepository.findById(transition.getToActivityId()).orElse(null);
+        registerTransitionModification(transition.getPolicyId(), "DEACTIVATE", "desactivó", from, to);
+        return response;
     }
 
     public int countByPolicyId(String policyId) {
@@ -243,108 +271,70 @@ public class WorkflowTransitionService {
             }
         }
 
+        if (removedDuplicates > 0 || removedOrphans > 0) {
+            workflowCollaborationService.registerModification(
+                    policyId,
+                    new WorkflowCollaborationModificationRequest(
+                            "CLEANUP",
+                            "limpió conexiones",
+                            null,
+                            null
+                    )
+            );
+        }
+
         return response;
+    }
+
+    private void registerTransitionModification(
+            String policyId,
+            String actionType,
+            String actionLabel,
+            WorkflowActivity from,
+            WorkflowActivity to
+    ) {
+        workflowCollaborationService.registerModification(
+                policyId,
+                new WorkflowCollaborationModificationRequest(
+                        actionType,
+                        actionLabel,
+                        "TRANSITION",
+                        connectionLabel(from, to)
+                )
+        );
+    }
+
+    private static String connectionLabel(WorkflowActivity from, WorkflowActivity to) {
+        String fromName = from != null ? activityName(from) : "?";
+        String toName = to != null ? activityName(to) : "?";
+        return fromName + " → " + toName;
+    }
+
+    private static String activityName(WorkflowActivity activity) {
+        if (activity.getName() != null && !activity.getName().isBlank()) {
+            return activity.getName().trim();
+        }
+        return "Actividad";
     }
 
     public WorkflowFlowValidationResponse validateFlow(String policyId) {
         validatePolicyExists(policyId);
         List<WorkflowActivity> activities = workflowActivityRepository.findByPolicyIdOrderByOrderIndexAsc(policyId);
         List<WorkflowTransition> transitions = workflowTransitionRepository.findByPolicyIdOrderByOrderIndexAsc(policyId);
-
-        WorkflowFlowValidationResponse result = new WorkflowFlowValidationResponse();
-        List<String> warnings = new ArrayList<>();
-        List<String> errors = new ArrayList<>();
-
-        boolean hasStart = activities.stream()
-                .anyMatch(a -> a.isActive() && "START".equalsIgnoreCase(a.getActivityType()));
-        boolean hasEnd = activities.stream()
-                .anyMatch(a -> a.isActive() && "END".equalsIgnoreCase(a.getActivityType()));
-
-        if (!hasStart) {
-            warnings.add("Debe existir una actividad de inicio.");
+        WorkflowFlowValidationResponse response = WorkflowFlowValidationHelper.validate(
+                policyId,
+                activities,
+                transitions,
+                workflowRoutingService
+        );
+        workflowFormConditionValidationService.appendFormConditionWarnings(
+                policyId,
+                response.getWarnings()
+        );
+        if (!response.getWarnings().isEmpty() && response.getErrors().isEmpty()) {
+            response.setMessage("El flujo tiene advertencias.");
         }
-        if (!hasEnd) {
-            warnings.add("Debe existir una actividad de fin.");
-        }
-        if (activities.isEmpty()) {
-            errors.add("Agregue al menos una actividad para diseñar el flujo.");
-        }
-
-        Set<String> activeActivityIds = activities.stream()
-                .filter(WorkflowActivity::isActive)
-                .map(WorkflowActivity::getId)
-                .collect(Collectors.toSet());
-
-        Set<String> duplicatePairs = new HashSet<>();
-        for (WorkflowTransition t : transitions) {
-            if (!t.isActive()) {
-                continue;
-            }
-            String pair = t.getFromActivityId() + "->" + t.getToActivityId();
-            if (!duplicatePairs.add(pair)) {
-                warnings.add("Existe una transición duplicada entre \""
-                        + t.getFromActivityName() + "\" y \"" + t.getToActivityName() + "\".");
-            }
-            if ("CONDITIONAL".equalsIgnoreCase(t.getTransitionType())
-                    && (t.getConditionLabel() == null || t.getConditionLabel().isBlank())) {
-                warnings.add("La conexión condicional de \"" + t.getFromActivityName()
-                        + "\" hacia \"" + t.getToActivityName() + "\" no tiene etiqueta de condición.");
-            }
-        }
-
-        Set<String> withOutgoing = transitions.stream()
-                .filter(WorkflowTransition::isActive)
-                .map(WorkflowTransition::getFromActivityId)
-                .collect(Collectors.toSet());
-        Set<String> withIncoming = transitions.stream()
-                .filter(WorkflowTransition::isActive)
-                .map(WorkflowTransition::getToActivityId)
-                .collect(Collectors.toSet());
-
-        for (WorkflowActivity activity : activities) {
-            if (!activity.isActive()) {
-                continue;
-            }
-            String activityId = activity.getId();
-            boolean isStart = "START".equalsIgnoreCase(activity.getActivityType());
-            boolean isEnd = "END".equalsIgnoreCase(activity.getActivityType());
-            boolean hasOut = withOutgoing.contains(activityId);
-            boolean hasIn = withIncoming.contains(activityId);
-
-            boolean isDecision = "DECISION".equalsIgnoreCase(activity.getActivityType());
-            long conditionalOut = transitions.stream()
-                    .filter(WorkflowTransition::isActive)
-                    .filter(t -> activityId.equals(t.getFromActivityId()))
-                    .filter(t -> "CONDITIONAL".equalsIgnoreCase(t.getTransitionType())
-                            || (t.getConditionLabel() != null && !t.getConditionLabel().isBlank()))
-                    .count();
-
-            if (!isStart && !isEnd && !hasOut && !hasIn) {
-                warnings.add("La actividad \"" + activity.getName() + "\" no está conectada.");
-            } else if (!isEnd && !hasOut) {
-                warnings.add("La actividad \"" + activity.getName() + "\" no tiene salida.");
-            } else if (!isStart && !hasIn) {
-                warnings.add("La actividad \"" + activity.getName() + "\" no tiene entrada.");
-            } else if (isDecision && conditionalOut < 2) {
-                warnings.add("La decisión \"" + activity.getName() + "\" necesita al menos dos salidas.");
-            }
-        }
-
-        if (activeActivityIds.size() > 1 && transitions.stream().noneMatch(WorkflowTransition::isActive)) {
-            warnings.add("Debe conectar las actividades para formar el flujo.");
-        }
-
-        result.setWarnings(warnings);
-        result.setErrors(errors);
-        result.setValid(errors.isEmpty() && warnings.isEmpty());
-        if (result.isValid()) {
-            result.setMessage("Flujo válido.");
-        } else if (!errors.isEmpty()) {
-            result.setMessage("El flujo tiene errores que deben corregirse.");
-        } else {
-            result.setMessage("El flujo tiene advertencias.");
-        }
-        return result;
+        return response;
     }
 
     public List<String> buildFlowPreview(String policyId) {

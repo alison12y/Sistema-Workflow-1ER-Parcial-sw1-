@@ -1,0 +1,55 @@
+@startuml Casos-de-Uso-Ciclo1
+title Ciclo 1 - 16 Casos de Uso
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Administrador\ndel sistema" as Admin
+actor "Dueño de proceso\n/ Diseñador" as Designer
+actor "Funcionario" as Worker
+actor "Supervisor" as Supervisor
+actor "Solicitante /\nAtención" as Requester
+
+rectangle "Administración (F0)" {
+  Admin --> (CU1 Gestionar usuarios)
+  Admin --> (CU2 Gestionar roles y permisos)
+  Admin --> (CU3 Gestionar departamentos)
+}
+
+rectangle "Diseño de proceso (F0-F8)" {
+  Designer --> (CU4 Gestionar políticas de negocio)
+  Designer --> (CU5 Diseñar workflow UML 2.5\ncon swimlanes)
+  Designer --> (CU6 Configurar estructuras de flujo)
+  Designer --> (CU7 Configurar responsables y\nenrutamiento automático)
+  Designer --> (CU8 Diseñar formularios dinámicos\npor actividad)
+  Designer --> (CU14 Diseñar workflow con IA\npor texto/voz)
+  Designer --> (CU16 Diseño colaborativo básico\nrealtime)
+  Admin --> (CU4 Gestionar políticas de negocio)
+  Admin --> (CU5 Diseñar workflow UML 2.5\ncon swimlanes)
+}
+
+rectangle "Ejecución (F1-F2)" {
+  Requester --> (CU9 Iniciar trámite)
+  Admin --> (CU9 Iniciar trámite)
+  Worker --> (CU10 Ejecutar actividad)
+  Worker --> (CU12 Bandeja realtime\ndel funcionario)
+  Worker --> (CU15 Asistencia IA\npara formularios)
+}
+
+rectangle "Supervisión (F3-F5)" {
+  Supervisor --> (CU11 Monitorear y rastrear trámite)
+  Admin --> (CU11 Monitorear y rastrear trámite)
+  Supervisor --> (CU13 KPI y cuellos de botella)
+  Designer --> (CU13 KPI y cuellos de botella)
+}
+
+note bottom of (CU16 Diseño colaborativo básico\nrealtime)
+  Polling 11s, revisión por política,
+  sin CRDT ni edición simultánea
+end note
+
+note bottom of (CU7 Configurar responsables y\nenrutamiento automático)
+  WorkflowRoutingService -
+  el funcionario NO elige la ruta
+end note
+
+@enduml

@@ -19,6 +19,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * @deprecated Motor BPM legacy (C). Ciclo 1 usa {@link TramiteService}.
+ */
+@Deprecated(since = "0.0.1-cycle1-f0")
 @Service
 public class ProcessInstanceService {
 
