@@ -17,8 +17,8 @@ Sistema integral para **diseñar**, **ejecutar** y **supervisar** procesos organ
 | CU4 | Gestionar políticas de negocio
 | CU5 | Diseñar workflow UML 2.5 con swimlanes 
 | CU6 | Configurar estructuras de flujo 
-| CU7 | Configurar responsables y enrutamiento automático | F1–F2 |
-| CU8 | Diseñar formularios dinámicos por actividad | F4 |
+| CU7 | Configurar responsables y enrutamiento automático
+| CU8 | Diseñar formularios dinámicos por actividad
 | CU9 | Iniciar trámite | F1 |
 | CU10 | Ejecutar actividad | F1–F2 |
 | CU11 | Monitorear y rastrear trámite | F3 |
