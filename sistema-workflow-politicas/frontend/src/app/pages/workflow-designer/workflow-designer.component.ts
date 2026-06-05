@@ -3,6 +3,7 @@ import {
   ChangeDetectorRef,
   ElementRef,
   HostListener,
+  NgZone,
   OnDestroy,
   OnInit,
   ViewChild,
@@ -98,6 +99,12 @@ import {
   UmlToolboxItem,
 } from '../../utils/workflow-designer-guided.util';
 import { isVisibleActivity, isVisibleTransition } from '../../utils/workflow-visibility.util';
+import {
+  appendDictationText,
+  isVoiceDictationSupported,
+  VoiceDictationController,
+  VoiceDictationHandlers,
+} from '../../utils/voice-dictation.util';
 
 type UmlVisualType = 'START' | 'END' | 'DECISION' | 'TASK' | 'FORK' | 'JOIN';
 
@@ -168,6 +175,7 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly aiService = inject(AiService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly zone = inject(NgZone);
 
   aiPrompt = '';
   aiLoading = false;
@@ -175,23 +183,12 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
   aiError = '';
   aiSuggestion: AiWorkflowSuggestResponse | null = null;
   voiceListening = false;
+  voiceStatus = '';
   readonly aiExamplePrompt =
     'Crear una actividad Validar documentación en el departamento Legal y conectarla después de Recepción de solicitud de forma secuencial.';
-  readonly voiceSupported =
-    typeof window !== 'undefined' &&
-    (!!(window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition ||
-      !!(window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition);
+  readonly voiceSupported = isVoiceDictationSupported();
 
-  private speechRecognition: {
-    lang: string;
-    continuous: boolean;
-    interimResults: boolean;
-    onresult: ((event: { results: { [index: number]: { [index: number]: { transcript: string } } } }) => void) | null;
-    onerror: ((event: { error: string }) => void) | null;
-    onend: (() => void) | null;
-    start: () => void;
-    stop: () => void;
-  } | null = null;
+  private voiceDictation: VoiceDictationController | null = null;
 
   policyId: string | null = null;
 
@@ -402,29 +399,19 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const loggedInUsername = this.auth.getCurrentUser()?.username?.trim() ?? '';
-      if (
-        this.collaborationOwnerUsername &&
-        loggedInUsername &&
-        this.collaborationOwnerUsername !== loggedInUsername
-      ) {
-        this.resetCollaborationSession();
-      }
-      this.collaborationOwnerUsername = loggedInUsername;
-
       if (this.policyId && this.policyId !== nextPolicyId) {
         this.resetCollaborationSession();
+        this.abortVoiceDictation();
       }
 
       this.policyId = nextPolicyId;
-      if (!this.collaborationSessionId) {
-        this.collaborationSessionId = this.createCollaborationSessionId();
-      }
+      this.ensureCollaborationIdentity();
       this.loadDesigner();
     });
   }
 
   ngOnDestroy(): void {
+    this.abortVoiceDictation();
     this.resetCollaborationSession();
   }
 
@@ -2076,6 +2063,10 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
     this.saving = true;
 
     this.modalError = '';
+    this.ensureCollaborationIdentity();
+    this.logCollaborationActor(this.editingActivityId ? 'editar actividad' : 'crear actividad', {
+      activityName: this.activityForm.name?.trim(),
+    });
 
     const payload: WorkflowActivityRequest = {
       ...this.activityForm,
@@ -2346,6 +2337,10 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
     this.saving = true;
 
     this.modalError = '';
+    this.ensureCollaborationIdentity();
+    this.logCollaborationActor(
+      this.editingTransitionId ? 'editar conexión' : 'crear conexión',
+    );
 
     const payload: WorkflowTransitionRequest = {
       policyId: this.policyId ?? undefined,
@@ -2716,6 +2711,8 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
     action: 'SELECTING' | 'EDITING' | 'MOVING',
   ): void {
     if (!this.policyId || !this.collaborationSessionId || !this.editMode) return;
+    this.ensureCollaborationIdentity();
+    this.logCollaborationActor('reportEditing', { elementId, elementName, action });
     this.trackedEditingElementId = elementId;
     this.collaborationService
       .reportEditing(this.policyId, {
@@ -2759,12 +2756,68 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
     return `sess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   }
 
+  private collaborationStorageKey(): string {
+    const username = this.auth.getCurrentUser()?.username?.trim() ?? 'anon';
+    return `workflow-collaboration-session:${this.policyId ?? ''}:${username}`;
+  }
+
+  private logCollaborationActor(context: string, extra?: Record<string, unknown>): void {
+    const user = this.auth.getCurrentUser();
+    console.log(`[CU16] ${context}`, {
+      username: user?.username ?? null,
+      fullName: user?.fullName ?? null,
+      sessionId: this.collaborationSessionId || null,
+      tokenPresent: !!this.auth.getToken(),
+      ...extra,
+    });
+  }
+
+  /** Asegura que la sesión colaborativa pertenece al usuario JWT actual (no reutiliza otro usuario). */
+  private ensureCollaborationIdentity(): void {
+    const user = this.auth.getCurrentUser();
+    const username = user?.username?.trim() ?? '';
+    if (!username || !this.policyId) {
+      return;
+    }
+
+    let userChanged = false;
+    if (
+      this.collaborationOwnerUsername &&
+      this.collaborationOwnerUsername !== username
+    ) {
+      userChanged = true;
+      this.logCollaborationActor('usuario autenticado cambió — reiniciando colaboración', {
+        previous: this.collaborationOwnerUsername,
+        current: username,
+      });
+      this.resetCollaborationSession();
+    }
+
+    this.collaborationOwnerUsername = username;
+
+    const storageKey = this.collaborationStorageKey();
+    const stored = sessionStorage.getItem(storageKey);
+    if (stored) {
+      this.collaborationSessionId = stored;
+    } else if (!this.collaborationSessionId) {
+      this.collaborationSessionId = this.createCollaborationSessionId();
+      sessionStorage.setItem(storageKey, this.collaborationSessionId);
+    }
+
+    if (userChanged && this.collaborationSessionId) {
+      this.startCollaborationIfNeeded();
+    }
+  }
+
   private startCollaborationIfNeeded(): void {
     if (!this.policyId || this.collaborationStarted) return;
+    this.ensureCollaborationIdentity();
     if (!this.collaborationSessionId) {
       this.collaborationSessionId = this.createCollaborationSessionId();
+      sessionStorage.setItem(this.collaborationStorageKey(), this.collaborationSessionId);
     }
     this.collaborationStarted = true;
+    this.logCollaborationActor('abriendo colaboración');
 
     this.collaborationService.open(this.policyId, this.collaborationSessionId).subscribe({
       next: (state) => {
@@ -2795,6 +2848,8 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
 
   private pollCollaboration(): void {
     if (!this.policyId || !this.collaborationSessionId) return;
+    if (this.voiceListening) return;
+    this.ensureCollaborationIdentity();
 
     this.collaborationService
       .heartbeat(this.policyId, this.collaborationSessionId, this.loadedRevision)
@@ -2844,6 +2899,10 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
 
   private syncRevisionAfterOwnSave(): void {
     if (!this.policyId || !this.collaborationSessionId) return;
+    this.ensureCollaborationIdentity();
+    this.logCollaborationActor('refrescando colaboración tras guardar', {
+      baseRevision: this.loadedRevision,
+    });
     this.collaborationService
       .heartbeat(this.policyId, this.collaborationSessionId, this.loadedRevision)
       .subscribe({
@@ -2851,6 +2910,13 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
           const normalized = this.normalizeCollaborationState(state);
           this.loadedRevision = normalized.revision;
           this.collaborationState = normalized;
+          const latest = normalized.recentActions?.[0];
+          if (latest) {
+            console.log('[CU16] evento recibido backend', {
+              modifiedBy: latest.modifiedByDisplayName ?? latest.modifiedByUsername,
+              summary: latest.summary,
+            });
+          }
           this.cdr.detectChanges();
         },
         error: () => undefined,
@@ -2896,6 +2962,11 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
     this.stopCollaborationPolling();
     const policyId = this.policyId;
     const sessionId = this.collaborationSessionId;
+    if (this.collaborationOwnerUsername && policyId) {
+      sessionStorage.removeItem(
+        `workflow-collaboration-session:${policyId}:${this.collaborationOwnerUsername}`,
+      );
+    }
     if (policyId && sessionId) {
       this.collaborationService.close(policyId, sessionId).subscribe({
         error: () => undefined,
@@ -3063,6 +3134,10 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
 
   saveVisualChanges(): void {
     if (!this.canEdit || !this.editMode || !this.pendingVisualChanges.size) return;
+    this.ensureCollaborationIdentity();
+    this.logCollaborationActor('guardar cambios visuales', {
+      count: this.pendingVisualChanges.size,
+    });
     this.savingVisual = true;
     const entries = Array.from(this.pendingVisualChanges.entries());
     let chain$ = of(null as WorkflowActivity | null);
@@ -3076,6 +3151,7 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
         this.savingVisual = false;
         this.pendingVisualChanges.clear();
         this.message = 'Cambios visuales guardados.';
+        this.syncRevisionAfterOwnSave();
         this.flashMessage();
       },
       error: (err: HttpErrorResponse) => {
@@ -3872,50 +3948,92 @@ export class WorkflowDesignerComponent implements OnInit, OnDestroy {
   toggleVoiceDictation(): void {
     if (this.voiceListening) {
       this.stopVoiceDictation();
-    } else {
-      this.startVoiceDictation();
+      return;
     }
+    this.startVoiceDictation();
   }
 
   startVoiceDictation(): void {
     if (!this.voiceSupported) {
-      this.aiError =
-        'El reconocimiento de voz no está disponible en este navegador. Use Chrome o Edge en español.';
+      this.aiError = 'El navegador no soporta dictado por voz.';
+      this.voiceStatus = '';
+      this.cdr.detectChanges();
       return;
     }
-    const w = window as unknown as {
-      SpeechRecognition?: new () => NonNullable<typeof this.speechRecognition>;
-      webkitSpeechRecognition?: new () => NonNullable<typeof this.speechRecognition>;
-    };
-    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
-    if (!Ctor) return;
 
-    this.speechRecognition = new Ctor();
-    this.speechRecognition.lang = 'es-ES';
-    this.speechRecognition.continuous = false;
-    this.speechRecognition.interimResults = false;
-    this.speechRecognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      this.aiPrompt = (this.aiPrompt ? `${this.aiPrompt.trim()} ` : '') + transcript.trim();
-      this.cdr.detectChanges();
-    };
-    this.speechRecognition.onerror = (event) => {
-      this.aiError = `Error de voz: ${event.error}`;
-      this.voiceListening = false;
-      this.cdr.detectChanges();
-    };
-    this.speechRecognition.onend = () => {
-      this.voiceListening = false;
-      this.cdr.detectChanges();
-    };
+    this.voiceDictation?.abort();
+    this.voiceDictation = new VoiceDictationController(this.buildVoiceDictationHandlers());
+
     this.aiError = '';
-    this.voiceListening = true;
-    this.speechRecognition.start();
+    this.voiceStatus = '';
+    this.voiceDictation.start();
   }
 
   stopVoiceDictation(): void {
-    this.speechRecognition?.stop();
+    this.voiceDictation?.stop();
     this.voiceListening = false;
+    this.cdr.detectChanges();
+  }
+
+  private abortVoiceDictation(): void {
+    this.voiceDictation?.abort();
+    this.voiceDictation = null;
+    this.voiceListening = false;
+    this.voiceStatus = '';
+    this.cdr.detectChanges();
+  }
+
+  private buildVoiceDictationHandlers(): VoiceDictationHandlers {
+    return {
+      onTranscript: (text) => {
+        this.zone.run(() => {
+          console.log('[CU14] onresult transcript:', text);
+          this.aiPrompt = appendDictationText(this.aiPrompt, text);
+          this.cdr.detectChanges();
+        });
+      },
+      onListeningChange: (listening) => {
+        this.zone.run(() => {
+          this.voiceListening = listening;
+          this.cdr.detectChanges();
+        });
+      },
+      onStatus: (message) => {
+        this.zone.run(() => {
+          this.voiceStatus = message;
+          if (message !== 'Escuchando...') {
+            this.aiError = '';
+          }
+          this.cdr.detectChanges();
+        });
+      },
+      onError: (message) => {
+        this.zone.run(() => {
+          console.log('[CU14] onerror:', message);
+          this.aiError = message;
+          this.voiceStatus = '';
+          this.cdr.detectChanges();
+        });
+      },
+      onDebug: (event, detail) => {
+        if (event === 'start') {
+          console.log('[CU14] onstart');
+        } else if (event === 'end') {
+          console.log('[CU14] onend');
+        } else if (event === 'result') {
+          console.log('[CU14] onresult raw:', detail);
+        } else if (event === 'error') {
+          console.log('[CU14] onerror raw:', detail);
+        }
+      },
+    };
+  }
+
+  get voiceButtonLabel(): string {
+    if (this.voiceListening) {
+      return 'Detener dictado';
+    }
+    return 'Dictar por voz';
   }
 
   clearAiSuggestion(): void {

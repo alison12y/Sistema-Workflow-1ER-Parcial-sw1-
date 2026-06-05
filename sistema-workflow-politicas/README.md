@@ -9,8 +9,8 @@ Sistema integral para **diseñar**, **ejecutar** y **supervisar** procesos organ
 
 ## Alcance Ciclo 1 — 16 casos de uso
 
-| CU | Caso de uso | Fase |
-|----|-------------|------|
+| CU | Caso de uso | 
+|----|-------------|
 | CU1 | Gestionar usuarios 
 | CU2 | Gestionar roles y permisos 
 | CU3 | Gestionar departamentos 
@@ -19,14 +19,14 @@ Sistema integral para **diseñar**, **ejecutar** y **supervisar** procesos organ
 | CU6 | Configurar estructuras de flujo 
 | CU7 | Configurar responsables y enrutamiento automático
 | CU8 | Diseñar formularios dinámicos por actividad
-| CU9 | Iniciar trámite | F1 |
-| CU10 | Ejecutar actividad | F1–F2 |
-| CU11 | Monitorear y rastrear trámite | F3 |
-| CU12 | Bandeja realtime del funcionario | F2 |
-| CU13 | KPI y cuellos de botella | F5 |
-| CU14 | Diseñar workflow con IA por texto/voz | F6 |
-| CU15 | Asistencia IA para formularios | F7 |
-| CU16 | Diseño colaborativo básico realtime | F8 |
+| CU9 | Iniciar trámite 
+| CU10 | Ejecutar actividad
+| CU11 | Monitorear y rastrear trámite
+| CU12 | Bandeja realtime del funcionario 
+| CU13 | KPI y cuellos de botella
+| CU14 | Diseñar workflow con IA por texto/voz 
+| CU15 | Asistencia IA para formularios 
+| CU16 | Diseño colaborativo básico realtime 
 
 Detalle: [docs/casos-uso.md](docs/casos-uso.md) · Demo: [docs/guia-demo-ciclo1.md](docs/guia-demo-ciclo1.md)
 

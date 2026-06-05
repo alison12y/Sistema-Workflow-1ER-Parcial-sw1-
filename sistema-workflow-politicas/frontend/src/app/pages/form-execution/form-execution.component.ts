@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -26,6 +26,11 @@ import {
   mapDynamicFieldsToExecution,
   NO_FORM_OBSERVATION_FIELD,
 } from '../../utils/form-field-mapper.util';
+import {
+  appendDictationText,
+  isVoiceDictationSupported,
+  VoiceDictationController,
+} from '../../utils/voice-dictation.util';
 
 @Component({
   selector: 'app-form-execution',
@@ -34,7 +39,7 @@ import {
   templateUrl: './form-execution.component.html',
   styleUrl: './form-execution.component.scss',
 })
-export class FormExecutionComponent implements OnInit {
+export class FormExecutionComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly myActivitiesService = inject(MyActivitiesService);
@@ -43,6 +48,7 @@ export class FormExecutionComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly aiService = inject(AiService);
   private readonly aiAssistant = inject(AiAssistantService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   activity: MyActivity | null = null;
   formId: string | null = null;
@@ -68,21 +74,10 @@ export class FormExecutionComponent implements OnInit {
   aiSkippedMessage = '';
   aiError = '';
   voiceListening = false;
-  readonly voiceSupported =
-    typeof window !== 'undefined' &&
-    (!!(window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition ||
-      !!(window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition);
+  voiceStatus = '';
+  readonly voiceSupported = isVoiceDictationSupported();
 
-  private speechRecognition: {
-    lang: string;
-    continuous: boolean;
-    interimResults: boolean;
-    onresult: ((event: { results: { [index: number]: { [index: number]: { transcript: string } } } }) => void) | null;
-    onerror: ((event: { error: string }) => void) | null;
-    onend: (() => void) | null;
-    start: () => void;
-    stop: () => void;
-  } | null = null;
+  private voiceDictation: VoiceDictationController | null = null;
 
   readonly priorityLabel = tramitePriorityLabel;
   readonly canUseFormAi = this.authService.canExecuteTasks();
@@ -121,6 +116,11 @@ export class FormExecutionComponent implements OnInit {
         this.error = httpErrorMessage(err, 'No se pudo cargar la actividad');
       },
     });
+  }
+
+  ngOnDestroy(): void {
+    this.voiceDictation?.abort();
+    this.voiceDictation = null;
   }
 
   loadForm(
@@ -410,46 +410,60 @@ export class FormExecutionComponent implements OnInit {
   toggleVoiceDictation(): void {
     if (this.voiceListening) {
       this.stopVoiceDictation();
-    } else {
-      this.startVoiceDictation();
+      return;
     }
+    this.startVoiceDictation();
   }
 
   startVoiceDictation(): void {
     if (!this.voiceSupported) {
-      this.aiError = 'El dictado por voz no está disponible en este navegador.';
+      this.aiError = 'El navegador no soporta dictado por voz.';
+      this.voiceStatus = '';
+      this.cdr.detectChanges();
       return;
     }
-    const w = window as unknown as {
-      SpeechRecognition?: new () => NonNullable<typeof this.speechRecognition>;
-      webkitSpeechRecognition?: new () => NonNullable<typeof this.speechRecognition>;
-    };
-    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
-    if (!Ctor) return;
 
-    this.speechRecognition = new Ctor();
-    this.speechRecognition.lang = 'es-ES';
-    this.speechRecognition.continuous = false;
-    this.speechRecognition.interimResults = false;
-    this.speechRecognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      this.aiReport = (this.aiReport ? `${this.aiReport.trim()} ` : '') + transcript.trim();
-    };
-    this.speechRecognition.onerror = (event) => {
-      this.aiError = `Error de voz: ${event.error}`;
-      this.voiceListening = false;
-    };
-    this.speechRecognition.onend = () => {
-      this.voiceListening = false;
-    };
+    if (!this.voiceDictation) {
+      this.voiceDictation = new VoiceDictationController({
+        onTranscript: (text) => {
+          this.aiReport = appendDictationText(this.aiReport, text);
+          this.cdr.detectChanges();
+        },
+        onListeningChange: (listening) => {
+          this.voiceListening = listening;
+          this.cdr.detectChanges();
+        },
+        onStatus: (message) => {
+          this.voiceStatus = message;
+          if (message !== 'Escuchando...') {
+            this.aiError = '';
+          }
+          this.cdr.detectChanges();
+        },
+        onError: (message) => {
+          this.aiError = message;
+          this.voiceStatus = '';
+          this.cdr.detectChanges();
+        },
+      });
+    }
+
     this.aiError = '';
-    this.voiceListening = true;
-    this.speechRecognition.start();
+    this.voiceStatus = '';
+    this.voiceDictation.start();
   }
 
   stopVoiceDictation(): void {
-    this.speechRecognition?.stop();
+    this.voiceDictation?.stop();
     this.voiceListening = false;
+    this.cdr.detectChanges();
+  }
+
+  get voiceButtonLabel(): string {
+    if (this.voiceListening) {
+      return 'Detener dictado';
+    }
+    return 'Dictar por voz';
   }
 
   formatSuggestionValue(suggestion: FormFieldSuggestion): string {

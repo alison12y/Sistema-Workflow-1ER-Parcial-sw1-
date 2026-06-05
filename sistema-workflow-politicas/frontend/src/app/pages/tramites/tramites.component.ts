@@ -1,7 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { PolicyService } from '../../services/policy.service';
 import { TramiteService } from '../../services/tramite.service';
 import { UserService } from '../../services/user.service';
@@ -23,7 +23,7 @@ import {
 @Component({
   selector: 'app-tramites',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './tramites.component.html',
   styleUrl: './tramites.component.scss',
 })

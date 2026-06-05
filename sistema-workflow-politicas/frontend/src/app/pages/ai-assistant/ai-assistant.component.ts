@@ -17,10 +17,12 @@ export class AiAssistantComponent {
   loading = false;
   response = '';
   suggestions: string[] = [
-    '¿Cómo sugiero un flujo para solicitud de permiso laboral?',
-    '¿Cómo uso la Ayuda IA en el formulario de ejecución?',
-    'Explícame cómo completar actividades con el asistente local.',
-    '¿Cómo detectar cuellos de botella en un proceso?'
+    '¿Cómo diseñar un workflow UML 2.5 con carriles y decisiones?',
+    '¿Cómo usar dictado por voz en el diseñador workflow?',
+    '¿Para qué sirve el nombre técnico en formularios?',
+    '¿Cómo funciona la asistencia IA en formularios?',
+    '¿Cómo se ejecuta un trámite y avanza el motor?',
+    '¿Qué muestra el monitoreo, KPIs y la colaboración?',
   ];
 
   sendPrompt(text?: string): void {

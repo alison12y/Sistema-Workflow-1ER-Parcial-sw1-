@@ -1,8 +1,8 @@
 <div class="page-crud">
   <div class="page-toolbar">
     <div>
-      <h1>Asistente IA de Workflow</h1>
-      <p>Diseño inteligente de procesos y formularios</p>
+      <h1>Guía asistente IA</h1>
+      <p>Referencia de funcionalidades del sistema Workflow — Ciclo 1</p>
     </div>
   </div>
 
@@ -12,30 +12,116 @@
         <i class="material-icons">info</i>
       </div>
       <div class="info-text">
-        <p>Asistente IA local basado en reglas para apoyar la edición del workflow y el llenado de formularios. Puede sugerir flujos de política, campos de formulario, explicar cómo completar actividades y orientar mejoras del proceso. No requiere conexión con IA externa.</p>
-        <p><strong>Integración obligatoria:</strong> use <em>Sugerir con IA</em> en el Diseñador UML 2.5 y <em>Ayuda IA</em> en el Formulario de ejecución (Mis actividades).</p>
+        <p>
+          El sistema integra asistencia IA en el <strong>Diseñador workflow</strong> (prompt por texto y dictado por voz)
+          y en el <strong>Formulario de ejecución</strong> (informe libre y sugerencias de valores).
+          La IA solo sugiere; usted revisa y confirma antes de aplicar cambios.
+        </p>
+        <p>
+          <strong>Integración:</strong> Diseñador UML → panel <em>Asistente IA</em> · Mis tareas → <em>Asistencia IA</em> en el formulario.
+        </p>
       </div>
     </div>
+
+    <section class="guide-section" aria-label="Funcionalidades del sistema">
+      <h2 class="guide-heading">Funcionalidades implementadas</h2>
+      <div class="guide-grid">
+        <article class="guide-card">
+          <span class="guide-num">1</span>
+          <h3>Diseñador workflow UML 2.5</h3>
+          <p>START, TASK, DECISION, END, swimlanes/carriles y transiciones secuenciales, condicionales, iterativas, división paralela (Fork) y unión paralela (Join).</p>
+          <p class="guide-route"><i class="material-icons">route</i> Políticas → Diseñar workflow</p>
+        </article>
+
+        <article class="guide-card">
+          <span class="guide-num">2</span>
+          <h3>IA en el diseñador</h3>
+          <p>Prompt por texto o dictado por voz. Genera workflows completos con actividades, decisiones, conexiones y carriles. Vista previa obligatoria antes de aplicar.</p>
+          <p class="guide-example">Ej.: "Crear un workflow para solicitud de permiso laboral con carriles Funcionario, Recursos Humanos y Supervisor..."</p>
+        </article>
+
+        <article class="guide-card">
+          <span class="guide-num">3</span>
+          <h3>Formularios dinámicos</h3>
+          <p>Texto, número, fecha, checkbox, selección y archivo. Campos obligatorios y nombre técnico (variable).</p>
+          <p class="guide-example">El nombre técnico se usa en condiciones: campo <code>valido</code> → condición <code>valido == true</code></p>
+          <p class="guide-route"><i class="material-icons">route</i> Actividad → Editar formulario</p>
+        </article>
+
+        <article class="guide-card">
+          <span class="guide-num">4</span>
+          <h3>IA en formularios</h3>
+          <p>Informe libre, dictado por voz, sugerencia de valores y extracción de fechas. Los campos FILE no se autocompletan: el funcionario adjunta archivos manualmente.</p>
+          <p class="guide-route"><i class="material-icons">route</i> Mis tareas → Completar formulario</p>
+        </article>
+
+        <article class="guide-card">
+          <span class="guide-num">5</span>
+          <h3>Ejecución del trámite</h3>
+          <p>Iniciar trámite → tomar tarea → completar actividad. El motor enruta automáticamente según el diagrama. No use Avanzar manual salvo depuración o administración.</p>
+        </article>
+
+        <article class="guide-card">
+          <span class="guide-num">6</span>
+          <h3>Bandeja del funcionario</h3>
+          <p>Tareas pendientes, en curso y finalizadas. Asignación por usuario, rol o departamento según el responsable de cada actividad.</p>
+          <p class="guide-route"><i class="material-icons">route</i> Mis tareas</p>
+        </article>
+
+        <article class="guide-card">
+          <span class="guide-num">7</span>
+          <h3>Monitoreo y trazabilidad</h3>
+          <p>Estado actual, actividad en curso, responsable, historial, respuestas de formularios y trazas de auditoría. Actualización automática sin recargar.</p>
+          <p class="guide-route"><i class="material-icons">route</i> Monitoreo · Seguimiento</p>
+        </article>
+
+        <article class="guide-card">
+          <span class="guide-num">8</span>
+          <h3>KPIs</h3>
+          <p>Trámites activos/finalizados, tiempos promedio, carga por funcionario y departamento, cuellos de botella por actividad.</p>
+          <p class="guide-route"><i class="material-icons">route</i> KPIs / Cuellos de botella</p>
+        </article>
+
+        <article class="guide-card">
+          <span class="guide-num">9</span>
+          <h3>Colaboración básica</h3>
+          <p>Usuarios conectados, última modificación, actividad reciente. Si otro usuario modificó el diagrama: conflicto de edición y opción de recargar.</p>
+          <p class="guide-route"><i class="material-icons">route</i> Diseñador → panel Colaboración</p>
+        </article>
+
+        <article class="guide-card">
+          <span class="guide-num">10</span>
+          <h3>Gestión de trámites</h3>
+          <p>Cancelar trámite según permisos. Eliminar solo trámites CANCELADOS o COMPLETADOS. No eliminar trámites EN_PROCESO.</p>
+          <p class="guide-route"><i class="material-icons">route</i> Trámites</p>
+        </article>
+      </div>
+
+      <p class="guide-cycle2">
+        <i class="material-icons">schedule</i>
+        Ciclo 2 (planificado, no implementado): almacenamiento S3, app Flutter, modo offline, predicción avanzada y reportes dinámicos con IA.
+      </p>
+    </section>
 
     <div class="ai-chat-card">
       <div class="ai-history">
         @if (!response && !loading) {
           <div class="empty-chat">
             <i class="material-icons">psychology</i>
-            <p>¿En qué puedo ayudarte hoy con tus políticas de negocio?</p>
+            <p>¿En qué módulo del sistema necesita orientación?</p>
           </div>
         }
         @if (loading) {
           <div class="ai-loading">
             <div class="spinner"></div>
-            <span>Generando sugerencia inteligente...</span>
+            <span>Consultando guía...</span>
           </div>
         }
         @if (response) {
           <div class="ai-response-box">
             <div class="response-header">
               <i class="material-icons">auto_awesome</i>
-              <span>Sugerencia del Asistente</span>
+              <span>Respuesta de la guía</span>
             </div>
             <pre class="response-content">{{ response }}</pre>
             <div class="response-actions">
@@ -46,19 +132,23 @@
       </div>
 
       <div class="ai-suggestions">
-        <p>Sugerencias:</p>
+        <p>Preguntas frecuentes:</p>
         <div class="suggestion-chips">
           @for (s of suggestions; track s) {
-            <button class="chip" (click)="sendPrompt(s)">{{ s }}</button>
+            <button type="button" class="chip" (click)="sendPrompt(s)">{{ s }}</button>
           }
         </div>
       </div>
 
       <div class="ai-input-area">
-        <textarea [(ngModel)]="prompt" placeholder="Escriba su solicitud aquí (ej: Sugerir flujo para compra)..." (keyup.enter)="sendPrompt()"></textarea>
-        <button class="btn btn-primary" [disabled]="loading || !prompt.trim()" (click)="sendPrompt()">
+        <textarea
+          [(ngModel)]="prompt"
+          placeholder="Escriba su consulta (ej.: ¿Cómo usar dictado por voz en el diseñador?)"
+          (keyup.enter)="sendPrompt()"
+        ></textarea>
+        <button type="button" class="btn btn-primary" [disabled]="loading || !prompt.trim()" (click)="sendPrompt()">
           <i class="material-icons">send</i>
-          Enviar
+          Consultar
         </button>
       </div>
     </div>

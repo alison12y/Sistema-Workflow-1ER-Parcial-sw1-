@@ -33,6 +33,10 @@ public final class WorkflowSuggestLocalParser {
             return response;
         }
 
+        if (WorkflowFullPromptParser.canParse(prompt)) {
+            return WorkflowFullPromptParser.parse(request);
+        }
+
         String lower = prompt.toLowerCase(Locale.ROOT);
         Map<String, String> existingByNorm = indexActivities(request.getActivities());
 
@@ -138,6 +142,9 @@ public final class WorkflowSuggestLocalParser {
             List<AiSuggestResponsibleItem> responsibles,
             Set<String> intents
     ) {
+        if (WorkflowFullPromptParser.canParse(prompt)) {
+            return;
+        }
         if (!prompt.toLowerCase(Locale.ROOT).contains("crear") && !prompt.toLowerCase(Locale.ROOT).contains("agregar")) {
             return;
         }

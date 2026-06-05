@@ -8,16 +8,16 @@ import com.workflow.politicas.dto.WorkflowCollaborationModificationRequest;
 import com.workflow.politicas.dto.WorkflowCollaborationRecentActionDto;
 import com.workflow.politicas.dto.WorkflowCollaborationStateResponse;
 import com.workflow.politicas.model.BusinessPolicy;
-import com.workflow.politicas.model.User;
 import com.workflow.politicas.model.WorkflowActiveEdit;
+import com.workflow.politicas.security.AuthenticatedActorResolver;
+import com.workflow.politicas.security.AuthenticatedActorResolver.Actor;
 import com.workflow.politicas.model.WorkflowCollaborationMeta;
 import com.workflow.politicas.model.WorkflowCollaborationRecentAction;
 import com.workflow.politicas.model.WorkflowEditorSession;
 import com.workflow.politicas.repository.BusinessPolicyRepository;
-import com.workflow.politicas.repository.UserRepository;
 import com.workflow.politicas.repository.WorkflowCollaborationRepository;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -35,6 +35,8 @@ import java.util.Set;
 @Service
 public class WorkflowCollaborationService {
 
+    private static final Logger log = LoggerFactory.getLogger(WorkflowCollaborationService.class);
+
     static final String MODULE = "Diseñador UML";
     static final String ACTION_OPEN = "WORKFLOW_ABIERTO";
     static final String ACTION_MODIFIED = "WORKFLOW_MODIFICADO";
@@ -50,18 +52,18 @@ public class WorkflowCollaborationService {
     private final WorkflowCollaborationRepository collaborationRepository;
     private final BusinessPolicyRepository businessPolicyRepository;
     private final BitacoraService bitacoraService;
-    private final UserRepository userRepository;
+    private final AuthenticatedActorResolver actorResolver;
 
     public WorkflowCollaborationService(
             WorkflowCollaborationRepository collaborationRepository,
             BusinessPolicyRepository businessPolicyRepository,
             BitacoraService bitacoraService,
-            UserRepository userRepository
+            AuthenticatedActorResolver actorResolver
     ) {
         this.collaborationRepository = collaborationRepository;
         this.businessPolicyRepository = businessPolicyRepository;
         this.bitacoraService = bitacoraService;
-        this.userRepository = userRepository;
+        this.actorResolver = actorResolver;
     }
 
     public WorkflowCollaborationStateResponse getState(String policyId, String sessionId, Long baseRevision) {
@@ -96,7 +98,14 @@ public class WorkflowCollaborationService {
     public WorkflowCollaborationStateResponse registerOpen(String policyId, String sessionId) {
         validatePolicy(policyId);
         requireSessionId(sessionId);
-        Actor actor = resolveActor();
+        Actor actor = actorResolver.requireCurrentActor();
+        log.info(
+                "[CU16] registerOpen policyId={} sessionId={} actorUser={} actorDisplay={}",
+                policyId,
+                sessionId,
+                actor.username(),
+                actor.displayName()
+        );
         WorkflowCollaborationMeta meta = loadOrCreate(policyId);
         pruneStaleSessions(meta);
         pruneStaleActiveEdits(meta);
@@ -120,7 +129,14 @@ public class WorkflowCollaborationService {
     public WorkflowCollaborationStateResponse heartbeat(String policyId, String sessionId, Long baseRevision) {
         validatePolicy(policyId);
         requireSessionId(sessionId);
-        Actor actor = resolveActor();
+        Actor actor = actorResolver.requireCurrentActor();
+        log.debug(
+                "[CU16] heartbeat policyId={} sessionId={} actorUser={} actorDisplay={}",
+                policyId,
+                sessionId,
+                actor.username(),
+                actor.displayName()
+        );
         WorkflowCollaborationMeta meta = loadOrCreate(policyId);
         upsertSession(meta, sessionId, actor, LocalDateTime.now());
         touchActiveEditsForSession(meta, sessionId, LocalDateTime.now());
@@ -139,7 +155,7 @@ public class WorkflowCollaborationService {
         validatePolicy(policyId);
         requireSessionId(request.getSessionId());
         validateEditingRequest(request);
-        Actor actor = resolveActor();
+        Actor actor = actorResolver.requireCurrentActor();
         LocalDateTime now = LocalDateTime.now();
         WorkflowCollaborationMeta meta = loadOrCreate(policyId);
         pruneStaleSessions(meta);
@@ -199,7 +215,16 @@ public class WorkflowCollaborationService {
         if (policyId == null || policyId.isBlank()) {
             return;
         }
-        Actor actor = resolveActor();
+        Actor actor = actorResolver.requireCurrentActor();
+        log.info(
+                "[CU16] registerModification policyId={} actorUser={} actorDisplay={} actorId={} actionType={} element={}",
+                policyId,
+                actor.username(),
+                actor.displayName(),
+                actor.userId(),
+                details != null ? details.getActionType() : null,
+                details != null ? details.getElementName() : null
+        );
         LocalDateTime now = LocalDateTime.now();
         WorkflowCollaborationMeta meta = loadOrCreate(policyId);
         meta.setRevision(meta.getRevision() + 1);
@@ -274,11 +299,17 @@ public class WorkflowCollaborationService {
         while (actions.size() > RECENT_ACTIONS_MAX) {
             actions.remove(actions.size() - 1);
         }
+        log.info(
+                "[CU16] recentAction saved user={} display={} summary={}",
+                actor.username(),
+                actor.displayName(),
+                buildActionSummary(actor.displayName(), actionLabel, elementType, elementName)
+        );
     }
 
     public void registerConflict(String policyId, Long baseRevision) {
         validatePolicy(policyId);
-        Actor actor = resolveActor();
+        Actor actor = actorResolver.requireCurrentActor();
         WorkflowCollaborationMeta meta = loadOrCreate(policyId);
 
         businessPolicyRepository.findById(policyId).ifPresent(policy -> {
@@ -752,26 +783,6 @@ public class WorkflowCollaborationService {
     }
 
     private String resolveCurrentUsername() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() != null
-                && !"anonymousUser".equals(String.valueOf(auth.getPrincipal()))) {
-            return auth.getName();
-        }
-        return "system";
+        return actorResolver.resolveCurrentUsername().orElse("system");
     }
-
-    private Actor resolveActor() {
-        String username = resolveCurrentUsername();
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            String display = user.getFullName() != null && !user.getFullName().isBlank()
-                    ? user.getFullName().trim()
-                    : user.getUsername();
-            return new Actor(user.getId(), user.getUsername(), display);
-        }
-        return new Actor(username, username, bitacoraService.resolveActorDisplay(username));
-    }
-
-    private record Actor(String userId, String username, String displayName) {}
 }

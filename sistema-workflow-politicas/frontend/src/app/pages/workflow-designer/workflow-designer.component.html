@@ -212,7 +212,7 @@
               <h3 class="collab-subtitle">Conectados ahora</h3>
               @if (connectedCollaborators().length) {
                 <ul class="collab-editors-list">
-                  @for (user of connectedCollaborators(); track user.userId || user.username) {
+                  @for (user of connectedCollaborators(); track user.username) {
                     <li [class.is-self]="user.currentUser">
                       <span class="collab-presence-dot" aria-hidden="true"></span>
                       <span class="collab-editor-name">
@@ -301,23 +301,25 @@
                 </button>
               </div>
               <div class="ai-voice-row">
-                @if (voiceSupported) {
-                  <button
-                    type="button"
-                    class="btn btn-secondary btn-sm"
-                    [class.ai-voice-active]="voiceListening"
-                    [disabled]="aiLoading"
-                    (click)="toggleVoiceDictation()"
-                  >
-                    {{ voiceListening ? 'Detener voz' : 'Dictar por voz' }}
-                  </button>
-                } @else {
-                  <span class="panel-hint">Voz no disponible en este navegador.</span>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  [class.ai-voice-active]="voiceListening"
+                  [disabled]="aiLoading || aiApplying"
+                  (click)="toggleVoiceDictation(); $event.stopPropagation()"
+                >
+                  {{ voiceButtonLabel }}
+                </button>
+                @if (voiceListening) {
+                  <span class="ai-voice-status">Escuchando...</span>
                 }
                 @if (aiSuggestion) {
                   <button type="button" class="btn-link" (click)="clearAiSuggestion()">Limpiar</button>
                 }
               </div>
+              @if (voiceStatus && !aiError && voiceStatus !== 'Escuchando...') {
+                <div class="alert info ai-voice-feedback">{{ voiceStatus }}</div>
+              }
               @if (aiError) {
                 <div class="alert error">{{ aiError }}</div>
               }

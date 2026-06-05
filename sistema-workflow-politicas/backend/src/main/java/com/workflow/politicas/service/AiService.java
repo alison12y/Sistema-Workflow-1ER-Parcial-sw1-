@@ -38,6 +38,12 @@ public class AiService {
         if (request.getPolicyId() == null || request.getPolicyId().isBlank()) {
             throw new IllegalArgumentException("policyId is required");
         }
+        if (WorkflowFullPromptParser.canParse(request.getPrompt())) {
+            AiWorkflowSuggestResponse local = WorkflowFullPromptParser.parse(request);
+            saveAiRequest(request.getPrompt(), local, "WORKFLOW_SUGGEST_LOCAL_FULL", request.getUserId());
+            return local;
+        }
+
         Map<String, Object> body = AiWorkflowSuggestMapper.toAiServiceBody(request);
         try {
             Map<String, Object> raw = postToAiMap("/workflow/suggest", body);

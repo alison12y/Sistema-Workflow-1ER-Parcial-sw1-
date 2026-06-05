@@ -201,19 +201,173 @@ export class AiAssistantService {
 
   getGeneralAnswer(prompt: string): string {
     const p = this.normalize(prompt);
+
+    if (
+      p.includes('uml') ||
+      p.includes('workflow') ||
+      p.includes('diagrama') ||
+      p.includes('carril') ||
+      p.includes('swimlane') ||
+      p.includes('transicion')
+    ) {
+      return [
+        'Diseñador workflow UML 2.5 — elementos disponibles:',
+        '• START, TASK, DECISION, END',
+        '• Swimlanes / carriles por responsable',
+        '• Transiciones: secuencial, condicional, iterativa, división paralela (Fork) y unión paralela (Join)',
+        '',
+        'Ruta: Políticas → Diseñar workflow → Modo edición → Validar flujo.',
+      ].join('\n');
+    }
+
+    if (
+      p.includes('dictado') ||
+      p.includes('voz') ||
+      (p.includes('ia') && (p.includes('disen') || p.includes('workflow') || p.includes('diagrama')))
+    ) {
+      return [
+        'IA en el diseñador workflow (panel Asistente IA, columna izquierda):',
+        '• Escriba un prompt o use Dictar por voz',
+        '• Generar sugerencia → revisa actividades, decisiones, conexiones y carriles',
+        '• Vista previa obligatoria antes de Aplicar sugerencia',
+        '',
+        'Ejemplo: "Crear un workflow para solicitud de permiso laboral con carriles Funcionario, Recursos Humanos y Supervisor, con decisión de aprobación y notificación al solicitante."',
+        '',
+        'La IA solo sugiere; usted confirma antes de modificar el diagrama.',
+      ].join('\n');
+    }
+
     if (p.includes('permiso') || p.includes('laboral')) {
-      return 'Puede usar "Sugerir con IA" en el Diseñador UML para generar un flujo de permiso laboral con carriles Funcionario, Recursos Humanos y Supervisor. En el formulario de ejecución, "Ayuda IA" completará campos según la actividad actual.';
+      return [
+        'Ejemplo de prompt para permiso laboral:',
+        '"Crear un workflow para solicitud de permiso laboral con carriles Funcionario, Recursos Humanos y Supervisor, actividades de registro, revisión, validación, decisión de aprobación y notificación."',
+        '',
+        'En Diseñador workflow → Asistente IA → Generar sugerencia → Aplicar.',
+        'En ejecución (Mis tareas → formulario) use Asistir formulario con informe libre o dictado.',
+      ].join('\n');
     }
+
+    if (
+      p.includes('formulario') &&
+      (p.includes('disen') || p.includes('campo') || p.includes('tecnico') || p.includes('dinamico'))
+    ) {
+      return [
+        'Formularios dinámicos por actividad (activities/.../form):',
+        '• Tipos: texto, número, fecha, checkbox, selección, archivo',
+        '• Campos obligatorios y nombre técnico (variable)',
+        '',
+        'El nombre técnico se usa en condiciones del workflow.',
+        'Ejemplo: campo técnico valido → condición en transición: valido == true',
+      ].join('\n');
+    }
+
+    if (
+      p.includes('asistir') ||
+      p.includes('informe') ||
+      (p.includes('ia') && p.includes('formulario')) ||
+      p.includes('ayuda ia')
+    ) {
+      return [
+        'Asistencia IA en formularios (Mis tareas → Completar formulario):',
+        '• Escriba un informe libre o dicte por voz',
+        '• Asistir formulario → sugerencia de valores y extracción de fechas',
+        '• Aplicar sugerencias solo en campos vacíos',
+        '• Campos FILE no se autocompletan: el funcionario debe adjuntar archivos manualmente',
+      ].join('\n');
+    }
+
+    if (
+      p.includes('tramite') ||
+      p.includes('ejecut') ||
+      p.includes('tomar') ||
+      p.includes('completar') ||
+      p.includes('motor') ||
+      p.includes('avanzar')
+    ) {
+      return [
+        'Ejecución del trámite:',
+        '1. Trámites → Iniciar trámite (política ACTIVE)',
+        '2. Mis tareas → Tomar tarea (si está pendiente)',
+        '3. Completar formulario → Completar actividad',
+        '4. El motor enruta automáticamente según transiciones y condiciones',
+        '',
+        'No use Avanzar manual salvo depuración o rol administrador.',
+      ].join('\n');
+    }
+
+    if (p.includes('bandeja') || p.includes('tarea') || p.includes('mis actividad')) {
+      return [
+        'Bandeja del funcionario (Mis tareas):',
+        '• Pendientes: aún no tomadas',
+        '• En curso: asignadas al usuario activo',
+        '• Finalizadas: completadas',
+        '• Asignación por usuario, rol o departamento según responsable de la actividad',
+      ].join('\n');
+    }
+
+    if (p.includes('monitore') || p.includes('traza') || p.includes('historial')) {
+      return [
+        'Monitoreo y trazabilidad:',
+        '• Estado actual del trámite y actividad en curso',
+        '• Responsable asignado',
+        '• Historial de eventos y respuestas de formularios',
+        '• Trazas: TRAMITE_CREADO, TAREA_TOMADA, FORMULARIO_ENVIADO, ACTIVIDAD_COMPLETADA',
+        '• Actualización automática sin recargar (polling ~12 s)',
+      ].join('\n');
+    }
+
+    if (p.includes('kpi') || p.includes('cuello') || p.includes('botella') || p.includes('metrica')) {
+      return [
+        'KPIs y cuellos de botella:',
+        '• Trámites activos y finalizados',
+        '• Tiempos promedio por actividad',
+        '• Carga por funcionario y por departamento',
+        '• Ranking de cuellos de botella (actividades con mayor demora)',
+        '',
+        'Relacione con estimatedTimeHours definido en el diseñador UML.',
+      ].join('\n');
+    }
+
+    if (p.includes('colabor') || p.includes('conflicto') || p.includes('conectad')) {
+      return [
+        'Colaboración básica en el diseñador:',
+        '• Usuarios conectados al mismo diagrama',
+        '• Última modificación y actividad reciente',
+        '• Si otro usuario guardó cambios: aviso de conflicto de edición',
+        '• Recargar diagrama para ver la versión actual antes de guardar',
+      ].join('\n');
+    }
+
+    if (p.includes('cancelar') || p.includes('eliminar')) {
+      return [
+        'Gestión de trámites:',
+        '• Cancelar trámite según permisos del rol',
+        '• Eliminar solo trámites en estado CANCELADO o COMPLETADO',
+        '• No eliminar trámites EN_PROCESO',
+      ].join('\n');
+    }
+
     if (p.includes('compra') || p.includes('aprobacion')) {
-      return 'Para aprobación de compras, la IA local sugiere actividades como cotización, verificación presupuestaria, aprobación gerencial y emisión de orden. Use el botón "Sugerir con IA" en el diagrama UML 2.5.';
+      return 'Para aprobación de compras, use el Asistente IA del diseñador con un prompt como: "Flujo de aprobación de compra con carriles Solicitante, Compras y Gerencia, con cotización, verificación presupuestaria y decisión de aprobación."';
     }
-    if (p.includes('formulario') || p.includes('campo')) {
-      return 'Durante la ejecución del trámite (Mis actividades → Completar formulario), presione "Ayuda IA" para obtener sugerencias contextuales y "Aplicar sugerencias" para llenar campos vacíos automáticamente.';
-    }
-    if (p.includes('cuello') || p.includes('botella')) {
-      return 'Revise actividades con muchas decisiones o carriles sobrecargados. Distribuya tareas entre Funcionario, RRHH y Supervisor para equilibrar el flujo.';
-    }
-    return 'Asistente IA local basado en reglas para apoyar la edición del workflow y el llenado de formularios. Integre sugerencias desde el Diseñador UML ("Sugerir con IA") o el Formulario de ejecución ("Ayuda IA").';
+
+    return [
+      'Guía del sistema Workflow — Ciclo 1 implementado:',
+      '',
+      '1. Diseñador UML 2.5: START, TASK, DECISION, END, swimlanes, transiciones sec/cond/iter/paralelo',
+      '2. IA diseño: prompt, dictado por voz, vista previa, aplicar sugerencia',
+      '3. Formularios dinámicos: tipos de campo, obligatorios, nombre técnico para condiciones',
+      '4. IA formularios: informe libre, dictado, sugerencias (FILE manual)',
+      '5. Ejecución: iniciar trámite → tomar tarea → completar → motor automático',
+      '6. Bandeja: pendientes / en curso / finalizadas',
+      '7. Monitoreo y KPIs: trazas, tiempos, cuellos de botella',
+      '8. Colaboración: usuarios conectados, conflictos, recargar diagrama',
+      '9. Trámites: cancelar; eliminar solo CANCELADOS o COMPLETADOS',
+      '',
+      'Ciclo 2 (no implementado): S3, Flutter, offline, predictivo, reportes dinámicos IA.',
+      '',
+      'Use las sugerencias rápidas o pregunte por un módulo específico.',
+    ].join('\n');
   }
 
   private inferFieldValue(

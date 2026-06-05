@@ -37,6 +37,9 @@ public final class FormAssistLocalParser {
         List<String> unmatched = new ArrayList<>();
         int matched = 0;
 
+        Optional<SpanishDateExtraction.DateRange> dateRange = SpanishDateExtraction.extractRange(report);
+        boolean reportHasDates = SpanishDateExtraction.containsAnyDate(report);
+
         for (AiFormFieldDefinitionDto field : fields) {
             String type = normalizeType(field.getType());
             String name = field.getName() != null ? field.getName() : slug(field.getLabel());
@@ -48,7 +51,7 @@ public final class FormAssistLocalParser {
                 continue;
             }
 
-            String extracted = extractForField(report, field, type, name, label);
+            String extracted = extractForField(report, field, type, name, label, dateRange, reportHasDates);
             if (extracted == null || extracted.isBlank()) {
                 if (Boolean.TRUE.equals(field.getRequired())) {
                     unmatched.add(label);
@@ -92,8 +95,14 @@ public final class FormAssistLocalParser {
             AiFormFieldDefinitionDto field,
             String type,
             String name,
-            String label
+            String label,
+            Optional<SpanishDateExtraction.DateRange> dateRange,
+            boolean reportHasDates
     ) {
+        if ("DATE".equals(type)) {
+            return extractDateForField(report, name, label, dateRange, reportHasDates);
+        }
+
         String lowReport = report.toLowerCase(Locale.ROOT);
         String normLabel = normalize(label);
         String normName = normalize(name);
@@ -112,10 +121,6 @@ public final class FormAssistLocalParser {
                     return "true";
                 }
             }
-            if ("DATE".equals(type)) {
-                Matcher dm = Pattern.compile("\\d{4}-\\d{2}-\\d{2}").matcher(report);
-                if (dm.find()) return dm.group();
-            }
             if ("NUMBER".equals(type)) {
                 Matcher nm = Pattern.compile("(?:monto|cantidad|total|valor)\\s*[:=]?\\s*([\\d.,]+)", Pattern.CASE_INSENSITIVE)
                         .matcher(report);
@@ -130,13 +135,41 @@ public final class FormAssistLocalParser {
             }
         }
 
-        if ("DATE".equals(type) && normLabel.contains("fecha")) {
-            return LocalDate.now().toString();
-        }
-
         if (("TEXTAREA".equals(type) || "TEXT".equals(type))
                 && (normLabel.contains("observ") || normLabel.contains("motivo") || normLabel.contains("informe"))) {
             return report.length() > 400 ? report.substring(0, 400) : report;
+        }
+
+        return null;
+    }
+
+    private static String extractDateForField(
+            String report,
+            String name,
+            String label,
+            Optional<SpanishDateExtraction.DateRange> dateRange,
+            boolean reportHasDates
+    ) {
+        if (dateRange.isPresent()) {
+            if (SpanishDateExtraction.isStartDateField(name, label)) {
+                return dateRange.get().startIso();
+            }
+            if (SpanishDateExtraction.isEndDateField(name, label)) {
+                return dateRange.get().endIso();
+            }
+        }
+
+        Optional<String> firstIso = SpanishDateExtraction.extractFirstIsoDate(report);
+        if (firstIso.isPresent()) {
+            if (SpanishDateExtraction.isEndDateField(name, label) && dateRange.isPresent()) {
+                return dateRange.get().endIso();
+            }
+            return firstIso.get();
+        }
+
+        String normLabel = normalize(label);
+        if (normLabel.contains("fecha") && !reportHasDates) {
+            return LocalDate.now().toString();
         }
 
         return null;

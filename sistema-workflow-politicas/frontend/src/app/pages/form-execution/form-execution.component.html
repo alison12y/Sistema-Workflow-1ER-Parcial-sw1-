@@ -169,18 +169,22 @@
             >
               {{ aiGenerating ? 'Asistiendo...' : 'Asistir formulario' }}
             </button>
-            @if (voiceSupported) {
-              <button
-                type="button"
-                class="btn btn-secondary"
-                [class.voice-active]="voiceListening"
-                [disabled]="aiGenerating"
-                (click)="toggleVoiceDictation()"
-              >
-                {{ voiceListening ? 'Detener voz' : 'Dictar por voz' }}
-              </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              [class.voice-active]="voiceListening"
+              [disabled]="aiGenerating"
+              (click)="toggleVoiceDictation()"
+            >
+              {{ voiceButtonLabel }}
+            </button>
+            @if (voiceListening) {
+              <span class="voice-status">Escuchando...</span>
             }
           </div>
+          @if (voiceStatus && !aiError && voiceStatus !== 'Escuchando...') {
+            <div class="alert info voice-feedback">{{ voiceStatus }}</div>
+          }
           @if (aiError) {
             <div class="alert error">{{ aiError }}</div>
           }

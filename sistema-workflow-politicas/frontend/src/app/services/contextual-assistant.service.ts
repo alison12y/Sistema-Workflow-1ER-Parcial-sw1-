@@ -14,11 +14,12 @@ export class ContextualAssistantService {
     if (path.startsWith('/mis-actividades/') && path.endsWith('/form')) {
       return this.help(
         'Formulario de ejecución',
-        'Llena los datos reales del trámite. Puedes usar Ayuda IA para sugerir valores en los campos.',
+        'Complete los datos reales del trámite. Use Asistencia IA con informe libre o dictado por voz; revise y aplique sugerencias antes de enviar.',
         [
-          'Complete los campos obligatorios marcados con *.',
-          'Use el botón Ayuda IA para autocompletar campos vacíos.',
-          'Guarde avance si necesita continuar más tarde.',
+          'Campos obligatorios (*) deben completarse antes de finalizar.',
+          'Asistir formulario sugiere valores y extrae fechas del informe.',
+          'Los campos FILE no se autocompletan: adjunte archivos manualmente.',
+          'Al completar, el motor enruta automáticamente; no use Avanzar manual salvo depuración.',
         ]
       );
     }
@@ -26,23 +27,24 @@ export class ContextualAssistantService {
     if (path.startsWith('/workflow-designer/')) {
       return this.help(
         'Editor de diagramas UML 2.5',
-        'Diseña el Diagrama de Actividades UML 2.5 de la política. Usa carriles para organizar responsables y utiliza la IA para sugerir flujos.',
+        'Diseñe flujos con START, TASK, DECISION, END, swimlanes y transiciones secuenciales, condicionales, iterativas y paralelas (división/unión).',
         [
-          'Organice actividades en calles/carriles por responsable.',
-          'Use Sugerir con IA para generar un flujo base.',
-          'Guarde el diagrama antes de salir.',
+          'Asistente IA: prompt por texto o dictado por voz → Generar sugerencia → vista previa → Aplicar.',
+          'Ejemplo: "Crear workflow de permiso laboral con carriles Funcionario, RRHH y Supervisor".',
+          'Valide el flujo antes de activar la política.',
+          'Colaboración: vea usuarios conectados, última modificación y recargue si hay conflicto.',
         ]
       );
     }
 
-    if (path.startsWith('/form-designer/')) {
+    if (/^\/activities\/[^/]+\/form$/.test(path) || path.startsWith('/form-designer/')) {
       return this.help(
         'Diseñador de formulario',
-        'Crea la plantilla del formulario que será utilizada durante la ejecución de una actividad.',
+        'Defina la plantilla dinámica de la actividad: texto, número, fecha, checkbox, selección y archivo.',
         [
-          'Defina campos según la actividad del diagrama.',
-          'Marque como obligatorios los campos necesarios.',
-          'Guarde la plantilla asociada a la actividad.',
+          'Marque campos obligatorios y asigne nombre técnico (variable).',
+          'El nombre técnico se usa en condiciones del workflow (ej. valido == true).',
+          'Guarde la plantilla asociada a la actividad TASK del diagrama.',
         ]
       );
     }
@@ -50,8 +52,12 @@ export class ContextualAssistantService {
     if (/^\/tramites\/[^/]+$/.test(path)) {
       return this.help(
         'Detalle de trámite',
-        'Consulta el estado, la traza y las actividades del trámite seleccionado.',
-        ['Revise el progreso y las actividades completadas.', 'Use Mis actividades para completar tareas pendientes.']
+        'Consulte estado, actividad actual, responsable, historial, respuestas de formularios y trazas.',
+        [
+          'Puede cancelar trámites según permisos.',
+          'Solo elimine trámites CANCELADOS o COMPLETADOS; no elimine EN_PROCESO.',
+          'Use Mis tareas para completar actividades pendientes.',
+        ]
       );
     }
 
@@ -63,33 +69,57 @@ export class ContextualAssistantService {
       ),
       '/dashboard': this.help(
         'Dashboard',
-        'Bienvenido al panel principal. Desde aquí puedes acceder a políticas, trámites, monitoreo, KPIs y actividades.',
-        ['Use las tarjetas de acceso rápido para navegar.', 'Consulte Mis actividades para tareas pendientes.']
+        'Panel principal con acceso a políticas, diseñador UML, trámites, bandeja, monitoreo y KPIs.',
+        [
+          'Active políticas antes de iniciar trámites.',
+          'La IA está integrada en Diseñador workflow y Formulario de ejecución.',
+          'Consulte Guía asistente IA en el menú para ver todas las funcionalidades.',
+        ]
       ),
       '/policies': this.help(
-        'Políticas',
-        'En este módulo puedes crear, editar y activar políticas de negocio.',
-        ['Active una política antes de iniciar trámites.', 'Diseñe el diagrama UML y formularios por actividad.']
+        'Políticas de negocio',
+        'Cree y administre políticas que agrupan diagrama UML, formularios por actividad y trámites.',
+        [
+          'Diseñe workflow UML 2.5 con swimlanes y valide el flujo.',
+          'Configure formularios dinámicos por actividad TASK.',
+          'Active la política para permitir nuevos trámites.',
+        ]
       ),
       '/tramites': this.help(
         'Trámites',
-        'Inicia y gestiona trámites basados en políticas activas.',
-        ['Seleccione una política activa al crear un trámite.', 'Consulte el detalle para ver el avance.']
+        'Inicie y gestione trámites basados en políticas activas.',
+        [
+          'Inicie trámite → el motor crea tareas según el diagrama.',
+          'Cancelar trámite según permisos.',
+          'Eliminar solo trámites CANCELADOS o COMPLETADOS.',
+        ]
       ),
       '/mis-actividades': this.help(
-        'Mis actividades',
-        'Consulta las tareas asignadas y completa los formularios correspondientes.',
-        ['Presione Completar formulario para llenar datos del trámite.', 'Use Ayuda IA dentro del formulario.']
+        'Mis tareas (bandeja)',
+        'Bandeja del funcionario: tareas pendientes, en curso y finalizadas con asignación por usuario, rol o departamento.',
+        [
+          'Tome la tarea antes de completar si está pendiente.',
+          'Completar formulario → Asistencia IA con informe o dictado por voz.',
+          'El motor avanza automáticamente; no elija la ruta manualmente.',
+        ]
       ),
       '/monitoring': this.help(
         'Monitoreo',
-        'Realiza seguimiento a los trámites en ejecución y consulta su traza.',
-        ['Filtre por estado o política.', 'Identifique trámites detenidos o retrasados.']
+        'Seguimiento en tiempo real: estado actual, actividad, responsable, historial y respuestas de formularios.',
+        [
+          'Consulte trazas: TRAMITE_CREADO, TAREA_TOMADA, ACTIVIDAD_COMPLETADA, etc.',
+          'La vista se actualiza automáticamente sin recargar la página.',
+          'Filtre por política o estado del trámite.',
+        ]
       ),
       '/kpis': this.help(
-        'KPIs',
-        'Consulta indicadores y cuellos de botella del workflow.',
-        ['Revise tiempos promedio por actividad.', 'Detecte etapas con mayor demora.']
+        'KPIs / Cuellos de botella',
+        'Indicadores: trámites activos/finalizados, tiempos promedio, carga por funcionario y departamento.',
+        [
+          'Detecte cuellos de botella por actividad con mayor demora.',
+          'Relacione con estimatedTimeHours definido en el diseñador.',
+          'Filtre por política para análisis focalizado.',
+        ]
       ),
       '/users': this.help(
         'Usuarios',
@@ -108,28 +138,37 @@ export class ContextualAssistantService {
       ),
       '/bitacora': this.help(
         'Bitácora',
-        'Consulta el registro de acciones realizadas en el sistema.',
+        'Registro de acciones: diseño, colaboración, IA (resumen) y operaciones del sistema.',
         ['Revise quién realizó cada acción.', 'Filtre por módulo o fecha.']
       ),
       '/settings': this.help(
         'Configuración',
-        'Configura preferencias locales como tema y notificaciones.',
+        'Preferencias locales: tema y notificaciones.',
         ['El tema se aplica de inmediato.', 'Las preferencias se guardan en este navegador.']
       ),
       '/ai-assistant': this.help(
-        'Asistente IA',
-        'Usa el asistente para obtener ayuda sobre políticas, diagramas, formularios y procesos.',
+        'Guía asistente IA',
+        'Referencia de funcionalidades: diseño UML con IA, formularios dinámicos, ejecución, monitoreo, KPIs y colaboración.',
         [
-          'La IA integrada está en el Diseñador UML y Formulario de ejecución.',
-          'No requiere conexión externa ni API keys.',
+          'IA en diseñador: texto, voz, vista previa antes de aplicar.',
+          'IA en formularios: informe libre, dictado, sugerencias (FILE manual).',
+          'Ciclo 2 no incluido: S3, Flutter, offline, predictivo ni reportes dinámicos.',
+        ]
+      ),
+      '/seguimiento': this.help(
+        'Seguimiento de trámites',
+        'Vista alternativa de trazabilidad y estado de trámites en ejecución.',
+        [
+          'Consulte actividad actual y responsable.',
+          'Actualización automática sin recargar la página.',
         ]
       ),
     };
 
     return exact[path] ?? this.help(
       'Sistema Workflow',
-      'Navegue por el menú lateral para acceder a los módulos del sistema de gestión de políticas.',
-      ['Use este asistente en cualquier pantalla para obtener ayuda contextual.']
+      'Navegue por el menú para políticas, diseñador UML, trámites, bandeja, monitoreo y KPIs.',
+      ['Use este botón Ayuda en cualquier pantalla para orientación contextual.']
     );
   }
 
