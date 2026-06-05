@@ -1,5 +1,7 @@
 package com.workflow.politicas.service;
 
+import com.workflow.politicas.audit.AuditActions;
+import com.workflow.politicas.audit.AuditModules;
 import com.workflow.politicas.dto.WorkflowCollaborationModificationRequest;
 import com.workflow.politicas.dto.WorkflowDeleteResponse;
 import com.workflow.politicas.dto.WorkflowFlowValidationResponse;
@@ -38,6 +40,7 @@ public class WorkflowTransitionService {
     private final WorkflowCollaborationService workflowCollaborationService;
     private final WorkflowRoutingService workflowRoutingService;
     private final WorkflowFormConditionValidationService workflowFormConditionValidationService;
+    private final BitacoraService bitacoraService;
 
     public WorkflowTransitionService(
             WorkflowTransitionRepository workflowTransitionRepository,
@@ -45,7 +48,8 @@ public class WorkflowTransitionService {
             BusinessPolicyRepository businessPolicyRepository,
             WorkflowCollaborationService workflowCollaborationService,
             WorkflowRoutingService workflowRoutingService,
-            WorkflowFormConditionValidationService workflowFormConditionValidationService
+            WorkflowFormConditionValidationService workflowFormConditionValidationService,
+            BitacoraService bitacoraService
     ) {
         this.workflowTransitionRepository = workflowTransitionRepository;
         this.workflowActivityRepository = workflowActivityRepository;
@@ -53,6 +57,7 @@ public class WorkflowTransitionService {
         this.workflowCollaborationService = workflowCollaborationService;
         this.workflowRoutingService = workflowRoutingService;
         this.workflowFormConditionValidationService = workflowFormConditionValidationService;
+        this.bitacoraService = bitacoraService;
     }
 
     public List<WorkflowTransitionResponse> findByPolicyId(String policyId) {
@@ -293,15 +298,33 @@ public class WorkflowTransitionService {
             WorkflowActivity from,
             WorkflowActivity to
     ) {
+        String label = connectionLabel(from, to);
         workflowCollaborationService.registerModification(
                 policyId,
                 new WorkflowCollaborationModificationRequest(
                         actionType,
                         actionLabel,
                         "TRANSITION",
-                        connectionLabel(from, to)
+                        label
                 )
         );
+        String actor = bitacoraService.resolveActorDisplay();
+        String auditAction = mapTransitionAuditAction(actionType);
+        bitacoraService.registrar(
+                AuditModules.WORKFLOW,
+                auditAction,
+                actor + " " + actionLabel + " conexión \"" + label + "\"",
+                "WorkflowTransition",
+                from != null ? from.getId() : null
+        );
+    }
+
+    private static String mapTransitionAuditAction(String actionType) {
+        return switch (actionType != null ? actionType.toUpperCase() : "") {
+            case "CREATE" -> AuditActions.CREAR_TRANSICION;
+            case "DELETE", "DEACTIVATE" -> AuditActions.ELIMINAR_TRANSICION;
+            default -> AuditActions.EDITAR_TRANSICION;
+        };
     }
 
     private static String connectionLabel(WorkflowActivity from, WorkflowActivity to) {

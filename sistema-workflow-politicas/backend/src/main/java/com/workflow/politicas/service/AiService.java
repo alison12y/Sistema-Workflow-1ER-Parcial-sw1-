@@ -2,6 +2,8 @@ package com.workflow.politicas.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.workflow.politicas.audit.AuditActions;
+import com.workflow.politicas.audit.AuditModules;
 import com.workflow.politicas.dto.*;
 import com.workflow.politicas.model.AiRequest;
 import com.workflow.politicas.repository.AiRequestRepository;
@@ -23,14 +25,21 @@ public class AiService {
     private final RestTemplate restTemplate;
     private final AiRequestRepository aiRequestRepository;
     private final ObjectMapper objectMapper;
+    private final BitacoraService bitacoraService;
 
     @Value("${ai.service.url}")
     private String aiServiceUrl;
 
-    public AiService(RestTemplate aiRestTemplate, AiRequestRepository aiRequestRepository, ObjectMapper objectMapper) {
+    public AiService(
+            RestTemplate aiRestTemplate,
+            AiRequestRepository aiRequestRepository,
+            ObjectMapper objectMapper,
+            BitacoraService bitacoraService
+    ) {
         this.restTemplate = aiRestTemplate;
         this.aiRequestRepository = aiRequestRepository;
         this.objectMapper = objectMapper;
+        this.bitacoraService = bitacoraService;
     }
 
     public AiWorkflowSuggestResponse suggestWorkflow(AiWorkflowSuggestRequest request) {
@@ -41,6 +50,7 @@ public class AiService {
         if (WorkflowFullPromptParser.canParse(request.getPrompt())) {
             AiWorkflowSuggestResponse local = WorkflowFullPromptParser.parse(request);
             saveAiRequest(request.getPrompt(), local, "WORKFLOW_SUGGEST_LOCAL_FULL", request.getUserId());
+            auditWorkflowGeneration(request.getPolicyId(), "sugerencia local de workflow");
             return local;
         }
 
@@ -52,6 +62,7 @@ public class AiService {
                 response.setRequiresConfirmation(true);
             }
             saveAiRequest(request.getPrompt(), response, "WORKFLOW_SUGGEST", request.getUserId());
+            auditWorkflowGeneration(request.getPolicyId(), "sugerencia de workflow con IA");
             return response;
         } catch (RuntimeException ex) {
             AiWorkflowSuggestResponse fallback = WorkflowSuggestLocalParser.parse(request);
@@ -59,6 +70,7 @@ public class AiService {
                     (fallback.getError() != null ? fallback.getError() + " " : "")
                             + "Detalle: servicio IA no disponible.");
             saveAiRequest(request.getPrompt(), fallback, "WORKFLOW_SUGGEST_FALLBACK", request.getUserId());
+            auditWorkflowGeneration(request.getPolicyId(), "sugerencia de workflow (fallback local)");
             return fallback;
         }
     }
@@ -72,6 +84,7 @@ public class AiService {
                 AiWorkflowGenerateResponse.class
         );
         saveAiRequest(request.getPrompt(), response, "WORKFLOW_GENERATION", request.getUserId());
+        auditWorkflowGeneration(null, "generación de workflow con IA");
         return response;
     }
 
@@ -91,6 +104,7 @@ public class AiService {
                     + " activity=" + request.getWorkflowActivityId()
                     + " fields=" + request.getFields().size();
             saveAiRequest(logSummary, response, "FORM_ASSISTANCE", request.getUserId());
+            auditFormAssistance(request.getPolicyId(), request.getWorkflowActivityId());
             return response;
         } catch (RuntimeException ex) {
             AiFormAssistResponse fallback = FormAssistLocalParser.parse(request);
@@ -100,8 +114,32 @@ public class AiService {
                     "FORM_ASSISTANCE_FALLBACK",
                     request.getUserId()
             );
+            auditFormAssistance(request.getPolicyId(), request.getWorkflowActivityId());
             return fallback;
         }
+    }
+
+    private void auditWorkflowGeneration(String policyId, String detail) {
+        String actor = bitacoraService.resolveActorDisplay();
+        bitacoraService.registrar(
+                AuditModules.IA,
+                AuditActions.GENERAR_WORKFLOW_IA,
+                actor + " solicitó " + detail + (policyId != null ? " (política " + policyId + ")" : ""),
+                "BusinessPolicy",
+                policyId
+        );
+    }
+
+    private void auditFormAssistance(String policyId, String activityId) {
+        String actor = bitacoraService.resolveActorDisplay();
+        bitacoraService.registrar(
+                AuditModules.IA,
+                AuditActions.ASISTENCIA_FORMULARIO_IA,
+                actor + " usó asistencia IA en formulario"
+                        + (activityId != null ? " (actividad " + activityId + ")" : ""),
+                "DynamicForm",
+                policyId
+        );
     }
 
     public AiAssistantResponse assistant(AiAssistantRequest request) {

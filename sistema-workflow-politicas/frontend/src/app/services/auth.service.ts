@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap } from 'rxjs';
+import { Observable, catchError, of, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthResponse, LoginRequest } from '../models/auth.model';
 import { TOKEN_KEY, USER_KEY } from '../core/constants';
@@ -22,6 +22,19 @@ export class AuthService {
   }
 
   logout(): void {
+    const token = this.getToken();
+    if (token) {
+      this.http.post<void>(`${this.api}/logout`, {}).pipe(
+        catchError(() => of(void 0)),
+      ).subscribe({
+        complete: () => this.clearSession(),
+      });
+      return;
+    }
+    this.clearSession();
+  }
+
+  private clearSession(): void {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     this.router.navigate(['/login']);

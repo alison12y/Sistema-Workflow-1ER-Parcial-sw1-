@@ -3,6 +3,8 @@ package com.workflow.politicas.service;
 import com.workflow.politicas.dto.WorkflowActivityPositionRequest;
 import com.workflow.politicas.dto.WorkflowActivityRequest;
 import com.workflow.politicas.dto.WorkflowActivityResponse;
+import com.workflow.politicas.audit.AuditActions;
+import com.workflow.politicas.audit.AuditModules;
 import com.workflow.politicas.dto.WorkflowCollaborationModificationRequest;
 import com.workflow.politicas.dto.WorkflowDeleteResponse;
 import com.workflow.politicas.model.BusinessPolicy;
@@ -29,19 +31,22 @@ public class WorkflowActivityService {
     private final WorkflowTransitionRepository workflowTransitionRepository;
     private final WorkflowCollaborationService workflowCollaborationService;
     private final DepartmentRepository departmentRepository;
+    private final BitacoraService bitacoraService;
 
     public WorkflowActivityService(
             WorkflowActivityRepository workflowActivityRepository,
             BusinessPolicyRepository businessPolicyRepository,
             WorkflowTransitionRepository workflowTransitionRepository,
             WorkflowCollaborationService workflowCollaborationService,
-            DepartmentRepository departmentRepository
+            DepartmentRepository departmentRepository,
+            BitacoraService bitacoraService
     ) {
         this.workflowActivityRepository = workflowActivityRepository;
         this.businessPolicyRepository = businessPolicyRepository;
         this.workflowTransitionRepository = workflowTransitionRepository;
         this.workflowCollaborationService = workflowCollaborationService;
         this.departmentRepository = departmentRepository;
+        this.bitacoraService = bitacoraService;
     }
 
     public List<WorkflowActivityResponse> findByPolicyId(String policyId) {
@@ -210,15 +215,33 @@ public class WorkflowActivityService {
             String actionLabel,
             WorkflowActivity activity
     ) {
+        String elementName = activityName(activity);
         workflowCollaborationService.registerModification(
                 policyId,
                 new WorkflowCollaborationModificationRequest(
                         actionType,
                         actionLabel,
                         "ACTIVITY",
-                        activityName(activity)
+                        elementName
                 )
         );
+        String actor = bitacoraService.resolveActorDisplay();
+        String auditAction = mapActivityAuditAction(actionType);
+        bitacoraService.registrar(
+                AuditModules.WORKFLOW,
+                auditAction,
+                actor + " " + actionLabel + " actividad \"" + elementName + "\"",
+                "WorkflowActivity",
+                activity.getId()
+        );
+    }
+
+    private static String mapActivityAuditAction(String actionType) {
+        return switch (actionType != null ? actionType.toUpperCase() : "") {
+            case "CREATE" -> AuditActions.CREAR_ACTIVIDAD;
+            case "DELETE", "DEACTIVATE" -> AuditActions.ELIMINAR_ACTIVIDAD;
+            default -> AuditActions.EDITAR_ACTIVIDAD;
+        };
     }
 
     private static String activityName(WorkflowActivity activity) {

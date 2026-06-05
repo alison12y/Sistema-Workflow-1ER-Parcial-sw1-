@@ -1,5 +1,7 @@
 package com.workflow.politicas.service;
 
+import com.workflow.politicas.audit.AuditActions;
+import com.workflow.politicas.audit.AuditModules;
 import com.workflow.politicas.dto.*;
 import com.workflow.politicas.model.Activity;
 import com.workflow.politicas.model.DynamicForm;
@@ -136,6 +138,7 @@ public class DynamicFormService {
         form.setUpdatedAt(LocalDateTime.now());
         dynamicFormRepository.save(form);
         unlinkFormFromWorkflowActivity(form.getActivityId());
+        auditFormAction(AuditActions.ELIMINAR_FORMULARIO, "eliminó", form);
 
         WorkflowDeleteResponse response = new WorkflowDeleteResponse();
         response.setLogicalDelete(true);
@@ -269,7 +272,12 @@ public class DynamicFormService {
                 .findByPolicyIdAndActivityName(request.getPolicyId(), request.getActivityName())
                 .orElseGet(DynamicForm::new);
 
-        if (form.getId() == null) {
+        boolean creating = form.getId() == null;
+        List<FormField> previousFields = creating
+                ? List.of()
+                : formFieldRepository.findByFormIdOrderByOrderAsc(form.getId());
+
+        if (creating) {
             form.setCreatedAt(LocalDateTime.now());
             form.setActive(true);
         }
@@ -290,16 +298,12 @@ public class DynamicFormService {
         linkFormToLegacyActivityIfExists(savedForm);
         syncWorkflowActivityByName(savedForm);
 
-        businessPolicyRepository.findById(savedForm.getPolicyId()).ifPresent(policy -> {
-            String actor = bitacoraService.resolveActorDisplay();
-            bitacoraService.registrar(
-                    "Formularios",
-                    "GUARDAR_FORMULARIO",
-                    actor + " guardó el formulario dinámico de la política " + policy.getName(),
-                    "DynamicForm",
-                    savedForm.getId()
-            );
-        });
+        auditFormAction(
+                creating ? AuditActions.CREAR_FORMULARIO : AuditActions.EDITAR_FORMULARIO,
+                creating ? "creó" : "editó",
+                savedForm
+        );
+        auditFieldChanges(previousFields, savedFields, savedForm);
 
         DynamicFormDetailResponse response = new DynamicFormDetailResponse();
         response.setId(savedForm.getId());
@@ -527,6 +531,63 @@ public class DynamicFormService {
                     return dto;
                 })
                 .collect(Collectors.toList());
+    }
+
+    private void auditFormAction(String action, String verb, DynamicForm form) {
+        String actor = bitacoraService.resolveActorDisplay();
+        String formName = form.getName() != null ? form.getName() : form.getActivityName();
+        bitacoraService.registrar(
+                AuditModules.FORMULARIOS,
+                action,
+                actor + " " + verb + " el formulario \"" + formName + "\"",
+                "DynamicForm",
+                form.getId()
+        );
+    }
+
+    private void auditFieldChanges(List<FormField> previous, List<FormField> current, DynamicForm form) {
+        String actor = bitacoraService.resolveActorDisplay();
+        Map<String, FormField> beforeByName = previous.stream()
+                .filter(f -> f.getName() != null)
+                .collect(Collectors.toMap(FormField::getName, f -> f, (a, b) -> a));
+        Map<String, FormField> afterByName = current.stream()
+                .filter(f -> f.getName() != null)
+                .collect(Collectors.toMap(FormField::getName, f -> f, (a, b) -> a));
+
+        for (String name : afterByName.keySet()) {
+            if (!beforeByName.containsKey(name)) {
+                bitacoraService.registrar(
+                        AuditModules.FORMULARIOS,
+                        AuditActions.CREAR_CAMPO,
+                        actor + " creó el campo \"" + name + "\" en formulario " + form.getName(),
+                        "FormField",
+                        afterByName.get(name).getId()
+                );
+            } else if (!fieldSnapshot(beforeByName.get(name)).equals(fieldSnapshot(afterByName.get(name)))) {
+                bitacoraService.registrar(
+                        AuditModules.FORMULARIOS,
+                        AuditActions.EDITAR_CAMPO,
+                        actor + " editó el campo \"" + name + "\" en formulario " + form.getName(),
+                        "FormField",
+                        afterByName.get(name).getId()
+                );
+            }
+        }
+        for (String name : beforeByName.keySet()) {
+            if (!afterByName.containsKey(name)) {
+                bitacoraService.registrar(
+                        AuditModules.FORMULARIOS,
+                        AuditActions.ELIMINAR_CAMPO,
+                        actor + " eliminó el campo \"" + name + "\" del formulario " + form.getName(),
+                        "FormField",
+                        beforeByName.get(name).getId()
+                );
+            }
+        }
+    }
+
+    private static String fieldSnapshot(FormField field) {
+        return field.getLabel() + "|" + field.getType() + "|" + field.isRequired() + "|" + field.getOrder();
     }
 
     private String trimOrNull(String value) {

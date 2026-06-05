@@ -37,9 +37,9 @@ public class WorkflowCollaborationService {
 
     private static final Logger log = LoggerFactory.getLogger(WorkflowCollaborationService.class);
 
-    static final String MODULE = "Diseñador UML";
-    static final String ACTION_OPEN = "WORKFLOW_ABIERTO";
-    static final String ACTION_MODIFIED = "WORKFLOW_MODIFICADO";
+    static final String MODULE = "Colaboración";
+    static final String ACTION_OPEN = "ABRIR_WORKFLOW_COLABORATIVO";
+    static final String ACTION_MODIFIED = "MODIFICAR_WORKFLOW_COLABORATIVO";
     static final String ACTION_CONFLICT = "CONFLICTO_EDICION";
 
     private static final int PRESENCE_TTL_SECONDS = 25;

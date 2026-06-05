@@ -7,6 +7,7 @@ import {
   BITACORA_ACTION_LABELS,
   BITACORA_MODULES,
   BitacoraEntry,
+  BitacoraFilter,
 } from '../../models/bitacora.model';
 
 @Component({
@@ -20,14 +21,18 @@ export class BitacoraComponent implements OnInit {
   private readonly bitacoraService = inject(BitacoraService);
 
   entries: BitacoraEntry[] = [];
-  filteredEntries: BitacoraEntry[] = [];
   loading = true;
-  searchTerm = '';
-  selectedModule = '';
   message = '';
   error = '';
 
+  filterUsername = '';
+  filterModule = '';
+  filterAction = '';
+  filterDateFrom = '';
+  filterDateTo = '';
+
   readonly modules = ['', ...BITACORA_MODULES];
+  readonly actionOptions = Object.keys(BITACORA_ACTION_LABELS).sort();
 
   ngOnInit(): void {
     this.load(false);
@@ -38,15 +43,9 @@ export class BitacoraComponent implements OnInit {
     this.error = '';
     this.message = '';
 
-    const request =
-      this.selectedModule.trim().length > 0
-        ? this.bitacoraService.getByModule(this.selectedModule.trim())
-        : this.bitacoraService.getAll();
-
-    request.subscribe({
+    this.bitacoraService.getAll(this.buildFilter()).subscribe({
       next: (data) => {
         this.entries = data;
-        this.applyFilters();
         this.loading = false;
         if (showSuccessMessage) {
           this.message = 'Bitácora actualizada correctamente';
@@ -54,7 +53,6 @@ export class BitacoraComponent implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         this.entries = [];
-        this.filteredEntries = [];
         this.loading = false;
         if (err.status === 401) {
           this.error = 'Su sesión expiró. Inicie sesión nuevamente';
@@ -65,11 +63,16 @@ export class BitacoraComponent implements OnInit {
     });
   }
 
-  onSearchChange(): void {
-    this.applyFilters();
+  applyFilters(): void {
+    this.load(false);
   }
 
-  onModuleChange(): void {
+  clearFilters(): void {
+    this.filterUsername = '';
+    this.filterModule = '';
+    this.filterAction = '';
+    this.filterDateFrom = '';
+    this.filterDateTo = '';
     this.load(false);
   }
 
@@ -77,8 +80,34 @@ export class BitacoraComponent implements OnInit {
     this.load(true);
   }
 
+  exportCsv(): void {
+    this.bitacoraService.exportCsv(this.buildFilter()).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `bitacora-${new Date().toISOString().slice(0, 10)}.csv`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        this.message = 'Exportación CSV generada';
+      },
+      error: () => {
+        this.error = 'No se pudo exportar la bitácora';
+      },
+    });
+  }
+
   actionLabel(action: string): string {
     return BITACORA_ACTION_LABELS[action] ?? action.replace(/_/g, ' ').toLowerCase();
+  }
+
+  displayUser(entry: BitacoraEntry): string {
+    return entry.fullName?.trim() || entry.username || '—';
+  }
+
+  resultadoLabel(entry: BitacoraEntry): string {
+    const value = (entry.resultado ?? 'EXITO').toUpperCase();
+    return value === 'ERROR' ? 'Error' : 'Éxito';
   }
 
   formatDate(value: string | null | undefined): string {
@@ -97,24 +126,28 @@ export class BitacoraComponent implements OnInit {
     return `${day}/${month}/${year} ${hours}:${minutes}`;
   }
 
-  private applyFilters(): void {
-    const term = this.searchTerm.trim().toLowerCase();
-    if (!term) {
-      this.filteredEntries = [...this.entries];
-      return;
+  private buildFilter(): BitacoraFilter {
+    const filter: BitacoraFilter = {};
+    if (this.filterUsername.trim()) {
+      filter.username = this.filterUsername.trim();
     }
+    if (this.filterModule.trim()) {
+      filter.module = this.filterModule.trim();
+    }
+    if (this.filterAction.trim()) {
+      filter.action = this.filterAction.trim();
+    }
+    if (this.filterDateFrom.trim()) {
+      filter.dateFrom = this.toIsoDateTime(this.filterDateFrom, false);
+    }
+    if (this.filterDateTo.trim()) {
+      filter.dateTo = this.toIsoDateTime(this.filterDateTo, true);
+    }
+    return filter;
+  }
 
-    this.filteredEntries = this.entries.filter((entry) => {
-      const haystack = [
-        entry.username,
-        entry.module,
-        entry.action,
-        this.actionLabel(entry.action),
-        entry.description,
-      ]
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(term);
-    });
+  private toIsoDateTime(dateValue: string, endOfDay: boolean): string {
+    const time = endOfDay ? 'T23:59:59' : 'T00:00:00';
+    return `${dateValue}${time}`;
   }
 }

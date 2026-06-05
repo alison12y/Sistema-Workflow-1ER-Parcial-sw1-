@@ -22,18 +22,13 @@ public class DepartmentController {
 
     @PostMapping
     public Department createDepartment(@RequestBody Department department) {
-        return departmentService.save(department);
+        return departmentService.create(department);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Department> updateDepartment(@PathVariable String id, @RequestBody Department departmentDetails) {
-        return departmentService.findById(id)
-                .map(department -> {
-                    department.setName(departmentDetails.getName());
-                    department.setDescription(departmentDetails.getDescription());
-                    department.setManagerId(departmentDetails.getManagerId());
-                    return ResponseEntity.ok(departmentService.save(department));
-                })
+        return departmentService.update(id, departmentDetails)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 

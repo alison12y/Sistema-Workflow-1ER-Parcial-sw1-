@@ -1,5 +1,7 @@
 package com.workflow.politicas.service;
 
+import com.workflow.politicas.audit.AuditActions;
+import com.workflow.politicas.audit.AuditModules;
 import com.workflow.politicas.dto.UserRequest;
 import com.workflow.politicas.dto.UserResponse;
 import com.workflow.politicas.model.User;
@@ -47,8 +49,8 @@ public class UserService {
         User saved = userRepository.save(user);
         String actor = bitacoraService.resolveActorDisplay();
         bitacoraService.registrar(
-                "Usuarios",
-                "CREAR_USUARIO",
+                AuditModules.USUARIOS,
+                AuditActions.CREAR_USUARIO,
                 actor + " creó el usuario " + saved.getUsername(),
                 "User",
                 saved.getId()
@@ -58,20 +60,53 @@ public class UserService {
 
     public Optional<UserResponse> update(String id, UserRequest request) {
         return userRepository.findById(id).map(user -> {
+            boolean wasActive = user.isActive();
+            boolean passwordChanged = request.getPassword() != null && !request.getPassword().isBlank();
+
             applyRequestFields(user, request);
-            if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            if (passwordChanged) {
                 user.setPassword(passwordEncoder.encode(request.getPassword()));
             }
             user.setUpdatedAt(LocalDateTime.now());
             User saved = userRepository.save(user);
             String actor = bitacoraService.resolveActorDisplay();
+
             bitacoraService.registrar(
-                    "Usuarios",
-                    "EDITAR_USUARIO",
+                    AuditModules.USUARIOS,
+                    AuditActions.EDITAR_USUARIO,
                     actor + " editó el usuario " + saved.getUsername(),
                     "User",
                     saved.getId()
             );
+
+            if (passwordChanged) {
+                bitacoraService.registrar(
+                        AuditModules.USUARIOS,
+                        AuditActions.CAMBIO_PASSWORD,
+                        actor + " cambió la contraseña del usuario " + saved.getUsername(),
+                        "User",
+                        saved.getId()
+                );
+            }
+
+            if (wasActive && !saved.isActive()) {
+                bitacoraService.registrar(
+                        AuditModules.USUARIOS,
+                        AuditActions.DESACTIVAR_USUARIO,
+                        actor + " desactivó el usuario " + saved.getUsername(),
+                        "User",
+                        saved.getId()
+                );
+            } else if (!wasActive && saved.isActive()) {
+                bitacoraService.registrar(
+                        AuditModules.USUARIOS,
+                        AuditActions.ACTIVAR_USUARIO,
+                        actor + " activó el usuario " + saved.getUsername(),
+                        "User",
+                        saved.getId()
+                );
+            }
+
             return toResponse(saved);
         });
     }
@@ -80,8 +115,8 @@ public class UserService {
         userRepository.findById(id).ifPresent(user -> {
             String actor = bitacoraService.resolveActorDisplay();
             bitacoraService.registrar(
-                    "Usuarios",
-                    "ELIMINAR_USUARIO",
+                    AuditModules.USUARIOS,
+                    AuditActions.ELIMINAR_USUARIO,
                     actor + " eliminó el usuario " + user.getUsername(),
                     "User",
                     user.getId()

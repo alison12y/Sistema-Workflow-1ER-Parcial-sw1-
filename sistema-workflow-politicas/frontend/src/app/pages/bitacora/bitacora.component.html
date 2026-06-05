@@ -1,10 +1,13 @@
 <div class="page-crud">
   <div class="page-toolbar">
     <div>
-      <h1>Bitácora del Sistema</h1>
-      <p>Registro de acciones realizadas por los usuarios</p>
+      <h1>Auditoría / Bitácora</h1>
+      <p>Registro centralizado de acciones del sistema BPM</p>
     </div>
-    <button type="button" class="btn btn-secondary" (click)="refresh()">Actualizar</button>
+    <div class="toolbar-actions">
+      <button type="button" class="btn btn-secondary" (click)="exportCsv()">Exportar CSV</button>
+      <button type="button" class="btn btn-secondary" (click)="refresh()">Actualizar</button>
+    </div>
   </div>
 
   @if (message) {
@@ -14,26 +17,35 @@
     <div class="alert error">{{ error }}</div>
   }
 
-  <div class="filters-row">
+  <div class="filters-row bitacora-filters">
     <input
       type="search"
       class="search-input"
-      placeholder="Buscar por usuario, módulo, acción o descripción..."
-      [(ngModel)]="searchTerm"
-      (ngModelChange)="onSearchChange()"
+      placeholder="Usuario (nombre o login)..."
+      [(ngModel)]="filterUsername"
     />
-    <select class="filter-select" [(ngModel)]="selectedModule" (ngModelChange)="onModuleChange()">
+    <select class="filter-select" [(ngModel)]="filterModule">
       <option value="">Todos los módulos</option>
       @for (module of modules.slice(1); track module) {
         <option [value]="module">{{ module }}</option>
       }
     </select>
+    <select class="filter-select" [(ngModel)]="filterAction">
+      <option value="">Todas las acciones</option>
+      @for (action of actionOptions; track action) {
+        <option [value]="action">{{ actionLabel(action) }}</option>
+      }
+    </select>
+    <input type="date" class="filter-date" [(ngModel)]="filterDateFrom" title="Fecha desde" />
+    <input type="date" class="filter-date" [(ngModel)]="filterDateTo" title="Fecha hasta" />
+    <button type="button" class="btn btn-primary" (click)="applyFilters()">Filtrar</button>
+    <button type="button" class="btn btn-secondary" (click)="clearFilters()">Limpiar</button>
   </div>
 
   <div class="data-card">
     @if (loading) {
       <div class="loading">Cargando bitácora...</div>
-    } @else if (!filteredEntries.length) {
+    } @else if (!entries.length) {
       <div class="empty-state">No hay registros en la bitácora</div>
     } @else {
       <div class="table-wrap">
@@ -45,16 +57,22 @@
               <th>Módulo</th>
               <th>Acción</th>
               <th>Descripción</th>
+              <th>Resultado</th>
             </tr>
           </thead>
           <tbody>
-            @for (entry of filteredEntries; track entry.createdAt + entry.description + entry.action) {
-              <tr>
+            @for (entry of entries; track entry.id || entry.createdAt + entry.action + entry.description) {
+              <tr [class.is-error]="entry.resultado === 'ERROR'">
                 <td>{{ formatDate(entry.createdAt) }}</td>
-                <td>{{ entry.username }}</td>
+                <td>{{ displayUser(entry) }}</td>
                 <td>{{ entry.module }}</td>
                 <td>{{ actionLabel(entry.action) }}</td>
                 <td>{{ entry.description }}</td>
+                <td>
+                  <span class="result-badge" [class.error]="entry.resultado === 'ERROR'">
+                    {{ resultadoLabel(entry) }}
+                  </span>
+                </td>
               </tr>
             }
           </tbody>

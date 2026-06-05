@@ -219,6 +219,14 @@ public class BusinessPolicyService {
                 "ACTIVE",
                 "Policy activated: " + saved.getName()
         );
+        String actor = bitacoraService.resolveActorDisplay();
+        bitacoraService.registrar(
+                "Políticas",
+                "ACTIVAR_POLITICA",
+                actor + " activó la política " + saved.getName(),
+                "BusinessPolicy",
+                saved.getId()
+        );
         return saved;
     }
 
@@ -237,6 +245,14 @@ public class BusinessPolicyService {
                 previousStatus,
                 "INACTIVE",
                 "Policy deactivated: " + saved.getName()
+        );
+        String actor = bitacoraService.resolveActorDisplay();
+        bitacoraService.registrar(
+                "Políticas",
+                "DESACTIVAR_POLITICA",
+                actor + " desactivó la política " + saved.getName(),
+                "BusinessPolicy",
+                saved.getId()
         );
         return saved;
     }

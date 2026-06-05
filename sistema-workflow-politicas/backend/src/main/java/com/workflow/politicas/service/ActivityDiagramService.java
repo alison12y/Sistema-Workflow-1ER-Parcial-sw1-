@@ -74,9 +74,9 @@ public class ActivityDiagramService {
         businessPolicyRepository.findById(saved.getPolicyId()).ifPresent(policy -> {
             String actor = bitacoraService.resolveActorDisplay();
             bitacoraService.registrar(
-                    "Diagramas UML",
-                    "GUARDAR_DIAGRAMA",
-                    actor + " guardó el Diagrama de Actividades UML 2.5 de la política " + policy.getName(),
+                    "Workflow",
+                    "GUARDAR_WORKFLOW",
+                    actor + " guardó el diagrama de workflow de la política " + policy.getName(),
                     "ActivityDiagram",
                     saved.getId()
             );

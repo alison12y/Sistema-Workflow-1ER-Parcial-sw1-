@@ -4,11 +4,34 @@ import java.time.LocalDateTime;
 
 public class BitacoraResponse {
 
+    private String id;
+    private String userId;
     private String username;
+    private String fullName;
     private String module;
     private String action;
     private String description;
+    private String entityType;
+    private String entityId;
+    private String resultado;
+    private String ip;
     private LocalDateTime createdAt;
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
 
     public String getUsername() {
         return username;
@@ -16,6 +39,14 @@ public class BitacoraResponse {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public String getModule() {
@@ -40,6 +71,38 @@ public class BitacoraResponse {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getEntityType() {
+        return entityType;
+    }
+
+    public void setEntityType(String entityType) {
+        this.entityType = entityType;
+    }
+
+    public String getEntityId() {
+        return entityId;
+    }
+
+    public void setEntityId(String entityId) {
+        this.entityId = entityId;
+    }
+
+    public String getResultado() {
+        return resultado;
+    }
+
+    public void setResultado(String resultado) {
+        this.resultado = resultado;
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
     }
 
     public LocalDateTime getCreatedAt() {

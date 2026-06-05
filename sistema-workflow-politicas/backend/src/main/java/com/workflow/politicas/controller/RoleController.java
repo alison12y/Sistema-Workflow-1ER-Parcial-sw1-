@@ -22,18 +22,13 @@ public class RoleController {
 
     @PostMapping
     public Role createRole(@RequestBody Role role) {
-        return roleService.save(role);
+        return roleService.create(role);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Role> updateRole(@PathVariable String id, @RequestBody Role roleDetails) {
-        return roleService.findById(id)
-                .map(role -> {
-                    role.setName(roleDetails.getName());
-                    role.setDescription(roleDetails.getDescription());
-                    role.setPermissionIds(roleDetails.getPermissionIds());
-                    return ResponseEntity.ok(roleService.save(role));
-                })
+        return roleService.update(id, roleDetails)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 

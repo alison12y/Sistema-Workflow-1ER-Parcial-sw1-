@@ -82,7 +82,7 @@ class TramiteServiceDeleteTest {
         verify(bitacoraService).registrar(
                 eq("admin"),
                 eq("Trámites"),
-                eq("TRAMITE_ELIMINADO"),
+                eq("ELIMINAR_TRAMITE"),
                 anyString(),
                 eq("Tramite"),
                 eq("tram-1")

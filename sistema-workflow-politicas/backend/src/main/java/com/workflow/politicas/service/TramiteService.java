@@ -374,7 +374,7 @@ public class TramiteService {
 
                 "Trámites",
 
-                "CREAR_TRAMITE",
+                "INICIAR_TRAMITE",
 
                 actorDisplay + " creó el trámite " + saved.getCode() + " para la política " + policy.getName(),
 
@@ -621,7 +621,7 @@ public class TramiteService {
         String actorDisplay = resolveActorDisplay(authenticatedUsername);
 
         tramite.getTrace().add(traceEvent(
-                "FORMULARIO_ENVIADO",
+                "COMPLETAR_ACTIVIDAD",
                 "Formulario enviado",
                 authenticatedUsername,
                 actorDisplay,
@@ -639,7 +639,7 @@ public class TramiteService {
         bitacoraService.registrar(
                 authenticatedUsername,
                 "Mis actividades",
-                "FORMULARIO_ENVIADO",
+                "COMPLETAR_ACTIVIDAD",
                 actorDisplay + " envió el formulario de " + activityName + " en " + tramite.getCode(),
                 "Tramite",
                 tramite.getId()
@@ -665,7 +665,7 @@ public class TramiteService {
                 + fieldsSuggested + " sugerido(s). Actividad " + activityName + " (tarea #" + taskOrder + ").";
 
         tramite.getTrace().add(traceEvent(
-                "IA_FORMULARIO_ASISTIDO",
+                "ASISTENCIA_FORMULARIO_IA",
                 "Asistencia IA en formulario",
                 authenticatedUsername,
                 actorDisplay,
@@ -683,7 +683,7 @@ public class TramiteService {
         bitacoraService.registrar(
                 authenticatedUsername,
                 "Mis actividades",
-                "IA_FORMULARIO_ASISTIDO",
+                "ASISTENCIA_FORMULARIO_IA",
                 actorDisplay + " usó asistencia IA en formulario de " + activityName + " (" + tramite.getCode() + ")",
                 "Tramite",
                 tramite.getId()
@@ -902,7 +902,7 @@ public class TramiteService {
 
                 "Trámites",
 
-                "TRAMITE_ELIMINADO",
+                "ELIMINAR_TRAMITE",
 
                 actorDisplay + " eliminó el trámite " + tramiteCode,
 
