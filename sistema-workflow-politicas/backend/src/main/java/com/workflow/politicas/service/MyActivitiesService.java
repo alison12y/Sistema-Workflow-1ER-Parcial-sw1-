@@ -29,7 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Bandeja del funcionario (F2): todas las tareas asignadas por USER / ROLE / DEPARTMENT.
+ * Bandeja del funcionario: todas las tareas asignadas por USER / ROLE / DEPARTMENT.
  */
 @Service
 public class MyActivitiesService {
@@ -50,6 +50,7 @@ public class MyActivitiesService {
     private final WorkflowActivityRepository workflowActivityRepository;
     private final FormSubmissionService formSubmissionService;
     private final TramiteService tramiteService;
+    private final WorkflowRoutingService workflowRoutingService;
 
     public MyActivitiesService(
             TramiteRepository tramiteRepository,
@@ -58,7 +59,8 @@ public class MyActivitiesService {
             DepartmentRepository departmentRepository,
             WorkflowActivityRepository workflowActivityRepository,
             FormSubmissionService formSubmissionService,
-            TramiteService tramiteService
+            TramiteService tramiteService,
+            WorkflowRoutingService workflowRoutingService
     ) {
         this.tramiteRepository = tramiteRepository;
         this.userRepository = userRepository;
@@ -67,6 +69,7 @@ public class MyActivitiesService {
         this.workflowActivityRepository = workflowActivityRepository;
         this.formSubmissionService = formSubmissionService;
         this.tramiteService = tramiteService;
+        this.workflowRoutingService = workflowRoutingService;
     }
 
     public List<MyActivityDto> listInbox(String username, MyActivitiesFilter filter) {
@@ -219,8 +222,30 @@ public class MyActivitiesService {
 
         String workflowActivityId = task.getWorkflowActivityId();
         if (workflowActivityId == null || workflowActivityId.isBlank()) {
-            throw new IllegalStateException("La tarea no tiene actividad de workflow asociada");
+            workflowActivityId = workflowRoutingService.resolveCanonicalActivityId(
+                    tramite.getPolicyId(), null, task.getName());
+        } else {
+            workflowActivityId = workflowRoutingService.resolveCanonicalActivityId(
+                    tramite.getPolicyId(), workflowActivityId, task.getName());
         }
+        if (workflowActivityId == null || workflowActivityId.isBlank()) {
+            throw new IllegalStateException(
+                    "La tarea no tiene actividad de workflow asociada. Configure el diagrama UML de la política.");
+        }
+        if (!workflowActivityId.equals(task.getWorkflowActivityId())) {
+            task.setWorkflowActivityId(workflowActivityId);
+        }
+
+        com.workflow.politicas.util.Cu7WorkflowDebugLog.advance(
+                "completeActivity tramiteId={} codigo={} taskOrder={} workflowActivityId={} task.status={} takenBy={} policyId={}",
+                tramiteId,
+                tramite.getCode(),
+                taskOrder,
+                workflowActivityId,
+                task.getStatus(),
+                task.getTakenBy(),
+                tramite.getPolicyId()
+        );
 
         String activityName = task.getName();
         formSubmissionService.validateResponsesForWorkflowActivity(
@@ -250,6 +275,13 @@ public class MyActivitiesService {
         Map<String, Object> stepData = formSubmissionService.buildStepDataForWorkflowActivity(
                 workflowActivityId,
                 request.getResponses()
+        );
+        com.workflow.politicas.util.Cu7WorkflowDebugLog.log(
+                "completeActivity tramite={} taskOrder={} workflowActivityId={} stepData={}",
+                tramiteId,
+                taskOrder,
+                workflowActivityId,
+                com.workflow.politicas.util.Cu7WorkflowDebugLog.stepDataSummary(stepData)
         );
         formSubmissionService.validateStepDataForWorkflowCompletion(
                 workflowActivityId,

@@ -3,7 +3,7 @@ package com.workflow.politicas.dto;
 import java.time.LocalDate;
 
 /**
- * Filtros opcionales para KPI (F5).
+ * Filtros opcionales para KPI.
  */
 public class KpiFilter {
     private String policyId;

@@ -3,8 +3,8 @@ package com.workflow.politicas.model;
 import java.time.LocalDateTime;
 
 /**
- * Tarea de bandeja del funcionario (runtime oficial Ciclo 1).
- * F1 añadirá enlace a {@link WorkflowActivity#getId()}.
+ * Tarea de bandeja del funcionario.
+ * añadirá enlace a {@link WorkflowActivity#getId()}.
  */
 public class TramiteTask {
     private String workflowActivityId;

@@ -43,6 +43,8 @@ class MyActivitiesServiceDepartmentInboxTest {
     private FormSubmissionService formSubmissionService;
     @Mock
     private TramiteService tramiteService;
+    @Mock
+    private WorkflowRoutingService workflowRoutingService;
 
     private MyActivitiesService service;
 
@@ -55,7 +57,8 @@ class MyActivitiesServiceDepartmentInboxTest {
                 departmentRepository,
                 workflowActivityRepository,
                 formSubmissionService,
-                tramiteService
+                tramiteService,
+                workflowRoutingService
         );
     }
 

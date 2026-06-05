@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Instancia de trámite (runtime oficial Ciclo 1). El flujo diseñado vive en
+ * Instancia de trámite. El flujo diseñado vive en
  * {@link WorkflowActivity}/{@link WorkflowTransition}; F1 enlazará {@code currentWorkflowActivityId}.
  *
  * @see com.workflow.politicas.workflow.cycle1.Cycle1WorkflowModel

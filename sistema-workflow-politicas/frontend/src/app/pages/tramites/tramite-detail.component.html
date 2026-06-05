@@ -53,7 +53,7 @@
         }
       </div>
 
-      @if (canAdvance() || canCancel()) {
+      @if (canAdvance() || canCancel() || canDelete()) {
         <div class="detail-actions">
           @if (canAdvance()) {
             <button type="button" class="btn btn-primary" [disabled]="acting" (click)="advance()">
@@ -62,6 +62,11 @@
           }
           @if (canCancel()) {
             <button type="button" class="btn btn-danger" [disabled]="acting" (click)="cancel()">Cancelar trámite</button>
+          }
+          @if (canDelete()) {
+            <button type="button" class="btn btn-danger" [disabled]="deleting" (click)="openDeleteModal()">
+              {{ deleting ? 'Eliminando...' : 'Eliminar trámite' }}
+            </button>
           }
         </div>
       }
@@ -185,3 +190,22 @@
     </div>
   }
 </div>
+
+@if (deleteModalOpen && tramite) {
+  <div class="modal-backdrop" (click)="closeDeleteModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>Eliminar trámite</h2>
+      <p class="modal-help">{{ deleteConfirmMessage }}</p>
+      <p><strong>{{ tramite.code }}</strong> — {{ tramite.policyName }}</p>
+      @if (error && deleteModalOpen) {
+        <div class="alert error">{{ error }}</div>
+      }
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeDeleteModal()">Cancelar</button>
+        <button type="button" class="btn btn-danger" [disabled]="deleting" (click)="confirmDelete()">
+          {{ deleting ? 'Eliminando...' : 'Eliminar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

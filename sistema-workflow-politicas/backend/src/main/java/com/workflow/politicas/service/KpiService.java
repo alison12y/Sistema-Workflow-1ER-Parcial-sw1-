@@ -21,7 +21,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * KPI y cuellos de botella (F5) sobre runtime oficial: Tramite, TramiteTask, Trace, WorkflowActivity.
+ * KPI y cuellos de botella sobre runtime oficial: Tramite, TramiteTask, Trace, WorkflowActivity.
  */
 @Service
 public class KpiService {

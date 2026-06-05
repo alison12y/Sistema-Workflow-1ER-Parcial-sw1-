@@ -58,4 +58,11 @@ public class TramiteController {
         String username = authentication != null ? authentication.getName() : null;
         return tramiteService.cancel(id, request, username);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable String id, Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : null;
+        tramiteService.delete(id, username);
+        return ResponseEntity.noContent().build();
+    }
 }

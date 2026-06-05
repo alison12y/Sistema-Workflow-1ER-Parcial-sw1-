@@ -2,7 +2,7 @@ package com.workflow.politicas.model;
 
 import java.time.LocalDateTime;
 
-/** Sesión de presencia en el diseñador UML (F8 — colaboración básica). */
+/** Sesión de presencia en el diseñador UML. */
 public class WorkflowEditorSession {
 
     private String sessionId;

@@ -2,7 +2,7 @@ package com.workflow.politicas.model;
 
 import java.time.LocalDateTime;
 
-/** Elemento del diagrama en edición por un usuario (F8 — presencia tipo Canva). */
+/** Elemento del diagrama en edición por un usuario. */
 public class WorkflowActiveEdit {
 
     private String sessionId;

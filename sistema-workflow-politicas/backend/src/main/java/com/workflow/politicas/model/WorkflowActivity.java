@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 
 /**
- * Actividad UML 2.5 del Ciclo 1 (modelo oficial). Pertenece a una {@link BusinessPolicy}
+ * Actividad UML 2.5 del Ciclo 1 . Pertenece a una {@link BusinessPolicy}
  * y se organiza en swimlane mediante {@code responsibleName} / {@code responsibleType}.
  *
  * @see com.workflow.politicas.workflow.cycle1.Cycle1WorkflowModel

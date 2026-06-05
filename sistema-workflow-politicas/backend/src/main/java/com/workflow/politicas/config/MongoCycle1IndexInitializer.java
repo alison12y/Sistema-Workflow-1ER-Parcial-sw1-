@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.stereotype.Component;
 
 /**
- * F10.2 — Crea índices MongoDB en arranque (idempotente, no borra datos).
+ *  Crea índices MongoDB en arranque (idempotente, no borra datos).
  */
 @Component
 public class MongoCycle1IndexInitializer implements ApplicationRunner {

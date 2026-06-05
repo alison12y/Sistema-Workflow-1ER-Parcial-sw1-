@@ -8,7 +8,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Validaciones de diseño UML (F10.2) — usado por {@link WorkflowTransitionService#validateFlow}.
+ * Validaciones de diseño UML — usado por {@link WorkflowTransitionService#validateFlow}.
  */
 final class WorkflowFlowValidationHelper {
 

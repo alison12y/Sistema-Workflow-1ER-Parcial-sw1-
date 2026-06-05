@@ -2,7 +2,7 @@ package com.workflow.politicas.model;
 
 import java.time.LocalDateTime;
 
-/** Entrada del historial reciente de cambios colaborativos (F8). */
+/** Entrada del historial reciente de cambios colaborativos. */
 public class WorkflowCollaborationRecentAction {
 
     private String actionType;

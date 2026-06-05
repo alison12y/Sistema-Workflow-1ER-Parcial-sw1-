@@ -47,8 +47,12 @@ export class TramiteDetailComponent implements OnInit, OnDestroy {
   loading = true;
   loadingSubmissions = true;
   acting = false;
+  deleting = false;
+  deleteModalOpen = false;
   message = '';
   error = '';
+  readonly deleteConfirmMessage =
+    '¿Está seguro de eliminar este trámite? Esta acción no se puede deshacer.';
 
   readonly statusLabel = tramiteStatusLabel;
   readonly statusClass = tramiteStatusClass;
@@ -184,6 +188,48 @@ export class TramiteDetailComponent implements OnInit, OnDestroy {
       !!this.tramite &&
       (this.tramite.status === 'INICIADO' || this.tramite.status === 'EN_PROCESO')
     );
+  }
+
+  canDelete(): boolean {
+    return (
+      !!this.tramite &&
+      (this.tramite.status === 'COMPLETADO' || this.tramite.status === 'CANCELADO')
+    );
+  }
+
+  openDeleteModal(): void {
+    if (!this.canDelete()) {
+      return;
+    }
+    this.deleteModalOpen = true;
+    this.error = '';
+  }
+
+  closeDeleteModal(): void {
+    this.deleteModalOpen = false;
+  }
+
+  confirmDelete(): void {
+    if (!this.tramite?.id || !this.canDelete()) {
+      return;
+    }
+    const tramiteId = this.tramite.id;
+    const code = this.tramite.code;
+    this.deleting = true;
+    this.error = '';
+    this.tramiteService.delete(tramiteId).subscribe({
+      next: () => {
+        this.deleting = false;
+        this.deleteModalOpen = false;
+        this.router.navigate(['/tramites'], {
+          state: { message: `Trámite ${code} eliminado` },
+        });
+      },
+      error: (err) => {
+        this.deleting = false;
+        this.error = httpErrorMessage(err, 'No se pudo eliminar el trámite');
+      },
+    });
   }
 
   formatDate(value?: string): string {

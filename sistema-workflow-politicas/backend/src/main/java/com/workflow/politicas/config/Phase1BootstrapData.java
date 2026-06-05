@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Datos canónicos de la Fase 1. Usados por DatabaseSeeder y Phase1MigrationService.
+ * Datos canónicos Usados por DatabaseSeeder y Phase1MigrationService.
  */
 public final class Phase1BootstrapData {
 

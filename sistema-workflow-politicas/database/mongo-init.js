@@ -1,4 +1,4 @@
-// Ciclo 1 (F0): colecciones OFICIALES de diseño → workflow_activities, workflow_transitions
+// Ciclo 1: colecciones OFICIALES de diseño → workflow_activities, workflow_transitions
 // Runtime → tramites, form_submissions. Ver docs/ciclo1-modelo-workflow.md
 // F10.2: índices recomendados (createIndex es idempotente en instalaciones existentes)
 

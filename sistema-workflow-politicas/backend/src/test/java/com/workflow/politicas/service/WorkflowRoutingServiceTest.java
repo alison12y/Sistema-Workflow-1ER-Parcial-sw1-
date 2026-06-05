@@ -83,6 +83,35 @@ class WorkflowRoutingServiceTest {
     }
 
     @Test
+    void routeAfterCompletedActivity_traverseDecisionWithStepData() {
+        List<WorkflowActivity> activities = List.of(
+                WorkflowTestFixtures.activity("start", "START", "Inicio", null),
+                WorkflowTestFixtures.activity("t1", "TASK", "Recepción", "Ops"),
+                WorkflowTestFixtures.activity("dec", "DECISION", "¿Válido?", null),
+                WorkflowTestFixtures.activity("t2", "TASK", "Siguiente", "Ops"),
+                WorkflowTestFixtures.activity("end", "END", "Fin", null)
+        );
+        List<com.workflow.politicas.model.WorkflowTransition> transitions = List.of(
+                WorkflowTestFixtures.transition("a", "SEQUENTIAL", "start", "t1", null),
+                WorkflowTestFixtures.transition("b", "SEQUENTIAL", "t1", "dec", null),
+                WorkflowTestFixtures.transition("c", "CONDITIONAL", "dec", "t2", "valido == true"),
+                WorkflowTestFixtures.transition("d", "SEQUENTIAL", "t2", "end", null)
+        );
+        transitions.get(2).setConditionExpression("valido == true");
+        stubPolicy(activities, transitions);
+
+        WorkflowRoutingResult result = routingService.routeAfterCompletedActivity(
+                "policy-1",
+                "t1",
+                "Recepción",
+                Map.of("valido", true)
+        );
+
+        assertEquals(WorkflowRoutingResult.Outcome.ACTIVATE_TASKS, result.getOutcome());
+        assertEquals("t2", result.getNextActivities().get(0).getId());
+    }
+
+    @Test
     void parallelSplitFromDecision_afterTask() {
         List<WorkflowActivity> activities = List.of(
                 WorkflowTestFixtures.activity("start", "START", "Inicio", null),

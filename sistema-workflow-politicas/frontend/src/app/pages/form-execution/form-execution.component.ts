@@ -593,11 +593,15 @@ export class FormExecutionComponent implements OnInit {
 
   private buildResponses(): ResponseItemPayload[] {
     return this.fields.map((field) => {
-      const key = field.name?.trim() || field.label;
+      const key = field.name?.trim();
+      if (!key) {
+        console.warn('[CU7] Campo sin nombre técnico, se omite en stepData:', field.label);
+      }
+      const fieldKey = key || field.label;
       if (isFileFieldType(field.type)) {
         const attachment = this.fileAttachments[key];
         return {
-          fieldName: key,
+          fieldName: fieldKey,
           fieldLabel: field.label,
           fieldType: 'file',
           value: attachment?.fileName ?? '',
@@ -609,10 +613,10 @@ export class FormExecutionComponent implements OnInit {
       }
 
       return {
-        fieldName: key,
+        fieldName: fieldKey,
         fieldLabel: field.label,
         fieldType: field.type,
-        value: this.values[key] ?? '',
+        value: this.values[fieldKey] ?? (field.type === 'checkbox' ? 'false' : ''),
       };
     });
   }

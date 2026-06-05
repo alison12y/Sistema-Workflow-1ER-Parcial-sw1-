@@ -10,4 +10,5 @@ import java.util.List;
 public interface BitacoraRepository extends MongoRepository<Bitacora, String> {
     List<Bitacora> findByModule(String module);
     List<Bitacora> findByUserId(String userId);
+    void deleteByEntityTypeAndEntityId(String entityType, String entityId);
 }

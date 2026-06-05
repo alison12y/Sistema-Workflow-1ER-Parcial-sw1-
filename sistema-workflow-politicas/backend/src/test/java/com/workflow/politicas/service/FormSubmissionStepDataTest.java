@@ -63,7 +63,7 @@ class FormSubmissionStepDataTest {
     }
 
     @Test
-    void buildStepData_doesNotUseLabelAliasWhenFormConfigured() {
+    void buildStepData_mergesLegacyResponseKeyAlongsideFormField() {
         mockFormWithValidoField();
         ResponseItemDto wrongKey = new ResponseItemDto();
         wrongKey.setFieldName("llenar");
@@ -75,8 +75,8 @@ class FormSubmissionStepDataTest {
                 List.of(wrongKey)
         );
 
-        assertFalse(stepData.containsKey("llenar"));
         assertEquals(Boolean.FALSE, stepData.get("valido"));
+        assertEquals(Boolean.TRUE, stepData.get("llenar"));
     }
 
     private void mockFormWithValidoField() {

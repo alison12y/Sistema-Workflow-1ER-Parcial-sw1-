@@ -22,7 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Migra o crea datos de la Fase 1 sin borrar colecciones completas.
+ * Migra o crea datos  sin borrar colecciones completas.
  * Los registros existentes con otros nombres (p. ej. ADMINISTRADOR, Alison) se conservan.
  */
 @Service

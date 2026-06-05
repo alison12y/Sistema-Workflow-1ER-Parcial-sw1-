@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Metadatos colaborativos por política — presencia y revisión del diagrama UML (F8). */
+/** Metadatos colaborativos por política — presencia y revisión del diagrama UML. */
 @Document(collection = "workflow_collaboration")
 public class WorkflowCollaborationMeta {
 

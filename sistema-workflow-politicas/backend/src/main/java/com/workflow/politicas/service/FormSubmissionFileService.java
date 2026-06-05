@@ -104,6 +104,23 @@ public class FormSubmissionFileService {
                 .orElse(false);
     }
 
+    public void deleteIfExists(String fileId) {
+        if (fileId == null || fileId.isBlank()) {
+            return;
+        }
+        formSubmissionFileRepository.findById(fileId.trim()).ifPresent(metadata -> {
+            Path path = uploadRoot.resolve(metadata.getStorageFileName()).normalize();
+            if (path.startsWith(uploadRoot)) {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException ignored) {
+                    // El registro en BD se elimina aunque falle el archivo en disco
+                }
+            }
+            formSubmissionFileRepository.deleteById(metadata.getId());
+        });
+    }
+
     private FormSubmissionFileResponse toResponse(FormSubmissionFile file) {
         FormSubmissionFileResponse response = new FormSubmissionFileResponse();
         response.setFileId(file.getId());

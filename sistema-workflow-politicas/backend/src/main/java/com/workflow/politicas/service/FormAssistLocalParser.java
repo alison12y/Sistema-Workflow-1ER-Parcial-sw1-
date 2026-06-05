@@ -7,7 +7,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Parser local para mapear informe libre a campos de formulario (F7). */
+/** Parser local para mapear informe libre a campos de formulario. */
 public final class FormAssistLocalParser {
 
     private static final String FALLBACK_MSG =

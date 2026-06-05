@@ -41,7 +41,12 @@ export class TramitesComponent implements OnInit {
   saving = false;
   advancingId: string | null = null;
   cancellingId: string | null = null;
+  deletingId: string | null = null;
   modalOpen = false;
+  deleteModalOpen = false;
+  tramiteToDelete: Tramite | null = null;
+  readonly deleteConfirmMessage =
+    '¿Está seguro de eliminar este trámite? Esta acción no se puede deshacer.';
   message = '';
   error = '';
 
@@ -232,6 +237,46 @@ export class TramitesComponent implements OnInit {
 
   canCancel(tramite: Tramite): boolean {
     return tramite.status === 'INICIADO' || tramite.status === 'EN_PROCESO';
+  }
+
+  canDelete(tramite: Tramite): boolean {
+    return tramite.status === 'COMPLETADO' || tramite.status === 'CANCELADO';
+  }
+
+  openDeleteModal(tramite: Tramite, event: Event): void {
+    event.stopPropagation();
+    if (!tramite.id || !this.canDelete(tramite)) {
+      return;
+    }
+    this.tramiteToDelete = tramite;
+    this.deleteModalOpen = true;
+    this.error = '';
+  }
+
+  closeDeleteModal(): void {
+    this.deleteModalOpen = false;
+    this.tramiteToDelete = null;
+  }
+
+  confirmDelete(): void {
+    if (!this.tramiteToDelete?.id) {
+      return;
+    }
+    const tramite = this.tramiteToDelete;
+    this.deletingId = tramite.id!;
+    this.error = '';
+    this.tramiteService.delete(tramite.id!).subscribe({
+      next: () => {
+        this.deletingId = null;
+        this.closeDeleteModal();
+        this.message = `Trámite ${tramite.code} eliminado`;
+        this.load();
+      },
+      error: (err) => {
+        this.deletingId = null;
+        this.error = httpErrorMessage(err, 'No se pudo eliminar el trámite');
+      },
+    });
   }
 
   formatDate(value?: string): string {

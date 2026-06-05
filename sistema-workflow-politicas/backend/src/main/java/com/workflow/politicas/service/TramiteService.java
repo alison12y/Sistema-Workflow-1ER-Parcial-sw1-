@@ -12,6 +12,10 @@ import com.workflow.politicas.dto.WorkflowRoutingResult;
 
 import com.workflow.politicas.model.BusinessPolicy;
 
+import com.workflow.politicas.model.FormSubmission;
+
+import com.workflow.politicas.model.ResponseItem;
+
 import com.workflow.politicas.model.TraceItem;
 
 import com.workflow.politicas.model.Tramite;
@@ -23,6 +27,8 @@ import com.workflow.politicas.model.User;
 import com.workflow.politicas.model.WorkflowActivity;
 
 import com.workflow.politicas.repository.BusinessPolicyRepository;
+
+import com.workflow.politicas.repository.FormSubmissionRepository;
 
 import com.workflow.politicas.repository.RoleRepository;
 
@@ -106,6 +112,10 @@ public class TramiteService {
 
     private final BitacoraService bitacoraService;
 
+    private final FormSubmissionRepository formSubmissionRepository;
+
+    private final FormSubmissionFileService formSubmissionFileService;
+
 
 
     public TramiteService(
@@ -122,7 +132,11 @@ public class TramiteService {
 
             WorkflowRoutingService workflowRoutingService,
 
-            BitacoraService bitacoraService
+            BitacoraService bitacoraService,
+
+            FormSubmissionRepository formSubmissionRepository,
+
+            FormSubmissionFileService formSubmissionFileService
 
     ) {
 
@@ -139,6 +153,10 @@ public class TramiteService {
         this.workflowRoutingService = workflowRoutingService;
 
         this.bitacoraService = bitacoraService;
+
+        this.formSubmissionRepository = formSubmissionRepository;
+
+        this.formSubmissionFileService = formSubmissionFileService;
 
     }
 
@@ -440,9 +458,51 @@ public class TramiteService {
 
         if (activityId == null || activityId.isBlank()) {
 
+            activityId = workflowRoutingService.resolveCanonicalActivityId(
+
+                    tramite.getPolicyId(), null, completedTask.getName());
+
+        } else {
+
+            activityId = workflowRoutingService.resolveCanonicalActivityId(
+
+                    tramite.getPolicyId(), activityId, completedTask.getName());
+
+        }
+
+        if (activityId == null || activityId.isBlank()) {
+
             throw new IllegalStateException("La tarea no tiene actividad de workflow asociada");
 
         }
+
+        if (!activityId.equals(completedTask.getWorkflowActivityId())) {
+
+            completedTask.setWorkflowActivityId(activityId);
+
+        }
+
+        com.workflow.politicas.util.Cu7WorkflowDebugLog.advance(
+
+                "advanceWithTaskCompletion tramiteId={} codigo={} currentWorkflowActivityId={} taskOrder={} task.workflowActivityId={} task.status={} task.takenBy={} fromActivity={}",
+
+                tramite.getId(),
+
+                tramite.getCode(),
+
+                tramite.getCurrentWorkflowActivityId(),
+
+                completedTaskOrder,
+
+                activityId,
+
+                completedTask.getStatus(),
+
+                completedTask.getTakenBy(),
+
+                completedTask.getName()
+
+        );
 
 
 
@@ -490,7 +550,27 @@ public class TramiteService {
 
         if (activityId == null || activityId.isBlank()) {
 
+            activityId = workflowRoutingService.resolveCanonicalActivityId(
+
+                    tramite.getPolicyId(), null, current.getName());
+
+        } else {
+
+            activityId = workflowRoutingService.resolveCanonicalActivityId(
+
+                    tramite.getPolicyId(), activityId, current.getName());
+
+        }
+
+        if (activityId == null || activityId.isBlank()) {
+
             throw new IllegalStateException("El trámite no tiene actividad de workflow en curso");
+
+        }
+
+        if (!activityId.equals(current.getWorkflowActivityId())) {
+
+            current.setWorkflowActivityId(activityId);
 
         }
 
@@ -778,6 +858,120 @@ public class TramiteService {
 
 
 
+    /**
+
+     * Elimina un trámite cerrado (COMPLETADO o CANCELADO) y sus datos asociados.
+
+     */
+
+    public void delete(String id, String authenticatedUsername) {
+
+        Tramite tramite = tramiteRepository.findById(id)
+
+                .orElseThrow(() -> new IllegalArgumentException("Trámite no encontrado"));
+
+
+
+        if (!isDeletableStatus(tramite.getStatus())) {
+
+            throw new IllegalArgumentException(
+
+                    "Solo se pueden eliminar trámites finalizados o cancelados. El trámite está en estado: "
+
+                            + statusLabel(tramite.getStatus()));
+
+        }
+
+
+
+        String actorDisplay = resolveActorDisplay(authenticatedUsername);
+
+        String tramiteCode = tramite.getCode() != null ? tramite.getCode() : id;
+
+
+
+        deleteFormSubmissionsForTramite(id);
+
+        bitacoraService.deleteByEntity("Tramite", id);
+
+
+
+        bitacoraService.registrar(
+
+                authenticatedUsername,
+
+                "Trámites",
+
+                "TRAMITE_ELIMINADO",
+
+                actorDisplay + " eliminó el trámite " + tramiteCode,
+
+                "Tramite",
+
+                id
+
+        );
+
+
+
+        tramiteRepository.deleteById(id);
+
+    }
+
+
+
+    private boolean isDeletableStatus(String status) {
+
+        if (status == null || status.isBlank()) {
+
+            return false;
+
+        }
+
+        String normalized = status.trim().toUpperCase(Locale.ROOT);
+
+        return STATUS_COMPLETADO.equals(normalized)
+
+                || STATUS_CANCELADO.equals(normalized)
+
+                || "CANCELLED".equals(normalized)
+
+                || "FINALIZADO".equals(normalized)
+
+                || "COMPLETED".equals(normalized);
+
+    }
+
+
+
+    private void deleteFormSubmissionsForTramite(String tramiteId) {
+
+        List<FormSubmission> submissions = formSubmissionRepository.findByTramiteId(tramiteId);
+
+        for (FormSubmission submission : submissions) {
+
+            if (submission.getResponses() != null) {
+
+                for (ResponseItem item : submission.getResponses()) {
+
+                    if (item.getFileId() != null && !item.getFileId().isBlank()) {
+
+                        formSubmissionFileService.deleteIfExists(item.getFileId());
+
+                    }
+
+                }
+
+            }
+
+        }
+
+        formSubmissionRepository.deleteByTramiteId(tramiteId);
+
+    }
+
+
+
     private Tramite processTaskCompletion(
 
             Tramite tramite,
@@ -939,8 +1133,27 @@ public class TramiteService {
 
                 completedActivityId,
 
+                completedTask.getName(),
+
                 stepData
 
+        );
+
+        String nextActivitySummary = routing.getNextActivities() == null || routing.getNextActivities().isEmpty()
+                ? "—"
+                : routing.getNextActivities().stream()
+                        .map(a -> a.getName() + "(" + a.getActivityType() + ")")
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse("—");
+
+        com.workflow.politicas.util.Cu7WorkflowDebugLog.advance(
+                "routingResult tramiteId={} codigo={} outcome={} message={} nextActivities={} stepData={}",
+                tramite.getId(),
+                tramite.getCode(),
+                routing.getOutcome(),
+                routing.getMessage() != null ? routing.getMessage() : routing.getErrorDetail(),
+                nextActivitySummary,
+                com.workflow.politicas.util.Cu7WorkflowDebugLog.stepDataSummary(stepData)
         );
 
 
@@ -1254,6 +1467,16 @@ public class TramiteService {
             ));
 
             tramite.getTasks().add(task);
+
+            com.workflow.politicas.util.Cu7WorkflowDebugLog.advance(
+                    "tareaCreada tramiteId={} codigo={} taskOrder={} workflowActivityId={} name={} status={}",
+                    tramite.getId(),
+                    tramite.getCode(),
+                    task.getOrder(),
+                    task.getWorkflowActivityId(),
+                    task.getName(),
+                    task.getStatus()
+            );
 
         }
 

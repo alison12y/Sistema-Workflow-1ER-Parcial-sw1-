@@ -1,5 +1,6 @@
 package com.workflow.politicas.service;
 
+import com.workflow.politicas.util.Cu7WorkflowDebugLog;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
@@ -20,14 +21,68 @@ public class WorkflowConditionEvaluator {
 
     public boolean evaluate(String expression, String conditionLabel, Map<String, Object> stepData) {
         if (expression != null && !expression.isBlank()) {
-            if (evaluateExpression(expression.trim(), stepData)) {
+            boolean result = evaluateExpression(expression.trim(), stepData);
+            Cu7WorkflowDebugLog.log(
+                    "evaluate expr='{}' stepData={} valido={} -> {}",
+                    expression.trim(),
+                    Cu7WorkflowDebugLog.stepDataSummary(stepData),
+                    resolveFieldValueForDebug("valido", stepData),
+                    result
+            );
+            if (result) {
                 return true;
             }
         }
         if (conditionLabel != null && !conditionLabel.isBlank()) {
-            return evaluateLabel(conditionLabel.trim(), stepData);
+            String label = conditionLabel.trim();
+            if (looksLikeExpression(label)) {
+                boolean result = evaluateExpression(label, stepData);
+                Cu7WorkflowDebugLog.log(
+                        "evaluate label-as-expr='{}' stepData={} valido={} -> {}",
+                        label,
+                        Cu7WorkflowDebugLog.stepDataSummary(stepData),
+                        resolveFieldValueForDebug("valido", stepData),
+                        result
+                );
+                if (result) {
+                    return true;
+                }
+            }
+            boolean labelResult = evaluateLabel(label, stepData);
+            Cu7WorkflowDebugLog.log(
+                    "evaluate label='{}' stepData={} -> {}",
+                    label,
+                    Cu7WorkflowDebugLog.stepDataSummary(stepData),
+                    labelResult
+            );
+            return labelResult;
         }
+        Cu7WorkflowDebugLog.log("evaluate sin expresión ni etiqueta stepData={}", Cu7WorkflowDebugLog.stepDataSummary(stepData));
         return false;
+    }
+
+    private static boolean looksLikeExpression(String text) {
+        return text.contains("==")
+                || text.contains("!=")
+                || text.contains(">=")
+                || text.contains("<=")
+                || text.contains(">")
+                || text.contains("<");
+    }
+
+    private Object resolveFieldValueForDebug(String field, Map<String, Object> stepData) {
+        if (stepData == null) {
+            return null;
+        }
+        if (stepData.containsKey(field)) {
+            return stepData.get(field);
+        }
+        for (Map.Entry<String, Object> entry : stepData.entrySet()) {
+            if (entry.getKey() != null && entry.getKey().equalsIgnoreCase(field)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     private boolean evaluateLabel(String label, Map<String, Object> stepData) {
@@ -136,8 +191,14 @@ public class WorkflowConditionEvaluator {
     }
 
     private boolean valuesEqual(Object lhs, Object rhs) {
-        if (lhs instanceof Boolean || rhs instanceof Boolean) {
-            return truthy(lhs) == truthy(rhs);
+        if (lhs == null && rhs == null) {
+            return true;
+        }
+        if (lhs == null || rhs == null) {
+            return false;
+        }
+        if (lhs instanceof Boolean || rhs instanceof Boolean || isBooleanLike(lhs) || isBooleanLike(rhs)) {
+            return toBoolean(lhs) == toBoolean(rhs);
         }
         Double leftNum = toNumber(lhs);
         Double rightNum = toNumber(rhs);
@@ -145,6 +206,21 @@ public class WorkflowConditionEvaluator {
             return Double.compare(leftNum, rightNum) == 0;
         }
         return normalize(String.valueOf(lhs)).equals(normalize(String.valueOf(rhs)));
+    }
+
+    private boolean isBooleanLike(Object value) {
+        if (value instanceof Boolean) {
+            return true;
+        }
+        String s = String.valueOf(value).trim();
+        return "true".equalsIgnoreCase(s) || "false".equalsIgnoreCase(s);
+    }
+
+    private boolean toBoolean(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        return truthy(value);
     }
 
     private Double toNumber(Object value) {

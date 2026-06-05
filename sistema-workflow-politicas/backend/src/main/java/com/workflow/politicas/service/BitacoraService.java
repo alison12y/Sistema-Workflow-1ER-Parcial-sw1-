@@ -94,6 +94,13 @@ public class BitacoraService {
                 .toList();
     }
 
+    public void deleteByEntity(String entityType, String entityId) {
+        if (entityType == null || entityType.isBlank() || entityId == null || entityId.isBlank()) {
+            return;
+        }
+        bitacoraRepository.deleteByEntityTypeAndEntityId(entityType.trim(), entityId.trim());
+    }
+
     private BitacoraResponse toResponse(Bitacora entry) {
         BitacoraResponse response = new BitacoraResponse();
         response.setUsername(entry.getUsername());

@@ -73,25 +73,40 @@ public class FormFieldKeyMigrationService {
             boolean hasValido = fields.stream()
                     .anyMatch(f -> TARGET_FIELD_NAME.equalsIgnoreCase(f.getName()));
             for (FormField field : fields) {
+                String name = field.getName() != null ? field.getName().trim().toLowerCase(Locale.ROOT) : "";
+                if (LEGACY_FIELD_NAME.equals(name) && !hasValido) {
+                    applyValidoField(field);
+                    field.setActive(true);
+                    formFieldRepository.save(field);
+                    count++;
+                    hasValido = true;
+                    continue;
+                }
                 if (!field.isActive()) {
                     continue;
                 }
-                String name = field.getName() != null ? field.getName().trim().toLowerCase(Locale.ROOT) : "";
                 if (!LEGACY_FIELD_NAME.equals(name) && !hasValido) {
                     if (field.getType() != null
                             && "CHECKBOX".equalsIgnoreCase(field.getType())
                             && (name.isBlank() || name.equals("campo"))) {
                         applyValidoField(field);
+                        field.setActive(true);
                         formFieldRepository.save(field);
                         count++;
+                        hasValido = true;
                     }
-                    continue;
                 }
-                if (LEGACY_FIELD_NAME.equals(name) && !hasValido) {
-                    applyValidoField(field);
-                    formFieldRepository.save(field);
-                    count++;
-                }
+            }
+            if (!hasValido) {
+                FormField created = new FormField();
+                created.setFormId(form.getId());
+                applyValidoField(created);
+                created.setOrder(1);
+                created.setActive(true);
+                created.setCreatedAt(LocalDateTime.now());
+                created.setUpdatedAt(LocalDateTime.now());
+                formFieldRepository.save(created);
+                count++;
             }
         }
         return count;

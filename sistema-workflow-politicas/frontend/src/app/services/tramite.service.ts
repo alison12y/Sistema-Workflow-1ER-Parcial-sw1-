@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import {
   Tramite,
@@ -32,5 +33,11 @@ export class TramiteService {
 
   cancel(id: string, request?: TramiteCancelRequest): Observable<Tramite> {
     return this.http.put<Tramite>(`${this.api}/${id}/cancel`, request ?? {});
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete(`${this.api}/${id}`, { responseType: 'text' }).pipe(
+      map(() => undefined)
+    );
   }
 }

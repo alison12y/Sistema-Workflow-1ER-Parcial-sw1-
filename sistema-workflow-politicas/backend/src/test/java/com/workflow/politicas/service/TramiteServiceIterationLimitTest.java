@@ -4,7 +4,12 @@ import com.workflow.politicas.dto.WorkflowRoutingResult;
 import com.workflow.politicas.model.Tramite;
 import com.workflow.politicas.model.TramiteTask;
 import com.workflow.politicas.model.WorkflowActivity;
-import com.workflow.politicas.repository.*;
+import com.workflow.politicas.repository.BusinessPolicyRepository;
+import com.workflow.politicas.repository.FormSubmissionRepository;
+import com.workflow.politicas.repository.RoleRepository;
+import com.workflow.politicas.repository.TramiteRepository;
+import com.workflow.politicas.repository.UserRepository;
+import com.workflow.politicas.repository.WorkflowActivityRepository;
 import com.workflow.politicas.support.WorkflowTestFixtures;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +37,12 @@ class TramiteServiceIterationLimitTest {
     private RoleRepository roleRepository;
     @Mock
     private WorkflowActivityRepository workflowActivityRepository;
+    @Mock
+    private BitacoraService bitacoraService;
+    @Mock
+    private FormSubmissionRepository formSubmissionRepository;
+    @Mock
+    private FormSubmissionFileService formSubmissionFileService;
     private TramiteService tramiteService;
 
     @BeforeEach
@@ -48,7 +59,9 @@ class TramiteServiceIterationLimitTest {
                 roleRepository,
                 workflowActivityRepository,
                 routingService,
-                null
+                bitacoraService,
+                formSubmissionRepository,
+                formSubmissionFileService
         );
     }
 

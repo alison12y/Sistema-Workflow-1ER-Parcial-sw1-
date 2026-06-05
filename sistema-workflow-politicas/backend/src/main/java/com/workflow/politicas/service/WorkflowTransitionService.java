@@ -20,7 +20,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** CRUD y validación de transiciones — modelo oficial Ciclo 1. */
+/** CRUD y validaci?n de transiciones - modelo oficial Ciclo 1. */
 @Service
 public class WorkflowTransitionService {
 
@@ -28,8 +28,8 @@ public class WorkflowTransitionService {
             "SEQUENTIAL", "Secuencial",
             "CONDITIONAL", "Condicional",
             "ITERATIVE", "Iterativa",
-            "PARALLEL_SPLIT", "División paralela",
-            "PARALLEL_JOIN", "Unión paralela"
+            "PARALLEL_SPLIT", "Divisi?n paralela",
+            "PARALLEL_JOIN", "Uni?n paralela"
     );
 
     private final WorkflowTransitionRepository workflowTransitionRepository;
@@ -76,7 +76,7 @@ public class WorkflowTransitionService {
                 .findByPolicyIdAndFromActivityIdAndToActivityId(policy.getId(), from.getId(), to.getId());
 
         if (existing.stream().anyMatch(WorkflowTransition::isActive)) {
-            throw new IllegalArgumentException("La conexión ya existe.");
+            throw new IllegalArgumentException("La conexi?n ya existe.");
         }
 
         Optional<WorkflowTransition> inactiveExisting = existing.stream()
@@ -93,7 +93,7 @@ public class WorkflowTransitionService {
             transition.setUpdatedAt(LocalDateTime.now());
             WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
             response.setReactivated(true);
-            registerTransitionModification(policy.getId(), "CREATE", "creó", from, to);
+            registerTransitionModification(policy.getId(), "CREATE", "cre?", from, to);
             return response;
         }
 
@@ -107,13 +107,13 @@ public class WorkflowTransitionService {
         }
 
         WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
-        registerTransitionModification(policy.getId(), "CREATE", "creó", from, to);
+        registerTransitionModification(policy.getId(), "CREATE", "cre?", from, to);
         return response;
     }
 
     public WorkflowTransitionResponse update(String id, WorkflowTransitionRequest request) {
         WorkflowTransition transition = workflowTransitionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Conexión no encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Conexi?n no encontrada"));
 
         validateRequest(request, false);
         String policyId = request.getPolicyId() != null ? request.getPolicyId() : transition.getPolicyId();
@@ -127,7 +127,7 @@ public class WorkflowTransitionService {
                 .filter(WorkflowTransition::isActive)
                 .anyMatch(t -> !t.getId().equals(transition.getId()));
         if (duplicateActive) {
-            throw new IllegalArgumentException("La conexión ya existe.");
+            throw new IllegalArgumentException("La conexi?n ya existe.");
         }
 
         applyRequest(transition, request, from, to, policyId);
@@ -136,30 +136,30 @@ public class WorkflowTransitionService {
         }
         transition.setUpdatedAt(LocalDateTime.now());
         WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
-        registerTransitionModification(policyId, "UPDATE", "editó", from, to);
+        registerTransitionModification(policyId, "UPDATE", "edit?", from, to);
         return response;
     }
 
     public WorkflowDeleteResponse delete(String id) {
         WorkflowTransition transition = workflowTransitionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Conexión no encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Conexi?n no encontrada"));
 
         String policyId = transition.getPolicyId();
         WorkflowActivity from = workflowActivityRepository.findById(transition.getFromActivityId()).orElse(null);
         WorkflowActivity to = workflowActivityRepository.findById(transition.getToActivityId()).orElse(null);
         workflowTransitionRepository.deleteById(id);
-        registerTransitionModification(policyId, "DELETE", "eliminó", from, to);
+        registerTransitionModification(policyId, "DELETE", "elimin?", from, to);
 
         WorkflowDeleteResponse response = new WorkflowDeleteResponse();
         response.setLogicalDelete(false);
         response.setAffectedConnections(0);
-        response.setMessage("Conexión eliminada correctamente.");
+        response.setMessage("Conexi?n eliminada correctamente.");
         return response;
     }
 
     public WorkflowTransitionResponse activate(String id) {
         WorkflowTransition transition = workflowTransitionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Conexión no encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Conexi?n no encontrada"));
 
         List<WorkflowTransition> samePair = workflowTransitionRepository
                 .findByPolicyIdAndFromActivityIdAndToActivityId(
@@ -171,7 +171,7 @@ public class WorkflowTransitionService {
                 .filter(WorkflowTransition::isActive)
                 .anyMatch(t -> !t.getId().equals(transition.getId()));
         if (otherActive) {
-            throw new IllegalArgumentException("La conexión ya existe.");
+            throw new IllegalArgumentException("La conexi?n ya existe.");
         }
 
         transition.setActive(true);
@@ -179,19 +179,19 @@ public class WorkflowTransitionService {
         WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
         WorkflowActivity from = workflowActivityRepository.findById(transition.getFromActivityId()).orElse(null);
         WorkflowActivity to = workflowActivityRepository.findById(transition.getToActivityId()).orElse(null);
-        registerTransitionModification(transition.getPolicyId(), "ACTIVATE", "activó", from, to);
+        registerTransitionModification(transition.getPolicyId(), "ACTIVATE", "activ?", from, to);
         return response;
     }
 
     public WorkflowTransitionResponse deactivate(String id) {
         WorkflowTransition transition = workflowTransitionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Conexión no encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Conexi?n no encontrada"));
         transition.setActive(false);
         transition.setUpdatedAt(LocalDateTime.now());
         WorkflowTransitionResponse response = toResponse(workflowTransitionRepository.save(transition));
         WorkflowActivity from = workflowActivityRepository.findById(transition.getFromActivityId()).orElse(null);
         WorkflowActivity to = workflowActivityRepository.findById(transition.getToActivityId()).orElse(null);
-        registerTransitionModification(transition.getPolicyId(), "DEACTIVATE", "desactivó", from, to);
+        registerTransitionModification(transition.getPolicyId(), "DEACTIVATE", "desactiv?", from, to);
         return response;
     }
 
@@ -276,7 +276,7 @@ public class WorkflowTransitionService {
                     policyId,
                     new WorkflowCollaborationModificationRequest(
                             "CLEANUP",
-                            "limpió conexiones",
+                            "limpi? conexiones",
                             null,
                             null
                     )
@@ -307,7 +307,7 @@ public class WorkflowTransitionService {
     private static String connectionLabel(WorkflowActivity from, WorkflowActivity to) {
         String fromName = from != null ? activityName(from) : "?";
         String toName = to != null ? activityName(to) : "?";
-        return fromName + " → " + toName;
+        return fromName + " -> " + toName;
     }
 
     private static String activityName(WorkflowActivity activity) {
@@ -363,14 +363,14 @@ public class WorkflowTransitionService {
                 continue;
             }
             if (outs.size() == 1 && "SEQUENTIAL".equalsIgnoreCase(outs.get(0).getTransitionType())) {
-                lines.add("↓");
+                lines.add("v");
             } else {
                 for (WorkflowTransition t : outs) {
                     String label = "CONDITIONAL".equalsIgnoreCase(t.getTransitionType())
                             && t.getConditionLabel() != null && !t.getConditionLabel().isBlank()
                             ? t.getConditionLabel()
                             : transitionTypeLabel(t.getTransitionType());
-                    lines.add("├─ " + label + " → " + t.getToActivityName());
+                    lines.add("+-- " + label + " -> " + t.getToActivityName());
                 }
             }
         }
@@ -486,10 +486,10 @@ public class WorkflowTransitionService {
 
     private BusinessPolicy validatePolicyExists(String policyId) {
         if (policyId == null || policyId.isBlank()) {
-            throw new IllegalArgumentException("La política de negocio es obligatoria");
+            throw new IllegalArgumentException("La pol?tica de negocio es obligatoria");
         }
         return businessPolicyRepository.findById(policyId)
-                .orElseThrow(() -> new IllegalArgumentException("La política seleccionada no existe"));
+                .orElseThrow(() -> new IllegalArgumentException("La pol?tica seleccionada no existe"));
     }
 
     private WorkflowActivity validateActivity(String activityId, String policyId) {
@@ -499,14 +499,14 @@ public class WorkflowTransitionService {
         WorkflowActivity activity = workflowActivityRepository.findById(activityId)
                 .orElseThrow(() -> new IllegalArgumentException("Actividad no encontrada"));
         if (!policyId.equals(activity.getPolicyId())) {
-            throw new IllegalArgumentException("Las actividades deben pertenecer a la misma política");
+            throw new IllegalArgumentException("Las actividades deben pertenecer a la misma pol?tica");
         }
         return activity;
     }
 
     private void validateRequest(WorkflowTransitionRequest request, boolean creating) {
         if (creating && (request.getPolicyId() == null || request.getPolicyId().isBlank())) {
-            throw new IllegalArgumentException("La política de negocio es obligatoria");
+            throw new IllegalArgumentException("La pol?tica de negocio es obligatoria");
         }
         if (request.getFromActivityId() == null || request.getFromActivityId().isBlank()) {
             throw new IllegalArgumentException("La actividad origen es obligatoria");
@@ -523,10 +523,10 @@ public class WorkflowTransitionService {
                 : "SEQUENTIAL";
         if ("CONDITIONAL".equals(type)
                 && (request.getConditionLabel() == null || request.getConditionLabel().isBlank())) {
-            throw new IllegalArgumentException("Debe indicar una condición para conexiones condicionales");
+            throw new IllegalArgumentException("Debe indicar una condici?n para conexiones condicionales");
         }
         if (request.getOrderIndex() != null && request.getOrderIndex() < 1) {
-            throw new IllegalArgumentException("El orden debe ser un número positivo");
+            throw new IllegalArgumentException("El orden debe ser un n?mero positivo");
         }
     }
 
@@ -558,12 +558,28 @@ public class WorkflowTransitionService {
             transition.setTransitionType("SEQUENTIAL");
         }
         transition.setConditionLabel(request.getConditionLabel() != null ? request.getConditionLabel().trim() : null);
-        transition.setConditionExpression(
-                request.getConditionExpression() != null ? request.getConditionExpression().trim() : null
-        );
+        String expression = request.getConditionExpression() != null ? request.getConditionExpression().trim() : null;
+        if ((expression == null || expression.isBlank())
+                && transition.getConditionLabel() != null
+                && !transition.getConditionLabel().isBlank()
+                && isConditionalTransitionType(transition.getTransitionType())) {
+            String label = transition.getConditionLabel().trim();
+            if (label.contains("==") || label.contains("!=")) {
+                expression = label;
+            }
+        }
+        transition.setConditionExpression(expression);
         if (request.getActive() != null) {
             transition.setActive(request.getActive());
         }
+    }
+
+    private static boolean isConditionalTransitionType(String transitionType) {
+        if (transitionType == null || transitionType.isBlank()) {
+            return false;
+        }
+        String type = transitionType.trim().toUpperCase();
+        return "CONDITIONAL".equals(type) || type.contains("COND");
     }
 
     private WorkflowTransitionResponse toResponse(WorkflowTransition transition) {

@@ -1,7 +1,7 @@
 package com.workflow.politicas.dto;
 
 /**
- * Filtros opcionales de la bandeja del funcionario (F2).
+ * Filtros opcionales de la bandeja del funcionario .
  */
 public class MyActivitiesFilter {
 

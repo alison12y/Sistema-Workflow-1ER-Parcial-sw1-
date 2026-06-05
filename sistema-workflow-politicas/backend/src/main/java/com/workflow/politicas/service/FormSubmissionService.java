@@ -22,6 +22,7 @@ import com.workflow.politicas.repository.FormSubmissionRepository;
 
 import com.workflow.politicas.repository.UserRepository;
 
+import com.workflow.politicas.util.Cu7WorkflowDebugLog;
 import org.springframework.stereotype.Service;
 
 
@@ -330,7 +331,18 @@ public class FormSubmissionService {
 
         DynamicFormDetailResponse form = dynamicFormService.getDetailByWorkflowActivityId(workflowActivityId);
 
-        return buildStepDataFromFormAndResponses(form, responses);
+        Map<String, Object> stepData = buildStepDataFromFormAndResponses(form, responses);
+
+        Cu7WorkflowDebugLog.log(
+                "buildStepData activityId={} formId={} fields={} responses={} stepData={}",
+                workflowActivityId,
+                form.getId(),
+                summarizeFormFields(form),
+                summarizeResponses(responses),
+                Cu7WorkflowDebugLog.stepDataSummary(stepData)
+        );
+
+        return stepData;
 
     }
 
@@ -406,7 +418,7 @@ public class FormSubmissionService {
 
                 }
 
-                ResponseItemDto item = responsesByName.get(key);
+                ResponseItemDto item = responsesByName.get(key.toLowerCase(Locale.ROOT));
 
                 if (item != null) {
 
@@ -420,6 +432,8 @@ public class FormSubmissionService {
 
             }
 
+            mergeResponsesIntoStepData(stepData, responses);
+
             return stepData;
 
         }
@@ -432,17 +446,83 @@ public class FormSubmissionService {
 
         }
 
+        mergeResponsesIntoStepData(stepData, responses);
+
+        return stepData;
+
+    }
+
+
+
+    private void mergeResponsesIntoStepData(Map<String, Object> stepData, List<ResponseItemDto> responses) {
+
+        if (responses == null) {
+
+            return;
+
+        }
+
         for (ResponseItemDto item : responses) {
 
             if (item.getFieldName() != null && !item.getFieldName().isBlank()) {
 
-                stepData.put(item.getFieldName().trim(), coerceValue(item));
+                String key = item.getFieldName().trim();
+
+                stepData.put(key, coerceValue(item));
 
             }
 
         }
 
-        return stepData;
+    }
+
+
+
+    private String summarizeFormFields(DynamicFormDetailResponse form) {
+
+        if (form == null || form.getFields() == null) {
+
+            return "[]";
+
+        }
+
+        return form.getFields().stream()
+
+                .map(f -> (f.getName() != null ? f.getName() : "?") + ":" + f.getType())
+
+                .reduce((a, b) -> a + ", " + b)
+
+                .map(s -> "[" + s + "]")
+
+                .orElse("[]");
+
+    }
+
+
+
+    private String summarizeResponses(List<ResponseItemDto> responses) {
+
+        if (responses == null || responses.isEmpty()) {
+
+            return "[]";
+
+        }
+
+        return responses.stream()
+
+                .map(r -> (r.getFieldName() != null ? r.getFieldName() : "?")
+
+                        + "="
+
+                        + r.getValue()
+
+                        + (r.getValue() != null ? "(" + r.getValue().getClass().getSimpleName() + ")" : ""))
+
+                .reduce((a, b) -> a + ", " + b)
+
+                .map(s -> "[" + s + "]")
+
+                .orElse("[]");
 
     }
 
@@ -774,7 +854,7 @@ public class FormSubmissionService {
 
             if (item.getFieldName() != null && !item.getFieldName().isBlank()) {
 
-                map.put(item.getFieldName().trim(), item);
+                map.put(item.getFieldName().trim().toLowerCase(Locale.ROOT), item);
 
             }
 

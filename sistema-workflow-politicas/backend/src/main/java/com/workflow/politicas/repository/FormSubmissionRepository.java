@@ -22,4 +22,6 @@ public interface FormSubmissionRepository extends MongoRepository<FormSubmission
             String workflowActivityId,
             int taskOrder
     );
+
+    void deleteByTramiteId(String tramiteId);
 }

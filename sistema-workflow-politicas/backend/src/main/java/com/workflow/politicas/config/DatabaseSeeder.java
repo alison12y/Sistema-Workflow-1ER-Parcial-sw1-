@@ -9,6 +9,7 @@ import com.workflow.politicas.service.Phase1MigrationService;
 import com.workflow.politicas.service.Phase2MigrationService;
 import com.workflow.politicas.service.Phase3MigrationService;
 import com.workflow.politicas.service.FormFieldKeyMigrationService;
+import com.workflow.politicas.service.WorkflowTransitionConditionMigrationService;
 import com.workflow.politicas.service.Phase4MigrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +32,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final Phase3MigrationService phase3MigrationService;
     private final Phase4MigrationService phase4MigrationService;
     private final FormFieldKeyMigrationService formFieldKeyMigrationService;
+    private final WorkflowTransitionConditionMigrationService workflowTransitionConditionMigrationService;
 
     public DatabaseSeeder(
             RoleRepository roleRepository,
@@ -41,7 +43,8 @@ public class DatabaseSeeder implements CommandLineRunner {
             Phase2MigrationService phase2MigrationService,
             Phase3MigrationService phase3MigrationService,
             Phase4MigrationService phase4MigrationService,
-            FormFieldKeyMigrationService formFieldKeyMigrationService
+            FormFieldKeyMigrationService formFieldKeyMigrationService,
+            WorkflowTransitionConditionMigrationService workflowTransitionConditionMigrationService
     ) {
         this.roleRepository = roleRepository;
         this.departmentRepository = departmentRepository;
@@ -52,6 +55,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         this.phase3MigrationService = phase3MigrationService;
         this.phase4MigrationService = phase4MigrationService;
         this.formFieldKeyMigrationService = formFieldKeyMigrationService;
+        this.workflowTransitionConditionMigrationService = workflowTransitionConditionMigrationService;
     }
 
     @Override
@@ -62,6 +66,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         phase3MigrationService.seedSampleActivities();
         phase4MigrationService.seedSampleTransitions();
         formFieldKeyMigrationService.migrateRecepcionValidoField();
+        workflowTransitionConditionMigrationService.migrateConditionalExpressionsFromLabels();
         seedPolicies();
     }
 

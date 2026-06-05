@@ -7,7 +7,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Parser local en español cuando Gemini/ai-service no está disponible (F6 Ciclo 1).
+ * Parser local en español cuando Gemini/ai-service no está disponible.
  */
 public final class WorkflowSuggestLocalParser {
 
