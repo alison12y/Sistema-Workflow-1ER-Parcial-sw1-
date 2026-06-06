@@ -227,6 +227,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/my-activities/**").authenticated()
                         .requestMatchers("/api/form-submissions/**").authenticated()
                         .requestMatchers("/api/form-submissions/files/**").authenticated()
+                        .requestMatchers("/api/storage/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/ai/workflow/suggest")
                                 .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.POST, "/api/ai/assist-form")
