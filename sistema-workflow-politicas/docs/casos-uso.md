@@ -234,6 +234,161 @@ Diagrama: `diagrams/casos-uso-ciclo1.puml`
 
 ---
 
-## Fuera de alcance Ciclo 1 (Ciclo 2)
+---
 
-No documentar como implementado: S3, documental avanzado, Flutter, offline, reportes dinámicos IA, motor predictivo, agente inteligente cliente.
+# Ciclo 2 — Casos de uso (FASE 2.3)
+
+| ID | Caso de uso | Fase | Actor principal |
+|----|-------------|------|-----------------|
+| CU24 | Generar reportes dinámicos por voz o texto | 2.3 | Supervisor / Dueño de proceso |
+| CU25 | Analizar riesgos, anomalías y cuellos de botella | 2.3 | Supervisor / Dueño de proceso |
+| CU26 | Recomendar rutas y prioridades | 2.3 | Supervisor / Dueño de proceso |
+
+Ruta UI: `/intelligent-analytics` · Permiso: `INTELLIGENT_ANALYTICS_VIEW`  
+Demo: [guia-demo-ciclo2.md](./guia-demo-ciclo2.md)
+
+---
+
+## CU24 — Generar reportes dinámicos por voz o texto
+
+| Campo | Descripción |
+|-------|-------------|
+| **Actor** | Supervisor, Dueño de proceso, Administrador |
+| **Propósito** | Obtener reportes operativos describiendo la necesidad en lenguaje natural (texto o dictado por voz) |
+| **Precondición** | Permiso `INTELLIGENT_ANALYTICS_VIEW`; trámites en MongoDB |
+| **Flujo principal** | 1. **Analítica Inteligente** → escribir o dictar consulta. 2. Opcional: filtros (fecha, política, estado). 3. **Generar análisis**. 4. Sistema interpreta intención, consulta `Tramite`/`TramiteTask`/`KpiService` y devuelve título, explicación, columnas, filas, filtros aplicados y formato sugerido |
+| **Consultas soportadas (ejemplos)** | Trámites de un mes; política más usada; funcionario con más carga; trámites demorados; resumen de finalizados |
+| **Postcondición** | Reporte visible en pantalla (tabla + tarjetas + gráfico); bitácora `ANALYTICS_REPORT_REQUESTED` |
+| **Excepciones** | E1: Sin texto ni voz → validación. E2: `ai-service` caído → fallback Java (`LOCAL_FALLBACK`). E3: Sin permiso → 403 |
+
+**API Spring Boot:** `POST /api/intelligent-analytics/report`  
+**API FastAPI:** `POST /analytics/report`
+
+---
+
+## CU25 — Analizar riesgos, anomalías y cuellos de botella
+
+| Campo | Descripción |
+|-------|-------------|
+| **Actor** | Supervisor, Dueño de proceso, Administrador |
+| **Propósito** | Detectar demoras, tareas vencidas, sobrecarga de funcionarios, políticas con retrasos y cuellos de botella |
+| **Precondición** | Permiso `INTELLIGENT_ANALYTICS_VIEW` |
+| **Flujo principal** | 1. Desde **Generar análisis** (o `POST .../risks`). 2. Motor analiza trámites activos, tareas (`TramiteTask`), trazas (`TraceItem`) y KPI (`KpiService`). 3. Lista riesgos por severidad (ALTO/MEDIO/BAJO) y tipo (DEMORA, VENCIDA, CARGA, ANOMALIA, CUELLO) |
+| **Postcondición** | Tarjetas y listado de riesgos; bitácora `ANALYTICS_RISK_ANALYZED` |
+| **Excepciones** | E1: Sin trámites en periodo → resumen vacío. E2: FastAPI no disponible → heurísticas Java (SLA 48 h, carga ≥ 4 tareas) |
+
+**API Spring Boot:** `POST /api/intelligent-analytics/risks`  
+**API FastAPI:** `POST /analytics/risks`
+
+---
+
+## CU26 — Recomendar rutas y prioridades
+
+| Campo | Descripción |
+|-------|-------------|
+| **Actor** | Supervisor, Dueño de proceso, Administrador |
+| **Propósito** | Sugerir acciones: priorizar trámites, revisar cuellos, reasignar carga, alertar políticas en riesgo, siguiente paso en ruta |
+| **Precondición** | Permiso `INTELLIGENT_ANALYTICS_VIEW` |
+| **Flujo principal** | 1. **Generar análisis** invoca también recomendaciones (o `POST .../recommendations`). 2. Sistema ordena por prioridad (ALTA/MEDIA/BAJA) según demora, prioridad del trámite y KPI. 3. Muestra acción concreta y justificación |
+| **Ejemplos de salida** | *Priorizar trámite TRM-xxx*; *Revisar actividad con cuello de botella*; *Reasignar tarea si funcionario tiene demasiada carga* |
+| **Postcondición** | Listado de recomendaciones; bitácora `ANALYTICS_RECOMMENDATION_GENERATED` |
+| **Excepciones** | E1: Flujo normal sin alertas → mensaje informativo. E2: Sin ML profundo → reglas heurísticas, no predicción TensorFlow |
+
+**API Spring Boot:** `POST /api/intelligent-analytics/recommendations`  
+**API FastAPI:** `POST /analytics/recommendations`
+
+---
+
+## Acceso y seguridad (FASE 2.3)
+
+| Rol | Permiso `INTELLIGENT_ANALYTICS_VIEW` |
+|-----|--------------------------------------|
+| Administrador del sistema | Sí (vía `SystemPermissions.ALL`) |
+| Dueño de proceso | Sí |
+| Supervisor | Sí |
+| Funcionario | No |
+| Atención al cliente | **No** (por diseño actual) |
+
+Auditoría (módulo **Analítica inteligente**): `ANALYTICS_REPORT_REQUESTED`, `ANALYTICS_RISK_ANALYZED`, `ANALYTICS_RECOMMENDATION_GENERATED`.
+
+---
+
+## Limitaciones FASE 2.3
+
+- **Sin TensorFlow / entrenamiento profundo** — análisis por reglas, SLA y agregaciones KPI.
+- **Sin exportación real** PDF/Excel/Word — solo se sugiere formato (`PANTALLA`, `PDF`, `EXCEL`).
+- **Dictado por voz** depende del navegador (Web Speech API).
+- **Fallback Java** activo cuando `ai-service` (puerto 8000) está apagado o sin API key Gemini.
+
+---
+
+---
+
+# Ciclo 2 — Casos de uso (FASE 2.4)
+
+| ID | Caso de uso | Fase | Actor principal |
+|----|-------------|------|-----------------|
+| CU27 | Aplicación móvil inteligente (PWA) | 2.4 | Funcionario / Supervisor |
+| CU28 | Operación offline y sincronización | 2.4 | Funcionario |
+
+Guía PWA: [guia-instalacion-pwa.md](./guia-instalacion-pwa.md) · Demo: [guia-demo-ciclo2.md](./guia-demo-ciclo2.md)
+
+---
+
+## CU27 — Aplicación móvil inteligente (PWA)
+
+| Campo | Descripción |
+|-------|-------------|
+| **Actor** | Funcionario, Supervisor, cualquier usuario autenticado |
+| **Propósito** | Usar el sistema desde celular o tablet como app instalable (PWA) |
+| **Precondición** | Frontend compilado en **modo producción** (`npm run build`); navegador compatible (Chrome/Edge recomendado) |
+| **Flujo principal** | 1. Abrir URL servida desde `dist/frontend/browser`. 2. Iniciar sesión. 3. **Instalar app** (botón o menú del navegador). 4. Usar menú inferior móvil: Dashboard, Tareas, Trámites, Agente. 5. Consultar trazabilidad en detalle de trámite |
+| **Vistas optimizadas** | Dashboard, Mis actividades, Trámites, Documentos (pestaña en trámite), Agente Inteligente |
+| **Indicadores** | Banner **En línea** / **Sin conexión**; contador de elementos pendientes de sincronizar |
+| **Postcondición** | App en pantalla de inicio del dispositivo (modo `standalone`) |
+| **Excepciones** | E1: `ng serve` en desarrollo → service worker deshabilitado. E2: Safari iOS requiere “Añadir a pantalla de inicio” manual |
+
+**Artefactos:** `manifest.webmanifest`, `ngsw-config.json`, `ngsw-worker.js` (generado en build).
+
+---
+
+## CU28 — Operación offline y sincronización
+
+| Campo | Descripción |
+|-------|-------------|
+| **Actor** | Funcionario (campo, conectividad intermitente) |
+| **Propósito** | Consultar tareas y guardar operaciones sin red; sincronizar al reconectar |
+| **Precondición** | Sesión JWT válida (no expirada); al menos una consulta previa online para cachear bandeja |
+| **Flujo principal** | 1. Sin conexión → banner offline. 2. Usuario toma tarea, guarda borrador, completa actividad o sube documento. 3. Sistema encola en IndexedDB (`pending_sync_queue`). 4. Muestra *"N elemento(s) pendiente(s) de sincronizar"*. 5. Al reconectar → `OfflineSyncService` sincroniza automáticamente |
+| **Operaciones en cola** | `TAKE_TASK`, `FORM_DRAFT`, `COMPLETE_ACTIVITY`, `DOCUMENT_UPLOAD` |
+| **Postcondición** | Datos replicados al backend; bitácora `OFFLINE_SYNC_COMPLETED` |
+| **Excepciones** | E1: JWT expirado → redirige a login sin sincronizar. E2: Agente/analítica no disponibles offline |
+
+**Stores IndexedDB:**
+
+| Store | Uso |
+|-------|-----|
+| `pending_sync_queue` | Cola principal de sincronización |
+| `pending_forms` | Borradores y completados pendientes |
+| `pending_documents` | Archivos pendientes |
+| `cached_activities` | Última bandeja consultada |
+
+**Auditoría:** `OFFLINE_DATA_STORED`, `OFFLINE_SYNC_COMPLETED` (módulo **Modo offline**).
+
+**API:** `POST /api/offline/notify-stored` · `POST /api/offline/notify-sync-completed`
+
+---
+
+## Limitaciones FASE 2.4
+
+- **Service worker solo con build producción** — no en `ng serve`.
+- API REST en otro origen (puerto 8080); no cacheada por SW; offline vía IndexedDB.
+- Sin cliente Flutter nativo (solo PWA Angular).
+- Sin resolución automática de conflictos en cola.
+- Agente inteligente, analítica y dictado por voz requieren red.
+
+---
+
+## Fuera de alcance Ciclo 2 (pendiente)
+
+No documentar como implementado: cliente Flutter nativo, motor predictivo con TensorFlow, exportación documental real masiva, agente cliente móvil dedicado.

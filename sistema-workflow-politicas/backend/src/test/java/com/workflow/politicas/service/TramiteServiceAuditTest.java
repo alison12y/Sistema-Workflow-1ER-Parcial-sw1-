@@ -56,6 +56,8 @@ class TramiteServiceAuditTest {
     private FormSubmissionRepository formSubmissionRepository;
     @Mock
     private FormSubmissionFileService formSubmissionFileService;
+    @Mock
+    private DocumentRepositoryService documentRepositoryService;
 
     private TramiteService tramiteService;
 
@@ -75,7 +77,8 @@ class TramiteServiceAuditTest {
                 routingService,
                 bitacoraService,
                 formSubmissionRepository,
-                formSubmissionFileService
+                formSubmissionFileService,
+                documentRepositoryService
         );
         stubPolicy();
         when(tramiteRepository.save(any(Tramite.class))).thenAnswer(inv -> inv.getArgument(0));

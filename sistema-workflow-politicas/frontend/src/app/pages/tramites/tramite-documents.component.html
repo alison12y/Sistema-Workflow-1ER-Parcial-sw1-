@@ -1,0 +1,181 @@
+<section class="detail-card data-card tramite-documents-section">
+  <div class="section-header">
+    <div>
+      <h2>Documentos del trámite</h2>
+      @if (repository) {
+        <p class="section-subtitle">{{ repository.nombre }}</p>
+      }
+    </div>
+    <div class="section-actions">
+      @if (canViewDocuments && phase === 'ready') {
+        <button type="button" class="btn btn-secondary btn-sm" (click)="refreshDocuments()" [disabled]="loadingDocuments || uploading">
+          Actualizar
+        </button>
+      }
+      @if (canUploadDocuments && repository && phase === 'ready') {
+        <label class="btn btn-primary btn-sm upload-label" [class.is-busy]="uploading">
+          {{ uploading ? 'Subiendo...' : 'Subir documento' }}
+          <input
+            #fileInput
+            type="file"
+            class="upload-input"
+            [accept]="acceptedExtensions"
+            [disabled]="uploading"
+            (change)="onFileSelected($event)"
+          />
+        </label>
+      }
+    </div>
+  </div>
+
+  @if (!canViewDocuments) {
+    <p class="empty-hint">No tiene permiso para ver documentos de este trámite.</p>
+  } @else if (phase === 'loading') {
+    <p class="empty-hint">Cargando repositorio documental...</p>
+  } @else if (phase === 'no-repository') {
+    <div class="state-box state-warning">
+      <strong>Sin repositorio documental</strong>
+      <p>Este trámite no tiene repositorio asociado. Los trámites creados después de CU17 lo generan automáticamente.</p>
+    </div>
+  } @else if (phase === 'error') {
+    <div class="state-box state-error">
+      <strong>Error al cargar documentos</strong>
+      <p>{{ error }}</p>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="loadRepository()">Reintentar</button>
+    </div>
+  } @else if (phase === 'ready') {
+    @if (message) {
+      <div class="alert success section-alert">{{ message }}</div>
+    }
+    @if (error) {
+      <div class="alert error section-alert">{{ error }}</div>
+    }
+
+    @if (loadingDocuments) {
+      <p class="empty-hint">Cargando documentos...</p>
+    } @else if (!documents.length) {
+      <div class="state-box state-empty">
+        <strong>Sin documentos</strong>
+        <p>Aún no hay archivos en este repositorio.</p>
+        @if (canUploadDocuments) {
+          <p class="hint-upload">Use <em>Subir documento</em> para agregar PDF, Office, imágenes, CSV, ZIP, audio o video (máx. 10 MB).</p>
+        }
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table documents-table">
+          <thead>
+            <tr>
+              <th>Archivo</th>
+              <th>Tipo</th>
+              <th>Tamaño</th>
+              <th>Versión</th>
+              <th>Subido por</th>
+              <th>Fecha</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (doc of documents; track doc.id) {
+              <tr>
+                <td class="file-name-cell">
+                  <span class="file-name" [title]="doc.nombreOriginal">{{ doc.nombreOriginal }}</span>
+                </td>
+                <td>{{ typeLabel(doc.extension, doc.contentType) }}</td>
+                <td>{{ formatSize(doc.tamano) }}</td>
+                <td>v{{ doc.version }}</td>
+                <td>{{ doc.subidoPor || '—' }}</td>
+                <td>{{ formatDate(doc.fechaSubida) }}</td>
+                <td>
+                  <span class="badge" [class]="statusClass(doc.estado)">{{ statusLabel(doc.estado) }}</span>
+                </td>
+                <td>
+                  <div class="row-actions">
+                    <button
+                      type="button"
+                      class="btn-link"
+                      [disabled]="isActingOn(doc.id)"
+                      (click)="openDocument(doc)"
+                    >
+                      {{ isActingOn(doc.id) ? 'Abriendo...' : (canOpenPreview(doc) ? 'Abrir' : 'Descargar') }}
+                    </button>
+                    <button type="button" class="btn-link" (click)="toggleVersions(doc)">
+                      {{ isVersionsExpanded(doc) ? 'Ocultar versiones' : 'Versiones' }}
+                    </button>
+                    <button type="button" class="btn-link" (click)="openDetail(doc)">Detalle</button>
+                    @if (canDeleteDocuments) {
+                      <button
+                        type="button"
+                        class="btn-link danger"
+                        [disabled]="isActingOn(doc.id)"
+                        (click)="openDeleteModal(doc)"
+                      >
+                        Eliminar
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+              @if (isVersionsExpanded(doc)) {
+                <tr class="versions-row">
+                  <td colspan="8">
+                    <div class="versions-panel">
+                      <strong>Versiones de {{ doc.nombreOriginal }}</strong>
+                      @if (loadingVersions) {
+                        <p class="empty-hint">Cargando versiones...</p>
+                      } @else if (versionsError) {
+                        <p class="versions-error">{{ versionsError }}</p>
+                      } @else if (!versionHistory.length) {
+                        <p class="empty-hint">Sin historial de versiones.</p>
+                      } @else {
+                        <ul class="versions-list">
+                          @for (version of versionHistory; track version.id) {
+                            <li>
+                              <span class="version-label">v{{ version.version }}</span>
+                              <span class="version-meta">{{ formatDate(version.fechaSubida) }} · {{ formatSize(version.tamano) }}</span>
+                              <span class="badge" [class]="statusClass(version.estado)">{{ statusLabel(version.estado) }}</span>
+                              <button
+                                type="button"
+                                class="btn-link"
+                                [disabled]="isActingOn(version.id)"
+                                (click)="openDocument(version)"
+                              >
+                                {{ isActingOn(version.id) ? 'Abriendo...' : 'Descargar' }}
+                              </button>
+                            </li>
+                          }
+                        </ul>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>
+
+@if (deleteModalOpen && selectedDocument) {
+  <div class="modal-backdrop" (click)="closeDeleteModal()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <h2>Eliminar documento</h2>
+      <p class="modal-help">¿Está seguro de eliminar este documento? Se borrará del almacenamiento.</p>
+      <p><strong>{{ selectedDocument.nombreOriginal }}</strong></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeDeleteModal()">Cancelar</button>
+        <button
+          type="button"
+          class="btn btn-danger"
+          [disabled]="isActingOn(selectedDocument.id)"
+          (click)="confirmDelete()"
+        >
+          {{ isActingOn(selectedDocument.id) ? 'Eliminando...' : 'Eliminar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

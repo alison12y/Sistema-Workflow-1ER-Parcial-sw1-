@@ -48,3 +48,32 @@ class AssistantRequest(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
+
+
+class AgentAnalyzeRequest(BaseModel):
+    message: str = Field(..., min_length=1)
+    audioText: str | None = None
+    requesterName: str | None = None
+    attachmentFileName: str | None = None
+    documentContext: dict[str, Any] = Field(default_factory=dict)
+    policies: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AnalyticsRequest(BaseModel):
+    message: str = Field(default="")
+    audioText: str | None = None
+    policyId: str | None = None
+    status: str | None = None
+    fromDate: str | None = None
+    toDate: str | None = None
+    tramiteCount: int = 0
+    kpiSummary: dict[str, Any] | None = None
+    bottlenecks: list[dict[str, Any]] = Field(default_factory=list)
+    employeeLoad: list[dict[str, Any]] = Field(default_factory=list)
+    tramiteSample: list[dict[str, Any]] = Field(default_factory=list)
+
+    def effective_message(self) -> str:
+        text = (self.message or "").strip()
+        if self.audioText:
+            text = f"{text} {self.audioText}".strip()
+        return text

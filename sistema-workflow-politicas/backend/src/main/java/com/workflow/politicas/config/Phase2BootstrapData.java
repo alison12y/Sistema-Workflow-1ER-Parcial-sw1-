@@ -49,6 +49,22 @@ public final class Phase2BootstrapData {
                     "DRAFT",
                     "Legal",
                     "carlos.mendoza"
+            ),
+            new PolicySeed(
+                    "Gestión de bienes decomisados",
+                    "Administra el registro, custodia, evaluación y disposición de bienes decomisados.",
+                    "ASSET_MANAGEMENT",
+                    "ACTIVE",
+                    "Operaciones",
+                    "carlos.mendoza"
+            ),
+            new PolicySeed(
+                    "Política IA",
+                    "Gestiona solicitudes de automatización, asistencia inteligente y casos de uso con IA.",
+                    "AI_POLICY",
+                    "ACTIVE",
+                    "Tecnología e Información",
+                    "carlos.mendoza"
             )
     );
 }

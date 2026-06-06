@@ -50,6 +50,8 @@ class TramiteServiceDeleteTest {
     private FormSubmissionRepository formSubmissionRepository;
     @Mock
     private FormSubmissionFileService formSubmissionFileService;
+    @Mock
+    private DocumentRepositoryService documentRepositoryService;
 
     private TramiteService tramiteService;
 
@@ -64,7 +66,8 @@ class TramiteServiceDeleteTest {
                 workflowRoutingService,
                 bitacoraService,
                 formSubmissionRepository,
-                formSubmissionFileService
+                formSubmissionFileService,
+                documentRepositoryService
         );
         when(userRepository.findByUsername("admin")).thenReturn(Optional.of(user()));
         when(formSubmissionRepository.findByTramiteId(anyString())).thenReturn(List.of());

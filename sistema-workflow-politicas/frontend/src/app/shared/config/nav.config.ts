@@ -98,6 +98,20 @@ export const NAV_ITEMS: NavItemConfig[] = [
     section: 'admin',
   },
   {
+    path: '/smart-agent',
+    label: 'Agente Inteligente',
+    icon: 'smart_toy',
+    permissions: ['AI_AGENT_USE'],
+    section: 'workflow',
+  },
+  {
+    path: '/intelligent-analytics',
+    label: 'Analítica Inteligente',
+    icon: 'analytics',
+    permissions: ['INTELLIGENT_ANALYTICS_VIEW'],
+    section: 'workflow',
+  },
+  {
     path: '/ai-assistant',
     label: 'Guía asistente IA',
     icon: 'auto_awesome',

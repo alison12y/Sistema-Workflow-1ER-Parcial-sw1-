@@ -43,6 +43,8 @@ class TramiteServiceIterationLimitTest {
     private FormSubmissionRepository formSubmissionRepository;
     @Mock
     private FormSubmissionFileService formSubmissionFileService;
+    @Mock
+    private DocumentRepositoryService documentRepositoryService;
     private TramiteService tramiteService;
 
     @BeforeEach
@@ -61,7 +63,8 @@ class TramiteServiceIterationLimitTest {
                 routingService,
                 bitacoraService,
                 formSubmissionRepository,
-                formSubmissionFileService
+                formSubmissionFileService,
+                documentRepositoryService
         );
     }
 

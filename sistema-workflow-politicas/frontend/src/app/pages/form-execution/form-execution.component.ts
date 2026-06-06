@@ -31,6 +31,10 @@ import {
   isVoiceDictationSupported,
   VoiceDictationController,
 } from '../../utils/voice-dictation.util';
+import { ConnectivityService } from '../../core/offline/connectivity.service';
+import { OfflineSyncService } from '../../core/offline/offline-sync.service';
+import { OfflineFileBlob } from '../../core/offline/offline-db.types';
+import { shouldQueueOffline } from '../../utils/network-error.util';
 
 @Component({
   selector: 'app-form-execution',
@@ -49,6 +53,8 @@ export class FormExecutionComponent implements OnInit, OnDestroy {
   private readonly aiService = inject(AiService);
   private readonly aiAssistant = inject(AiAssistantService);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly connectivity = inject(ConnectivityService);
+  private readonly offlineSync = inject(OfflineSyncService);
 
   activity: MyActivity | null = null;
   formId: string | null = null;
@@ -497,6 +503,11 @@ export class FormExecutionComponent implements OnInit, OnDestroy {
     this.error = '';
     this.message = '';
 
+    if (!this.connectivity.isOnline) {
+      void this.queueOfflinePersist(complete);
+      return;
+    }
+
     this.uploadPendingFiles()
       .pipe(
         switchMap(() => {
@@ -524,6 +535,10 @@ export class FormExecutionComponent implements OnInit, OnDestroy {
           }
         },
         error: (err) => {
+          if (shouldQueueOffline(err)) {
+            void this.queueOfflinePersist(complete);
+            return;
+          }
           this.saving = false;
           this.completing = false;
           this.error = httpErrorMessage(
@@ -532,6 +547,60 @@ export class FormExecutionComponent implements OnInit, OnDestroy {
           );
         },
       });
+  }
+
+  private async queueOfflinePersist(complete: boolean): Promise<void> {
+    if (!this.activity) {
+      return;
+    }
+    const payload = this.buildPayload();
+    const fileBlobs = this.collectPendingFileBlobs();
+
+    if (complete) {
+      await this.offlineSync.enqueueCompleteActivity(
+        this.activity.tramiteId,
+        {
+          workflowActivityId: this.activity.workflowActivityId,
+          activityName: this.activity.activityName,
+          taskOrder: this.activity.taskOrder,
+          responses: payload.responses,
+        },
+        fileBlobs,
+      );
+      this.message = 'Completado guardado localmente. Se sincronizará al reconectar.';
+    } else {
+      await this.offlineSync.enqueueFormDraft(payload);
+      this.message = 'Borrador guardado sin conexión. Se sincronizará automáticamente.';
+    }
+
+    this.saving = false;
+    this.completing = false;
+    this.error = '';
+    await this.connectivity.refreshPendingCount();
+    if (complete) {
+      setTimeout(() => this.router.navigate(['/mis-actividades']), 1200);
+    }
+  }
+
+  private collectPendingFileBlobs(): OfflineFileBlob[] {
+    const blobs: OfflineFileBlob[] = [];
+    for (const field of this.fields) {
+      if (!isFileFieldType(field.type)) {
+        continue;
+      }
+      const key = field.name || field.label;
+      const file = this.fileSelections[key];
+      if (!file) {
+        continue;
+      }
+      blobs.push({
+        fieldKey: key,
+        fileName: file.name,
+        contentType: file.type || 'application/octet-stream',
+        blob: file,
+      });
+    }
+    return blobs;
   }
 
   private uploadPendingFiles(): Observable<void> {

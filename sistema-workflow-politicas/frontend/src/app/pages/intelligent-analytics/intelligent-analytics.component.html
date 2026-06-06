@@ -1,0 +1,206 @@
+<div class="page-crud analytics-page">
+  <div class="page-toolbar">
+    <div>
+      <h1>Analítica Inteligente</h1>
+      <p class="subtitle">
+        Solicite reportes en lenguaje natural y obtenga análisis de riesgos, demoras y recomendaciones.
+      </p>
+    </div>
+  </div>
+
+  @if (error) {
+    <div class="alert error">{{ error }}</div>
+  }
+
+  <div class="detail-card data-card analytics-input-card">
+    <h2>¿Qué reporte o análisis necesitas?</h2>
+    <p class="card-hint">
+      Ejemplos: trámites de mayo, política más usada, funcionario con más carga, trámites demorados, resumen finalizados.
+    </p>
+
+    <label class="field-block">
+      <span>Consulta</span>
+      <textarea
+        rows="4"
+        [(ngModel)]="message"
+        placeholder="Ej.: Muéstrame los trámites demorados de la política de medidores..."
+      ></textarea>
+    </label>
+
+    @if (audioText) {
+      <div class="voice-preview">
+        <strong>Texto dictado:</strong> {{ audioText }}
+      </div>
+    }
+
+    <div class="analytics-actions-row">
+      <button type="button" class="btn btn-secondary" (click)="toggleVoice()" [disabled]="loading">
+        {{ listening ? 'Detener dictado' : 'Dictar por voz' }}
+      </button>
+      <button type="button" class="btn btn-primary" (click)="generateAnalysis()" [disabled]="loading">
+        {{ loading ? 'Generando análisis...' : 'Generar análisis' }}
+      </button>
+    </div>
+
+    <div class="form-grid compact-grid filters-grid">
+      <label>
+        <span>Fecha desde</span>
+        <input type="date" [(ngModel)]="filterFrom" />
+      </label>
+      <label>
+        <span>Fecha hasta</span>
+        <input type="date" [(ngModel)]="filterTo" />
+      </label>
+      <label>
+        <span>Política</span>
+        <select [(ngModel)]="filterPolicyId">
+          <option value="">Todas</option>
+          @for (policy of policies; track policy.id) {
+            <option [value]="policy.id">{{ policy.name }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Estado de trámite</span>
+        <select [(ngModel)]="filterStatus">
+          @for (opt of statusOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </label>
+    </div>
+  </div>
+
+  @if (result) {
+    <div class="detail-card data-card analytics-result-card">
+      <div class="result-header">
+        <div>
+          <h2>{{ result.report?.title || 'Resultado del análisis' }}</h2>
+          <p class="card-hint">Fuente: {{ sourceLabel() }}</p>
+        </div>
+        @if (result.report?.suggestedFormat) {
+          <div class="format-badge">
+            <span>Formato sugerido</span>
+            <strong>{{ result.report?.suggestedFormat }}</strong>
+          </div>
+        }
+      </div>
+
+      @if (result.report?.explanation) {
+        <p class="explanation">{{ result.report?.explanation }}</p>
+      }
+
+      @if (allCards().length) {
+        <div class="cards-grid">
+          @for (card of allCards(); track card.label + card.value) {
+            <div class="summary-card" [ngClass]="severityClass(card.severity)">
+              <span class="card-label">{{ card.label }}</span>
+              <strong class="card-value">{{ card.value }}</strong>
+              @if (card.hint) {
+                <small>{{ card.hint }}</small>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      @if (result.report?.chart?.labels?.length) {
+        <div class="chart-block">
+          <h3>{{ result.report?.chart?.title || 'Gráfico' }}</h3>
+          <div class="bar-chart">
+            @for (label of result.report?.chart?.labels; track label; let i = $index) {
+              <div class="bar-row">
+                <span class="bar-label">{{ label }}</span>
+                <div class="bar-track">
+                  <div
+                    class="bar-fill"
+                    [style.width]="barWidth(result.report?.chart?.values?.[i] ?? 0)"
+                  ></div>
+                </div>
+                <span class="bar-value">{{ result.report?.chart?.values?.[i] ?? 0 }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (result.report?.rows?.length) {
+        <div class="table-block">
+          <h3>Datos del reporte</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  @for (col of result.report?.columns; track col) {
+                    <th>{{ col }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of result.report?.rows; track $index) {
+                  <tr>
+                    @for (col of result.report?.columns; track col) {
+                      <td>{{ row[col] }}</td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      @if (result.risks?.risks?.length) {
+        <div class="risks-block">
+          <h3>Riesgos y anomalías</h3>
+          <p class="section-summary">{{ result.risks?.summary }}</p>
+          <div class="item-list">
+            @for (risk of result.risks?.risks; track trackRisk($index, risk)) {
+              <div class="list-item" [ngClass]="riskSeverityClass(risk.severity)">
+                <div class="item-head">
+                  <strong>{{ risk.title }}</strong>
+                  <span class="badge">{{ risk.severity }}</span>
+                </div>
+                <p>{{ risk.description }}</p>
+                <small>{{ risk.type }} — {{ risk.entityLabel }}</small>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (result.recommendations?.recommendations?.length) {
+        <div class="recommendations-block">
+          <h3>Recomendaciones</h3>
+          <p class="section-summary">{{ result.recommendations?.summary }}</p>
+          <div class="item-list">
+            @for (rec of result.recommendations?.recommendations; track trackRecommendation($index, rec)) {
+              <div class="list-item" [ngClass]="priorityClass(rec.priority)">
+                <div class="item-head">
+                  <strong>{{ rec.title }}</strong>
+                  <span class="badge">{{ rec.priority }}</span>
+                </div>
+                <p><strong>Acción:</strong> {{ rec.action }}</p>
+                <p class="muted">{{ rec.rationale }}</p>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      @if (result.report?.warnings?.length || result.risks?.warnings?.length || result.recommendations?.warnings?.length) {
+        <div class="alert warning">
+          @for (w of result.report?.warnings ?? []; track w) {
+            <div>{{ w }}</div>
+          }
+          @for (w of result.risks?.warnings ?? []; track w) {
+            <div>{{ w }}</div>
+          }
+          @for (w of result.recommendations?.warnings ?? []; track w) {
+            <div>{{ w }}</div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

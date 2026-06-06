@@ -11,7 +11,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -61,6 +60,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<Map<String, String>> handleNoSuchElement(NoSuchElementException ex) {
         return error(HttpStatus.NOT_FOUND, "Recurso no encontrado", ex.getMessage());
+    }
+
+    @ExceptionHandler(DocumentRepositoryNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleDocumentRepositoryNotFound(
+            DocumentRepositoryNotFoundException ex
+    ) {
+        String details = ex.getMessage() != null && !ex.getMessage().isBlank()
+                ? ex.getMessage()
+                : DocumentRepositoryNotFoundException.class.getSimpleName();
+        return error(HttpStatus.NOT_FOUND, details, null);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

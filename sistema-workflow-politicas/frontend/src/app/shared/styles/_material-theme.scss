@@ -1,0 +1,38 @@
+@use '@angular/material' as mat;
+
+html {
+  @include mat.theme(
+    (
+      color: (
+        theme-type: light,
+        primary: mat.$violet-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: (
+        brand-family: 'DM Sans',
+        plain-family: 'DM Sans',
+        bold-weight: 700,
+        medium-weight: 600,
+        regular-weight: 400,
+      ),
+      density: 0,
+    )
+  );
+}
+
+.document-detail-dialog-panel {
+  .mat-mdc-dialog-container,
+  .mat-mdc-dialog-surface {
+    overflow-x: hidden !important;
+    max-width: 720px;
+    width: 100%;
+    border-radius: var(--radius-lg, 16px) !important;
+    border: 1px solid var(--color-border, #e8e6ef);
+    box-shadow: var(--shadow-lg);
+    background: var(--color-surface, #ffffff);
+  }
+
+  .mat-mdc-dialog-surface {
+    padding: 1.25rem !important;
+  }
+}

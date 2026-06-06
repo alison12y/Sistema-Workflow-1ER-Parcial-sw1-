@@ -64,6 +64,11 @@ export class RolesComponent implements OnInit {
     { code: 'FORMS_MANAGE', name: 'Gestionar formularios dinámicos' },
     { code: 'TASKS_EXECUTE', name: 'Ejecutar tareas asignadas' },
     { code: 'AI_ASSIST', name: 'Usar asistente IA' },
+    { code: 'AI_AGENT_USE', name: 'Usar agente inteligente' },
+    { code: 'INTELLIGENT_ANALYTICS_VIEW', name: 'Ver analítica inteligente' },
+    { code: 'DOCUMENTS_VIEW', name: 'Ver documentos' },
+    { code: 'DOCUMENTS_UPLOAD', name: 'Subir documentos' },
+    { code: 'DOCUMENTS_DELETE', name: 'Eliminar documentos' },
   ];
 
   getPermissionName(code: string): string {

@@ -22,7 +22,12 @@ public final class SystemPermissions {
     public static final String FORMS_MANAGE = "FORMS_MANAGE";
     public static final String TASKS_EXECUTE = "TASKS_EXECUTE";
     public static final String AI_ASSIST = "AI_ASSIST";
+    public static final String AI_AGENT_USE = "AI_AGENT_USE";
     public static final String SETTINGS_MANAGE = "SETTINGS_MANAGE";
+    public static final String DOCUMENTS_VIEW = "DOCUMENTS_VIEW";
+    public static final String DOCUMENTS_UPLOAD = "DOCUMENTS_UPLOAD";
+    public static final String DOCUMENTS_DELETE = "DOCUMENTS_DELETE";
+    public static final String INTELLIGENT_ANALYTICS_VIEW = "INTELLIGENT_ANALYTICS_VIEW";
 
     public static final Set<String> ALL = Set.of(
             USERS_MANAGE,
@@ -39,7 +44,12 @@ public final class SystemPermissions {
             FORMS_MANAGE,
             TASKS_EXECUTE,
             AI_ASSIST,
-            SETTINGS_MANAGE
+            AI_AGENT_USE,
+            SETTINGS_MANAGE,
+            DOCUMENTS_VIEW,
+            DOCUMENTS_UPLOAD,
+            DOCUMENTS_DELETE,
+            INTELLIGENT_ANALYTICS_VIEW
     );
 
     private SystemPermissions() {

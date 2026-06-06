@@ -27,11 +27,12 @@ import {
   tramiteStatusLabel,
   tramiteTaskStatusLabel,
 } from '../../utils/tramite-display.util';
+import { TramiteDocumentsComponent } from './tramite-documents.component';
 
 @Component({
   selector: 'app-tramite-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, TramiteDocumentsComponent],
   templateUrl: './tramite-detail.component.html',
   styleUrl: './tramite-detail.component.scss',
 })

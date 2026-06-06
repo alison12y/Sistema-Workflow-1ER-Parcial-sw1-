@@ -23,6 +23,9 @@ interface TaskSection {
 }
 
 import { CYCLE1_POLL_INTERVAL_MS } from '../../core/polling.config';
+import { ConnectivityService } from '../../core/offline/connectivity.service';
+import { OfflineSyncService } from '../../core/offline/offline-sync.service';
+import { shouldQueueOffline } from '../../utils/network-error.util';
 
 @Component({
   selector: 'app-my-activities',
@@ -35,11 +38,14 @@ export class MyActivitiesComponent implements OnInit, OnDestroy {
   private readonly myActivitiesService = inject(MyActivitiesService);
   private readonly policyService = inject(PolicyService);
   private readonly router = inject(Router);
+  private readonly connectivity = inject(ConnectivityService);
+  private readonly offlineSync = inject(OfflineSyncService);
 
   sections: TaskSection[] = [];
   policies: BusinessPolicy[] = [];
   loading = true;
   error = '';
+  message = '';
   takingTaskKey: string | null = null;
   lastUpdated: Date | null = null;
 
@@ -90,14 +96,14 @@ export class MyActivitiesComponent implements OnInit, OnDestroy {
     this.error = '';
     this.myActivitiesService.getAll(this.buildFilter()).subscribe({
       next: (data) => {
+        void this.offlineSync.cacheActivities(data);
         this.sections = this.buildSections(data);
         this.loading = false;
         this.lastUpdated = new Date();
+        this.error = '';
       },
       error: (err) => {
-        this.sections = [];
-        this.loading = false;
-        this.error = httpErrorMessage(err, 'No se pudieron cargar tus tareas');
+        void this.loadFromCacheIfOffline(err);
       },
     });
   }
@@ -118,12 +124,31 @@ export class MyActivitiesComponent implements OnInit, OnDestroy {
     const key = this.taskKey(activity);
     this.takingTaskKey = key;
     this.error = '';
+
+    if (!this.connectivity.isOnline) {
+      void this.offlineSync.enqueueTakeTask(activity.tramiteId, activity.taskOrder).then(() => {
+        this.takingTaskKey = null;
+        this.error = '';
+        this.message = 'Tarea guardada localmente. Se sincronizará al reconectar.';
+        void this.connectivity.refreshPendingCount();
+      });
+      return;
+    }
+
     this.myActivitiesService.takeTask(activity.tramiteId, activity.taskOrder).subscribe({
       next: () => {
         this.takingTaskKey = null;
         this.load(false);
       },
       error: (err) => {
+        if (shouldQueueOffline(err)) {
+          void this.offlineSync.enqueueTakeTask(activity.tramiteId, activity.taskOrder).then(() => {
+            this.takingTaskKey = null;
+            this.message = 'Sin conexión: tarea en cola de sincronización.';
+            void this.connectivity.refreshPendingCount();
+          });
+          return;
+        }
         this.takingTaskKey = null;
         this.error = httpErrorMessage(err, 'No se pudo tomar la tarea');
       },
@@ -174,6 +199,22 @@ export class MyActivitiesComponent implements OnInit, OnDestroy {
     if (this.filterTramiteCode.trim()) filter.tramiteCode = this.filterTramiteCode.trim();
     if (this.filterPriority) filter.priority = this.filterPriority;
     return filter;
+  }
+
+  private async loadFromCacheIfOffline(err: unknown): Promise<void> {
+    if (shouldQueueOffline(err) || !this.connectivity.isOnline) {
+      const cached = await this.offlineSync.getCachedActivities();
+      if (cached.length) {
+        this.sections = this.buildSections(cached);
+        this.error = 'Sin conexión — mostrando última bandeja guardada.';
+        this.loading = false;
+        this.lastUpdated = new Date();
+        return;
+      }
+    }
+    this.sections = [];
+    this.loading = false;
+    this.error = httpErrorMessage(err, 'No se pudieron cargar tus tareas');
   }
 
   private buildSections(activities: MyActivity[]): TaskSection[] {

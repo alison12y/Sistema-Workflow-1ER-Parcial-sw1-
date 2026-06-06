@@ -1,0 +1,53 @@
+/* Vistas optimizadas para móvil / PWA (CU27) */
+
+@media (max-width: 768px) {
+  .page-crud .page-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+
+    h1 {
+      font-size: 1.25rem;
+    }
+  }
+
+  .page-crud .detail-card,
+  .page-crud .data-card {
+    padding: 1rem;
+  }
+
+  .form-grid,
+  .compact-grid,
+  .detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .agent-actions-row,
+  .analytics-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+
+    .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cards-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mobile-hide {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+}

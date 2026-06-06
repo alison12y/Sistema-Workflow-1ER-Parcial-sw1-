@@ -1,0 +1,184 @@
+.tramite-documents-section {
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+
+    h2 {
+      margin: 0;
+    }
+  }
+
+  .section-subtitle {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+
+  .section-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .section-alert {
+    margin-bottom: 0.75rem;
+  }
+}
+
+.upload-label {
+  position: relative;
+  cursor: pointer;
+  margin: 0;
+
+  &.is-busy {
+    opacity: 0.75;
+    pointer-events: none;
+  }
+}
+
+.upload-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.state-box {
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg, #fafafa);
+
+  strong {
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+
+  p {
+    margin: 0.25rem 0 0;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+  }
+
+  &.state-warning {
+    border-color: #ecc94b;
+    background: #fffbeb;
+  }
+
+  &.state-error {
+    border-color: #fc8181;
+    background: #fff5f5;
+  }
+
+  &.state-empty {
+    border-style: dashed;
+  }
+}
+
+.documents-table .file-name-cell {
+  max-width: 220px;
+}
+
+.documents-table .file-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+}
+
+.btn-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.85rem;
+
+  &.danger {
+    color: #c53030;
+  }
+}
+
+.versions-row td {
+  background: #f8fafc;
+  border-top: none;
+  padding-top: 0;
+}
+
+.versions-panel {
+  padding: 0.75rem 0.5rem 1rem;
+
+  strong {
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+}
+
+.versions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    font-size: 0.88rem;
+  }
+}
+
+.version-label {
+  font-weight: 700;
+  min-width: 2rem;
+}
+
+.version-meta {
+  color: var(--color-muted);
+}
+
+.versions-error {
+  color: #c53030;
+  margin: 0.25rem 0 0;
+  font-size: 0.88rem;
+}
+
+.badge {
+  &.badge-success {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  &.badge-muted {
+    background: #eceff1;
+    color: #546e7a;
+  }
+
+  &.badge-danger {
+    background: #ffebee;
+    color: #c62828;
+  }
+}

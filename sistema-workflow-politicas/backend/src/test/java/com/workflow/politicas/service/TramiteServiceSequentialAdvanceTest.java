@@ -62,6 +62,8 @@ class TramiteServiceSequentialAdvanceTest {
     private FormSubmissionRepository formSubmissionRepository;
     @Mock
     private FormSubmissionFileService formSubmissionFileService;
+    @Mock
+    private DocumentRepositoryService documentRepositoryService;
 
     private TramiteService tramiteService;
 
@@ -81,7 +83,8 @@ class TramiteServiceSequentialAdvanceTest {
                 routingService,
                 bitacoraService,
                 formSubmissionRepository,
-                formSubmissionFileService
+                formSubmissionFileService,
+                documentRepositoryService
         );
         stubSequentialPolicy();
         when(tramiteRepository.save(any(Tramite.class))).thenAnswer(inv -> inv.getArgument(0));

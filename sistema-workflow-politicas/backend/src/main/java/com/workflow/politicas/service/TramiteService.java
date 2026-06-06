@@ -116,6 +116,8 @@ public class TramiteService {
 
     private final FormSubmissionFileService formSubmissionFileService;
 
+    private final DocumentRepositoryService documentRepositoryService;
+
 
 
     public TramiteService(
@@ -136,7 +138,9 @@ public class TramiteService {
 
             FormSubmissionRepository formSubmissionRepository,
 
-            FormSubmissionFileService formSubmissionFileService
+            FormSubmissionFileService formSubmissionFileService,
+
+            DocumentRepositoryService documentRepositoryService
 
     ) {
 
@@ -157,6 +161,8 @@ public class TramiteService {
         this.formSubmissionRepository = formSubmissionRepository;
 
         this.formSubmissionFileService = formSubmissionFileService;
+
+        this.documentRepositoryService = documentRepositoryService;
 
     }
 
@@ -367,6 +373,8 @@ public class TramiteService {
 
 
         Tramite saved = tramiteRepository.save(tramite);
+
+        documentRepositoryService.createForTramite(saved, authenticatedUsername);
 
         bitacoraService.registrar(
 

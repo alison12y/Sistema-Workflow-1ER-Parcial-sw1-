@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Workflow">
+  <rect width="192" height="192" rx="32" fill="#2c3e6b"/>
+  <path d="M48 128V64h32v48c0 11 9 20 20 20h24v32H100c-28.7 0-52-23.3-52-52z" fill="#9b8fd4"/>
+  <circle cx="132" cy="60" r="20" fill="#ffffff"/>
+  <path d="M124 60h16M132 52v16" stroke="#2c3e6b" stroke-width="4" stroke-linecap="round"/>
+</svg>

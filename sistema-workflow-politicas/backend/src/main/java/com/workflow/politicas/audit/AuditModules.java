@@ -17,4 +17,7 @@ public final class AuditModules {
     public static final String MIS_ACTIVIDADES = "Mis actividades";
     public static final String IA = "Inteligencia artificial";
     public static final String COLABORACION = "Colaboración";
+    public static final String DOCUMENTOS = "Documentos";
+    public static final String ANALITICA = "Analítica inteligente";
+    public static final String OFFLINE = "Modo offline";
 }

@@ -66,8 +66,21 @@ public final class AuditActions {
     // IA
     public static final String GENERAR_WORKFLOW_IA = "GENERAR_WORKFLOW_IA";
     public static final String ASISTENCIA_FORMULARIO_IA = "ASISTENCIA_FORMULARIO_IA";
+    public static final String AGENT_REQUESTED = "AGENT_REQUESTED";
+    public static final String AGENT_POLICY_RECOMMENDED = "AGENT_POLICY_RECOMMENDED";
+    public static final String AGENT_TRAMITE_STARTED = "AGENT_TRAMITE_STARTED";
+    public static final String ANALYTICS_REPORT_REQUESTED = "ANALYTICS_REPORT_REQUESTED";
+    public static final String ANALYTICS_RISK_ANALYZED = "ANALYTICS_RISK_ANALYZED";
+    public static final String ANALYTICS_RECOMMENDATION_GENERATED = "ANALYTICS_RECOMMENDATION_GENERATED";
+    public static final String OFFLINE_DATA_STORED = "OFFLINE_DATA_STORED";
+    public static final String OFFLINE_SYNC_COMPLETED = "OFFLINE_SYNC_COMPLETED";
 
     // Colaboración
     public static final String ABRIR_WORKFLOW_COLABORATIVO = "ABRIR_WORKFLOW_COLABORATIVO";
     public static final String MODIFICAR_WORKFLOW_COLABORATIVO = "MODIFICAR_WORKFLOW_COLABORATIVO";
+
+    // Documentos (CU17)
+    public static final String DOCUMENT_UPLOADED = "DOCUMENT_UPLOADED";
+    public static final String DOCUMENT_DOWNLOADED = "DOCUMENT_DOWNLOADED";
+    public static final String DOCUMENT_DELETED = "DOCUMENT_DELETED";
 }

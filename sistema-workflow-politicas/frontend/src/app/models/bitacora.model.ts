@@ -34,6 +34,9 @@ export const BITACORA_MODULES = [
   'Mis actividades',
   'Inteligencia artificial',
   'Colaboración',
+  'Modo offline',
+  'Analítica inteligente',
+  'Documentos',
 ] as const;
 
 export const BITACORA_ACTION_LABELS: Record<string, string> = {
@@ -84,4 +87,6 @@ export const BITACORA_ACTION_LABELS: Record<string, string> = {
   MODIFICAR_WORKFLOW_COLABORATIVO: 'Modificar workflow colaborativo',
   AVANZAR_TRAMITE: 'Avanzar trámite',
   CONFLICTO_EDICION: 'Conflicto de edición',
+  OFFLINE_DATA_STORED: 'Datos guardados en modo offline',
+  OFFLINE_SYNC_COMPLETED: 'Sincronización offline completada',
 };

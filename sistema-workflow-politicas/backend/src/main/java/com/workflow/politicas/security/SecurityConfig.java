@@ -98,6 +98,41 @@ public class SecurityConfig {
             SystemPermissions.TASKS_EXECUTE
     };
 
+    /** Permisos/roles que pueden consultar repositorios y documentos (CU17). */
+    private static final String[] DOCUMENT_VIEW_AUTHORITIES = {
+            "ROLE_ADMIN",
+            "ROLE_PROCESS_OWNER",
+            "ROLE_SUPERVISOR",
+            "ROLE_CUSTOMER_SERVICE",
+            "ROLE_FUNCIONARIO",
+            SystemPermissions.DOCUMENTS_VIEW,
+            SystemPermissions.DOCUMENTS_UPLOAD,
+            SystemPermissions.DOCUMENTS_DELETE,
+            SystemPermissions.MONITORING_VIEW,
+            SystemPermissions.WORKFLOW_MANAGE,
+            SystemPermissions.POLICIES_MANAGE
+    };
+
+    /** Permisos/roles que pueden subir documentos (CU17). */
+    private static final String[] DOCUMENT_UPLOAD_AUTHORITIES = {
+            "ROLE_ADMIN",
+            "ROLE_PROCESS_OWNER",
+            "ROLE_CUSTOMER_SERVICE",
+            "ROLE_FUNCIONARIO",
+            SystemPermissions.DOCUMENTS_UPLOAD,
+            SystemPermissions.WORKFLOW_MANAGE,
+            SystemPermissions.POLICIES_MANAGE
+    };
+
+    /** Permisos/roles que pueden eliminar documentos (CU17). */
+    private static final String[] DOCUMENT_DELETE_AUTHORITIES = {
+            "ROLE_ADMIN",
+            "ROLE_PROCESS_OWNER",
+            SystemPermissions.DOCUMENTS_DELETE,
+            SystemPermissions.WORKFLOW_MANAGE,
+            SystemPermissions.POLICIES_MANAGE
+    };
+
     /** Permisos/roles que pueden ejecutar tareas y usar IA de formularios. */
     private static final String[] TASK_EXECUTE_AUTHORITIES = {
             "ROLE_ADMIN",
@@ -108,6 +143,27 @@ public class SecurityConfig {
             SystemPermissions.TASKS_EXECUTE,
             SystemPermissions.WORKFLOW_MANAGE,
             SystemPermissions.POLICIES_MANAGE
+    };
+
+    /** Permisos/roles que pueden usar analítica inteligente (CU24–CU26). */
+    private static final String[] INTELLIGENT_ANALYTICS_AUTHORITIES = {
+            "ROLE_ADMIN",
+            "ROLE_PROCESS_OWNER",
+            "ROLE_SUPERVISOR",
+            SystemPermissions.INTELLIGENT_ANALYTICS_VIEW,
+            SystemPermissions.KPI_VIEW,
+            SystemPermissions.MONITORING_VIEW,
+            SystemPermissions.REPORTS_VIEW
+    };
+
+    /** Permisos/roles que pueden usar el agente inteligente de atención (CU21–CU23). */
+    private static final String[] AI_AGENT_AUTHORITIES = {
+            "ROLE_ADMIN",
+            "ROLE_PROCESS_OWNER",
+            "ROLE_CUSTOMER_SERVICE",
+            "ROLE_FUNCIONARIO",
+            SystemPermissions.AI_AGENT_USE,
+            SystemPermissions.TASKS_EXECUTE
     };
 
     /** Permisos/roles que pueden diseñar formularios dinámicos. */
@@ -228,12 +284,29 @@ public class SecurityConfig {
                         .requestMatchers("/api/form-submissions/**").authenticated()
                         .requestMatchers("/api/form-submissions/files/**").authenticated()
                         .requestMatchers("/api/storage/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/document-repositories/ping").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/smart-agent/ping").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/intelligent-analytics/ping").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/offline/ping").permitAll()
+                        .requestMatchers("/api/offline/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/document-repositories/migrate-existing")
+                                .hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/document-repositories/**")
+                                .hasAnyAuthority(DOCUMENT_VIEW_AUTHORITIES)
+                        .requestMatchers(HttpMethod.POST, "/api/document-repositories/*/upload")
+                                .hasAnyAuthority(DOCUMENT_UPLOAD_AUTHORITIES)
+                        .requestMatchers(HttpMethod.DELETE, "/api/document-repositories/documents/*")
+                                .hasAnyAuthority(DOCUMENT_DELETE_AUTHORITIES)
                         .requestMatchers(HttpMethod.POST, "/api/ai/workflow/suggest")
                                 .hasAnyAuthority(WORKFLOW_MUTATION_AUTHORITIES)
                         .requestMatchers(HttpMethod.POST, "/api/ai/assist-form")
                                 .hasAnyAuthority(TASK_EXECUTE_AUTHORITIES)
                         .requestMatchers(HttpMethod.POST, "/api/my-activities/*/ai-form-assisted")
                                 .hasAnyAuthority(TASK_EXECUTE_AUTHORITIES)
+                        .requestMatchers("/api/smart-agent/**")
+                                .hasAnyAuthority(AI_AGENT_AUTHORITIES)
+                        .requestMatchers("/api/intelligent-analytics/**")
+                                .hasAnyAuthority(INTELLIGENT_ANALYTICS_AUTHORITIES)
                         .requestMatchers("/api/ai/**").authenticated()
                         .requestMatchers("/api/users", "/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/roles", "/api/roles/**").hasRole("ADMIN")

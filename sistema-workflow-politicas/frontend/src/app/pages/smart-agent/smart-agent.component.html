@@ -1,0 +1,161 @@
+<div class="page-crud smart-agent-page">
+  <div class="page-toolbar">
+    <div>
+      <h1>Agente Inteligente de Atención</h1>
+      <p class="subtitle">Describa su necesidad y el sistema recomendará la política de negocio más adecuada.</p>
+    </div>
+  </div>
+
+  @if (error) {
+    <div class="alert error">{{ error }}</div>
+  }
+  @if (success) {
+    <div class="alert success">{{ success }}</div>
+  }
+
+  <div class="detail-card data-card agent-input-card">
+    <h2>Describe tu solicitud</h2>
+    <p class="card-hint">Puede escribir, dictar por voz o adjuntar un documento de soporte.</p>
+
+    <label class="field-block">
+      <span>Descripción de la necesidad</span>
+      <textarea
+        rows="5"
+        [(ngModel)]="message"
+        placeholder="Ej.: Necesito instalar un medidor nuevo en mi domicilio..."
+      ></textarea>
+    </label>
+
+    @if (audioText) {
+      <div class="voice-preview">
+        <strong>Texto dictado:</strong> {{ audioText }}
+      </div>
+    }
+
+    <div class="agent-actions-row">
+      <button type="button" class="btn btn-secondary" (click)="toggleVoice()" [disabled]="analyzing">
+        {{ listening ? 'Detener dictado' : 'Dictar por voz' }}
+      </button>
+
+      <label class="btn btn-secondary upload-btn">
+        Adjuntar documento
+        <input type="file" hidden (change)="onFileSelected($event)" />
+      </label>
+
+      @if (selectedFile) {
+        <span class="attachment-chip">
+          {{ selectedFile.name }}
+          <button type="button" class="chip-remove" (click)="clearAttachment()" aria-label="Quitar adjunto">×</button>
+        </span>
+      }
+
+      <button type="button" class="btn btn-primary" (click)="analyze()" [disabled]="analyzing">
+        {{ analyzing ? 'Analizando...' : 'Analizar' }}
+      </button>
+    </div>
+
+    <div class="form-grid compact-grid">
+      <label>
+        <span>Nombre del solicitante</span>
+        <input type="text" [(ngModel)]="requesterName" placeholder="Nombre para la recomendación" />
+      </label>
+      <label>
+        <span>Usuario solicitante del trámite</span>
+        <select [(ngModel)]="requestedBy">
+          <option value="">Seleccione usuario</option>
+          @for (user of users; track user.username) {
+            <option [value]="user.username">{{ user.fullName || user.username }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Prioridad</span>
+        <select [(ngModel)]="priority">
+          @for (p of priorities; track p.value) {
+            <option [value]="p.value">{{ p.label }}</option>
+          }
+        </select>
+      </label>
+    </div>
+  </div>
+
+  @if (result) {
+    <div class="detail-card data-card agent-result-card">
+      <div class="result-header">
+        <div>
+          <h2>Política recomendada</h2>
+          <p class="card-hint">Fuente: {{ sourceLabel() }}</p>
+        </div>
+        <div class="confidence-badge">
+          <span>Confianza</span>
+          <strong>{{ confidencePercent() }}</strong>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="full-width">
+          <span>Política</span>
+          <strong>{{ result.recommendedPolicyName || '—' }}</strong>
+        </div>
+        <div>
+          <span>Intención detectada</span>
+          <strong>{{ result.detectedIntent || '—' }}</strong>
+        </div>
+        <div>
+          <span>Confianza</span>
+          <strong>{{ confidencePercent() }}</strong>
+        </div>
+        <div class="full-width">
+          <span>Explicación</span>
+          <strong>{{ result.explanation || '—' }}</strong>
+        </div>
+      </div>
+
+      @if (result.requiredDocuments?.length) {
+        <div class="docs-block">
+          <h3>Documentos requeridos</h3>
+          <ul>
+            @for (doc of result.requiredDocuments; track doc) {
+              <li>{{ doc }}</li>
+            }
+          </ul>
+        </div>
+      }
+
+      @if (result.suggestedFields?.length) {
+        <div class="docs-block">
+          <h3>Campos sugeridos para iniciar trámite</h3>
+          <ul>
+            @for (field of result.suggestedFields; track field.name) {
+              <li>
+                <strong>{{ field.label }}</strong>
+                @if (field.suggestedValue) {
+                  — {{ field.suggestedValue }}
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      @if (result.warnings?.length) {
+        <div class="alert warning">
+          @for (warning of result.warnings; track warning) {
+            <div>{{ warning }}</div>
+          }
+        </div>
+      }
+
+      <div class="result-footer">
+        <button
+          type="button"
+          class="btn btn-primary"
+          (click)="startTramite()"
+          [disabled]="starting || !result.recommendedPolicyId"
+        >
+          {{ starting ? 'Iniciando trámite...' : 'Iniciar trámite con esta política' }}
+        </button>
+      </div>
+    </div>
+  }
+</div>

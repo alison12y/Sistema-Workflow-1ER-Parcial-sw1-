@@ -14,7 +14,15 @@ from gemini_client import (
     generate_structured,
 )
 from assistant_service import generate_assistant
+from agent_fallback import fallback_agent_analyze
+from analytics_fallback import (
+    fallback_analytics_recommendations,
+    fallback_analytics_report,
+    fallback_analytics_risks,
+)
 from schemas import (
+    AgentAnalyzeRequest,
+    AnalyticsRequest,
     AssistantRequest,
     AssistFormRequest,
     GenerateWorkflowRequest,
@@ -86,6 +94,76 @@ Return ONLY valid JSON:
 }
 Use existing activity names from context when connecting. Do not invent duplicate activities."""
 
+AGENT_ANALYZE_SYSTEM = """You are a business policy routing assistant for citizen service requests.
+Return ONLY valid JSON:
+{
+  "detectedIntent": "string",
+  "recommendedPolicyId": "string",
+  "recommendedPolicyName": "string",
+  "confidenceScore": 0.0,
+  "explanation": "string in Spanish explaining why this policy fits",
+  "requiredDocuments": ["string"],
+  "suggestedFields": [{
+    "name": "string",
+    "label": "string",
+    "type": "TEXT|TEXTAREA|SELECT",
+    "required": true,
+    "suggestedValue": "string or null"
+  }],
+  "warnings": ["string"]
+}
+Pick exactly one ACTIVE policy from the provided list. Use Spanish explanations."""
+
+ANALYTICS_REPORT_SYSTEM = """You are a workflow analytics assistant for business process reports.
+Return ONLY valid JSON:
+{
+  "title": "string",
+  "explanation": "string in Spanish",
+  "reportType": "TRAMITES_MES|POLITICA_MAS_USADA|FUNCIONARIO_CARGA|TRAMITES_DEMORADOS|RESUMEN_FINALIZADOS|RESUMEN_GENERAL",
+  "columns": ["string"],
+  "rows": [{"columnName": "value"}],
+  "appliedFilters": {"key": "value"},
+  "suggestedFormat": "PANTALLA|PDF|EXCEL|WORD",
+  "cards": [{"label": "string", "value": "string", "hint": "string", "severity": "info|warning|danger|success"}],
+  "chart": {"type": "bar|pie", "title": "string", "labels": ["string"], "values": [0.0]},
+  "warnings": ["string"]
+}
+Use tramiteSample and KPI context. Respond in Spanish."""
+
+ANALYTICS_RISKS_SYSTEM = """You are a workflow risk analyst.
+Return ONLY valid JSON:
+{
+  "summary": "string in Spanish",
+  "risks": [{
+    "type": "DEMORA|VENCIDA|CARGA|ANOMALIA|CUELLO",
+    "severity": "ALTO|MEDIO|BAJO",
+    "title": "string",
+    "description": "string",
+    "entityType": "string",
+    "entityId": "string or null",
+    "entityLabel": "string"
+  }],
+  "cards": [{"label": "string", "value": "string", "hint": "string", "severity": "info|warning|danger|success"}],
+  "warnings": ["string"]
+}"""
+
+ANALYTICS_RECOMMENDATIONS_SYSTEM = """You are a workflow operations advisor.
+Return ONLY valid JSON:
+{
+  "summary": "string in Spanish",
+  "recommendations": [{
+    "priority": "ALTA|MEDIA|BAJA",
+    "type": "PRIORIZAR_TRAMITE|REVISAR_CUELLO|REASIGNAR_TAREA|POLITICA_RIESGO|RUTA_SUGERIDA",
+    "title": "string",
+    "action": "string",
+    "rationale": "string",
+    "tramiteCode": "string or null",
+    "activityName": "string or null"
+  }],
+  "cards": [{"label": "string", "value": "string", "hint": "string", "severity": "info|warning|danger|success"}],
+  "warnings": ["string"]
+}"""
+
 VALIDATE_SYSTEM = """You are a workflow diagram validator.
 Return ONLY valid JSON:
 {
@@ -101,9 +179,124 @@ async def root():
     return {"message": "AI Service is running", "provider": "gemini"}
 
 
+@app.get("/agent/health")
+async def agent_health():
+    return {"status": "ok", "service": "smart-agent"}
+
+
+@app.get("/analytics/health")
+async def analytics_health():
+    return {"status": "ok", "service": "intelligent-analytics"}
+
+
 @app.post("/assistant")
 async def assistant(request: AssistantRequest):
     return generate_assistant(request.prompt, request.module, request.context)
+
+
+@app.post("/agent/analyze")
+async def agent_analyze(request: AgentAnalyzeRequest):
+    import json
+
+    combined = request.message
+    if request.audioText:
+        combined = f"{combined} {request.audioText}".strip()
+    if request.attachmentFileName:
+        combined = f"{combined} Documento adjunto: {request.attachmentFileName}".strip()
+
+    payload = {
+        "message": combined,
+        "audioText": request.audioText,
+        "requesterName": request.requesterName,
+        "attachmentFileName": request.attachmentFileName,
+        "documentContext": request.documentContext,
+        "policies": request.policies,
+    }
+
+    try:
+        result = generate_structured(
+            AGENT_ANALYZE_SYSTEM,
+            "User request and available policies:\n"
+            + json.dumps(payload, ensure_ascii=False),
+        )
+        confidence = result.get("confidenceScore", 0.75)
+        try:
+            confidence = float(confidence)
+        except (TypeError, ValueError):
+            confidence = 0.75
+        return {
+            **success_meta(),
+            "detectedIntent": result.get("detectedIntent", "SOLICITUD_GENERAL"),
+            "recommendedPolicyId": result.get("recommendedPolicyId"),
+            "recommendedPolicyName": result.get("recommendedPolicyName"),
+            "confidenceScore": max(0.0, min(1.0, confidence)),
+            "explanation": result.get("explanation", ""),
+            "requiredDocuments": result.get("requiredDocuments", []),
+            "suggestedFields": result.get("suggestedFields", []),
+            "warnings": result.get("warnings", []),
+            "source": "AI_SERVICE",
+        }
+    except (GeminiQuotaExceededError, GeminiError, InvalidJsonResponseError, ValueError):
+        return fallback_agent_analyze(payload)
+
+
+@app.post("/analytics/report")
+async def analytics_report(request: AnalyticsRequest):
+    import json
+
+    payload = request.model_dump()
+    combined = request.effective_message() or "resumen general"
+    try:
+        result = generate_structured(
+            ANALYTICS_REPORT_SYSTEM,
+            "Analytics request and context:\n" + json.dumps(payload, ensure_ascii=False),
+        )
+        return {
+            **success_meta(),
+            **result,
+            "source": "AI_SERVICE",
+        }
+    except (GeminiQuotaExceededError, GeminiError, InvalidJsonResponseError, ValueError):
+        payload["message"] = combined
+        return fallback_analytics_report(payload)
+
+
+@app.post("/analytics/risks")
+async def analytics_risks(request: AnalyticsRequest):
+    import json
+
+    payload = request.model_dump()
+    try:
+        result = generate_structured(
+            ANALYTICS_RISKS_SYSTEM,
+            "Risk analysis context:\n" + json.dumps(payload, ensure_ascii=False),
+        )
+        return {
+            **success_meta(),
+            **result,
+            "source": "AI_SERVICE",
+        }
+    except (GeminiQuotaExceededError, GeminiError, InvalidJsonResponseError, ValueError):
+        return fallback_analytics_risks(payload)
+
+
+@app.post("/analytics/recommendations")
+async def analytics_recommendations(request: AnalyticsRequest):
+    import json
+
+    payload = request.model_dump()
+    try:
+        result = generate_structured(
+            ANALYTICS_RECOMMENDATIONS_SYSTEM,
+            "Recommendation context:\n" + json.dumps(payload, ensure_ascii=False),
+        )
+        return {
+            **success_meta(),
+            **result,
+            "source": "AI_SERVICE",
+        }
+    except (GeminiQuotaExceededError, GeminiError, InvalidJsonResponseError, ValueError):
+        return fallback_analytics_recommendations(payload)
 
 
 @app.post("/workflow/suggest")

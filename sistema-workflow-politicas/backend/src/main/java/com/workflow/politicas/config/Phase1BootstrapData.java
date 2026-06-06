@@ -30,13 +30,23 @@ public final class Phase1BootstrapData {
                             SystemPermissions.REPORTS_VIEW,
                             SystemPermissions.MONITORING_VIEW,
                             SystemPermissions.KPI_VIEW,
-                            SystemPermissions.TASKS_EXECUTE
+                            SystemPermissions.TASKS_EXECUTE,
+                            SystemPermissions.DOCUMENTS_VIEW,
+                            SystemPermissions.DOCUMENTS_UPLOAD,
+                            SystemPermissions.DOCUMENTS_DELETE,
+                            SystemPermissions.AI_AGENT_USE,
+                            SystemPermissions.INTELLIGENT_ANALYTICS_VIEW
                     )
             ),
             new RoleSeed(
                     "Funcionario",
                     "Ejecuta tareas asignadas dentro de los procesos de negocio",
-                    Set.of(SystemPermissions.TASKS_EXECUTE)
+                    Set.of(
+                            SystemPermissions.TASKS_EXECUTE,
+                            SystemPermissions.DOCUMENTS_VIEW,
+                            SystemPermissions.DOCUMENTS_UPLOAD,
+                            SystemPermissions.AI_AGENT_USE
+                    )
             ),
             new RoleSeed(
                     "Supervisor",
@@ -47,7 +57,9 @@ public final class Phase1BootstrapData {
                             SystemPermissions.KPI_VIEW,
                             SystemPermissions.REPORTS_VIEW,
                             SystemPermissions.AUDIT_VIEW,
-                            SystemPermissions.WORKFLOW_VIEW
+                            SystemPermissions.WORKFLOW_VIEW,
+                            SystemPermissions.DOCUMENTS_VIEW,
+                            SystemPermissions.INTELLIGENT_ANALYTICS_VIEW
                     )
             ),
             new RoleSeed(
@@ -57,7 +69,11 @@ public final class Phase1BootstrapData {
                             SystemPermissions.TASKS_EXECUTE,
                             SystemPermissions.REPORTS_VIEW,
                             SystemPermissions.MONITORING_VIEW,
-                            SystemPermissions.WORKFLOW_VIEW
+                            SystemPermissions.WORKFLOW_VIEW,
+                            SystemPermissions.DOCUMENTS_VIEW,
+                            SystemPermissions.DOCUMENTS_UPLOAD,
+                            SystemPermissions.AI_AGENT_USE,
+                            SystemPermissions.AI_ASSIST
                     )
             ),
             new RoleSeed(
@@ -72,7 +88,9 @@ public final class Phase1BootstrapData {
                             SystemPermissions.POLICIES_MANAGE,
                             SystemPermissions.AUDIT_VIEW,
                             SystemPermissions.REPORTS_VIEW,
-                            SystemPermissions.TASKS_EXECUTE
+                            SystemPermissions.TASKS_EXECUTE,
+                            SystemPermissions.DOCUMENTS_VIEW,
+                            SystemPermissions.DOCUMENTS_DELETE
                     )
             )
     );

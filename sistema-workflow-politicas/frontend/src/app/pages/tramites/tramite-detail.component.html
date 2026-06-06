@@ -155,6 +155,13 @@
       }
     </div>
 
+    @if (tramite.id) {
+      <app-tramite-documents
+        [tramiteId]="tramite.id"
+        [syncKey]="lastUpdated?.getTime() ?? 0"
+      />
+    }
+
     <div class="detail-card data-card">
       <h2>Trazabilidad del proceso</h2>
       @if (!tramite.trace?.length) {

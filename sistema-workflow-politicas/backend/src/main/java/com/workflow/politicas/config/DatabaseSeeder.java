@@ -10,6 +10,7 @@ import com.workflow.politicas.service.Phase2MigrationService;
 import com.workflow.politicas.service.Phase3MigrationService;
 import com.workflow.politicas.service.FormFieldKeyMigrationService;
 import com.workflow.politicas.service.WorkflowTransitionConditionMigrationService;
+import com.workflow.politicas.service.DocumentRepositoryMigrationService;
 import com.workflow.politicas.service.Phase4MigrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +34,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final Phase4MigrationService phase4MigrationService;
     private final FormFieldKeyMigrationService formFieldKeyMigrationService;
     private final WorkflowTransitionConditionMigrationService workflowTransitionConditionMigrationService;
+    private final DocumentRepositoryMigrationService documentRepositoryMigrationService;
 
     public DatabaseSeeder(
             RoleRepository roleRepository,
@@ -44,7 +46,8 @@ public class DatabaseSeeder implements CommandLineRunner {
             Phase3MigrationService phase3MigrationService,
             Phase4MigrationService phase4MigrationService,
             FormFieldKeyMigrationService formFieldKeyMigrationService,
-            WorkflowTransitionConditionMigrationService workflowTransitionConditionMigrationService
+            WorkflowTransitionConditionMigrationService workflowTransitionConditionMigrationService,
+            DocumentRepositoryMigrationService documentRepositoryMigrationService
     ) {
         this.roleRepository = roleRepository;
         this.departmentRepository = departmentRepository;
@@ -56,6 +59,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         this.phase4MigrationService = phase4MigrationService;
         this.formFieldKeyMigrationService = formFieldKeyMigrationService;
         this.workflowTransitionConditionMigrationService = workflowTransitionConditionMigrationService;
+        this.documentRepositoryMigrationService = documentRepositoryMigrationService;
     }
 
     @Override
@@ -68,6 +72,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         formFieldKeyMigrationService.migrateRecepcionValidoField();
         workflowTransitionConditionMigrationService.migrateConditionalExpressionsFromLabels();
         seedPolicies();
+        documentRepositoryMigrationService.migrateExistingTramites("system-startup");
     }
 
     private void seedPolicies() {

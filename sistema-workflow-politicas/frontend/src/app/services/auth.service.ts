@@ -5,6 +5,7 @@ import { Observable, catchError, of, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthResponse, LoginRequest } from '../models/auth.model';
 import { TOKEN_KEY, USER_KEY } from '../core/constants';
+import { isStoredTokenExpired } from '../utils/jwt-expiration.util';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -59,7 +60,14 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return !!this.getToken();
+    if (!this.getToken()) {
+      return false;
+    }
+    if (isStoredTokenExpired()) {
+      this.clearSession();
+      return false;
+    }
+    return true;
   }
 
   hasPermission(permission: string): boolean {
@@ -143,5 +151,30 @@ export class AuthService {
       this.hasPermission('WORKFLOW_MANAGE') ||
       this.hasPermission('POLICIES_MANAGE')
     );
+  }
+
+  canViewDocuments(): boolean {
+    return (
+      this.isAdmin() ||
+      this.hasPermission('DOCUMENTS_VIEW') ||
+      this.hasPermission('DOCUMENTS_UPLOAD') ||
+      this.hasPermission('DOCUMENTS_DELETE')
+    );
+  }
+
+  canUploadDocuments(): boolean {
+    return this.isAdmin() || this.hasPermission('DOCUMENTS_UPLOAD');
+  }
+
+  canDeleteDocuments(): boolean {
+    return this.isAdmin() || this.hasPermission('DOCUMENTS_DELETE');
+  }
+
+  canUseSmartAgent(): boolean {
+    return this.isAdmin() || this.hasPermission('AI_AGENT_USE');
+  }
+
+  canViewIntelligentAnalytics(): boolean {
+    return this.isAdmin() || this.hasPermission('INTELLIGENT_ANALYTICS_VIEW');
   }
 }

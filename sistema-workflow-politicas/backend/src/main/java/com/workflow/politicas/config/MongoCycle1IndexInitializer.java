@@ -28,6 +28,7 @@ public class MongoCycle1IndexInitializer implements ApplicationRunner {
         ensureTramiteIndexes();
         ensureWorkflowIndexes();
         ensureFormAndBitacoraIndexes();
+        ensureDocumentRepositoryIndexes();
         log.info("Índices Ciclo 1 (F10.2) verificados");
     }
 
@@ -64,5 +65,17 @@ public class MongoCycle1IndexInitializer implements ApplicationRunner {
         var bitacora = mongoTemplate.indexOps("bitacora");
         bitacora.ensureIndex(new Index().on("createdAt", Sort.Direction.DESC));
         bitacora.ensureIndex(new Index().on("module", Sort.Direction.ASC).on("createdAt", Sort.Direction.DESC));
+    }
+
+    private void ensureDocumentRepositoryIndexes() {
+        var repositories = mongoTemplate.indexOps("document_repositories");
+        repositories.ensureIndex(new Index().on("tramiteId", Sort.Direction.ASC).unique());
+
+        var records = mongoTemplate.indexOps("document_records");
+        records.ensureIndex(new Index().on("repositoryId", Sort.Direction.ASC).on("estado", Sort.Direction.ASC));
+        records.ensureIndex(new Index().on("tramiteId", Sort.Direction.ASC).on("estado", Sort.Direction.ASC));
+        records.ensureIndex(new Index().on("documentFamilyId", Sort.Direction.ASC).on("version", Sort.Direction.DESC));
+        records.ensureIndex(new Index().on("repositoryId", Sort.Direction.ASC).on("nombreOriginal", Sort.Direction.ASC));
+        records.ensureIndex(new Index().on("fechaSubida", Sort.Direction.DESC));
     }
 }

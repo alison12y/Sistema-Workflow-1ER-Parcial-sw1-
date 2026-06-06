@@ -156,6 +156,20 @@ export const routes: Routes = [
         canActivate: [permissionGuard('AI_ASSIST')],
       },
       {
+        path: 'smart-agent',
+        loadComponent: () =>
+          import('./pages/smart-agent/smart-agent.component').then((m) => m.SmartAgentComponent),
+        canActivate: [permissionGuard('AI_AGENT_USE')],
+      },
+      {
+        path: 'intelligent-analytics',
+        loadComponent: () =>
+          import('./pages/intelligent-analytics/intelligent-analytics.component').then(
+            (m) => m.IntelligentAnalyticsComponent,
+          ),
+        canActivate: [permissionGuard('INTELLIGENT_ANALYTICS_VIEW')],
+      },
+      {
         path: 'settings',
         loadComponent: () =>
           import('./pages/settings/settings.component').then((m) => m.SettingsComponent),
