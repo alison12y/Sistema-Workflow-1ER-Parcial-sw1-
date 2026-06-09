@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+import asyncio
+import json
 
 from fallbacks import (
     fallback_assist_form,
@@ -26,13 +28,54 @@ from schemas import (
     AssistantRequest,
     AssistFormRequest,
     GenerateWorkflowRequest,
+    TaskAssistantRequest,
+    TaskAssistantResponse,
     ValidateDiagramRequest,
     WorkflowSuggestRequest,
 )
 from workflow_suggest_fallback import fallback_workflow_suggest
 from form_assist_fallback import fallback_assist_form as fallback_assist_form_structured
+from task_assistant_fallback import fallback_task_assistant
 
 app = FastAPI(title="AI Service for Workflow Policies")
+
+TASK_ASSISTANT_TIMEOUT_SECONDS = 25.0
+
+TASK_ASSISTANT_SYSTEM = """You are an intelligent task assistant for business workflow officials.
+Your goal is to provide a clear orientation based on the task, process, and current activity data.
+Return ONLY valid JSON with this exact structure:
+{
+  "summary": "Clear summary of the current task in Spanish",
+  "importantData": ["List of most relevant data points to check"],
+  "missingData": ["List of missing or to-be-verified data points"],
+  "recommendedAction": "Clear and brief recommended action for the official",
+  "source": "AI"
+}
+Rules:
+- Be formal, brief, and clear.
+- Do not invent information.
+- If data is missing, list it in missingData.
+- Do not make final decisions or approve/reject automatically.
+- Language: Spanish."""
+
+
+def build_task_assistant_prompt(data: dict) -> str:
+    docs = ", ".join(
+        d.get("name") or d.get("fileName") or "Documento"
+        for d in (data.get("documents") or [])
+    )
+    return (
+        "Datos de la Tarea:\n"
+        f"- Trámite: {data.get('tramiteName')} (Actividad: {data.get('activityName')})\n"
+        f"- Descripción: {data.get('activityDescription')}\n"
+        f"- Estado: {data.get('taskStatus')} | Asignado a: {data.get('assignedTo')}\n"
+        f"- Datos Formulario: {json.dumps(data.get('formData', {}), ensure_ascii=False)}\n"
+        f"- Documentos: {docs if docs else 'Ninguno'}\n"
+        f"- Observaciones: {data.get('observations') or 'Ninguna'}\n"
+        f"- Creado: {data.get('createdAt')}\n\n"
+        "Analiza la situación y genera la respuesta JSON."
+    )
+
 
 WORKFLOW_SYSTEM = """You are a BPM workflow designer assistant.
 Return ONLY valid JSON with this exact structure:
@@ -97,7 +140,7 @@ Use existing activity names from context when connecting. Do not invent duplicat
 AGENT_ANALYZE_SYSTEM = """You are a business policy routing assistant for citizen service requests.
 Return ONLY valid JSON:
 {
-  "detectedIntent": "string",
+  "detectedIntent": "RECLAMO_SERVICIO|SOLICITUD_VACACIONES|PERMISO_LABORAL|INSTALACION_MEDIDOR|REVISION_DOCUMENTAL|APROBACION_INTERNA|GESTION_BIENES|SOLICITUD_GENERAL",
   "recommendedPolicyId": "string",
   "recommendedPolicyName": "string",
   "confidenceScore": 0.0,
@@ -112,7 +155,14 @@ Return ONLY valid JSON:
   }],
   "warnings": ["string"]
 }
-Pick exactly one ACTIVE policy from the provided list. Use Spanish explanations."""
+
+Reglas de clasificación:
+1. Especificidad: Elige siempre la política más específica de la lista 'policies'.
+2. Vacaciones: Si el mensaje menciona vacaciones, licencia anual, descanso, días libres o ausencia planificada, prioriza "Solicitud de vacaciones" sobre políticas generales de permiso laboral.
+3. Reclamos: Si menciona reclamo, falla, queja, demora o insatisfacción, prioriza "Reclamo de servicio".
+4. Técnico: Si menciona medidor, instalación, energía, contador o suministro, prioriza "Solicitud de instalación de medidor".
+5. Intenciones: No uses SOLICITUD_GENERAL si existe una intención específica que encaje.
+6. Idioma: Las explicaciones deben ser en español. Selecciona exactamente una política ACTIVA de la lista proporcionada."""
 
 ANALYTICS_REPORT_SYSTEM = """You are a workflow analytics assistant for business process reports.
 Return ONLY valid JSON:
@@ -128,7 +178,11 @@ Return ONLY valid JSON:
   "chart": {"type": "bar|pie", "title": "string", "labels": ["string"], "values": [0.0]},
   "warnings": ["string"]
 }
-Use tramiteSample and KPI context. Respond in Spanish."""
+Reglas:
+1. Si la consulta es sobre carga de trabajo, funcionarios, responsables o tareas asignadas, usa EXCLUSIVAMENTE el dataset 'employeeLoad'.
+2. El 'reportType' debe ser 'FUNCIONARIO_CARGA' para estas consultas.
+3. Las explicaciones deben ser en español y mencionar el nombre del funcionario con mayor carga si se detecta.
+4. Usa tramiteSample y KPI context para otros tipos de reportes."""
 
 ANALYTICS_RISKS_SYSTEM = """You are a workflow risk analyst.
 Return ONLY valid JSON:
@@ -196,8 +250,6 @@ async def assistant(request: AssistantRequest):
 
 @app.post("/agent/analyze")
 async def agent_analyze(request: AgentAnalyzeRequest):
-    import json
-
     combined = request.message
     if request.audioText:
         combined = f"{combined} {request.audioText}".strip()
@@ -242,8 +294,6 @@ async def agent_analyze(request: AgentAnalyzeRequest):
 
 @app.post("/analytics/report")
 async def analytics_report(request: AnalyticsRequest):
-    import json
-
     payload = request.model_dump()
     combined = request.effective_message() or "resumen general"
     try:
@@ -263,8 +313,6 @@ async def analytics_report(request: AnalyticsRequest):
 
 @app.post("/analytics/risks")
 async def analytics_risks(request: AnalyticsRequest):
-    import json
-
     payload = request.model_dump()
     try:
         result = generate_structured(
@@ -282,8 +330,6 @@ async def analytics_risks(request: AnalyticsRequest):
 
 @app.post("/analytics/recommendations")
 async def analytics_recommendations(request: AnalyticsRequest):
-    import json
-
     payload = request.model_dump()
     try:
         result = generate_structured(
@@ -301,8 +347,6 @@ async def analytics_recommendations(request: AnalyticsRequest):
 
 @app.post("/workflow/suggest")
 async def workflow_suggest(request: WorkflowSuggestRequest):
-    import json
-
     context = json.dumps(
         {
             "policyId": request.policyId,
@@ -339,15 +383,7 @@ async def workflow_suggest(request: WorkflowSuggestRequest):
         )
     except ValueError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except GeminiError as exc:
-        return fallback_workflow_suggest(
-            request.prompt,
-            request.policyId,
-            request.activities,
-            request.transitions,
-            request.lanes,
-        )
-    except InvalidJsonResponseError:
+    except (GeminiError, InvalidJsonResponseError):
         return fallback_workflow_suggest(
             request.prompt,
             request.policyId,
@@ -383,8 +419,6 @@ async def generate_workflow(request: GenerateWorkflowRequest):
 
 @app.post("/assist-form")
 async def assist_form(request: AssistFormRequest):
-    import json
-
     try:
         report = request.effective_report()
     except ValueError as exc:
@@ -434,8 +468,6 @@ async def assist_form(request: AssistFormRequest):
 @app.post("/validate-diagram")
 async def validate_diagram(request: ValidateDiagramRequest):
     try:
-        import json
-
         payload = json.dumps(
             {
                 "activities": request.activities,
@@ -461,6 +493,33 @@ async def validate_diagram(request: ValidateDiagramRequest):
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except InvalidJsonResponseError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/ai/task-assistant", response_model=TaskAssistantResponse)
+async def task_assistant(request: TaskAssistantRequest):
+    payload = request.model_dump()
+
+    try:
+        prompt = build_task_assistant_prompt(payload)
+        result = await asyncio.wait_for(
+            asyncio.to_thread(generate_structured, TASK_ASSISTANT_SYSTEM, prompt),
+            timeout=TASK_ASSISTANT_TIMEOUT_SECONDS,
+        )
+        return TaskAssistantResponse(
+            summary=result.get("summary") or "",
+            importantData=result.get("importantData") or [],
+            missingData=result.get("missingData") or [],
+            recommendedAction=result.get("recommendedAction") or "",
+            source="AI",
+        )
+    except (
+        asyncio.TimeoutError,
+        GeminiQuotaExceededError,
+        GeminiError,
+        InvalidJsonResponseError,
+        ValueError,
+    ):
+        return TaskAssistantResponse(**fallback_task_assistant(payload))
 
 
 @app.exception_handler(Exception)

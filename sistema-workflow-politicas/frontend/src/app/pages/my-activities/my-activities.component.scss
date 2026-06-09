@@ -64,3 +64,55 @@
   color: var(--color-danger, #c62828);
   margin-top: 0.25rem;
 }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.task-assistant-modal {
+  max-width: 620px;
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    color: var(--color-accent);
+  }
+}
+
+.assistant-context {
+  margin: 0 0 1rem;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.assistant-block {
+  margin-bottom: 1rem;
+
+  p {
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+}
+
+.assistant-source {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.assistant-fallback-hint {
+  margin-bottom: 0.75rem;
+}
+
+.alert.warning {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}

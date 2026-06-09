@@ -9,6 +9,8 @@ import com.workflow.politicas.repository.TramiteRepository;
 import com.workflow.politicas.storage.StorageProperties;
 import com.workflow.politicas.storage.StorageService;
 import com.workflow.politicas.storage.StoredObject;
+import com.workflow.politicas.security.AuthenticatedActorResolver;
+import com.workflow.politicas.security.AuthenticatedActorResolver.Actor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +46,10 @@ class DocumentRepositoryServiceStorageTest {
     private StorageService storageService;
     @Mock
     private BitacoraService bitacoraService;
+    @Mock
+    private DocumentCollaborationService documentCollaborationService;
+    @Mock
+    private AuthenticatedActorResolver actorResolver;
 
     private DocumentRepositoryService documentRepositoryService;
 
@@ -58,7 +64,9 @@ class DocumentRepositoryServiceStorageTest {
                 tramiteRepository,
                 storageService,
                 storageProperties,
-                bitacoraService
+                bitacoraService,
+                documentCollaborationService,
+                actorResolver
         );
     }
 
@@ -78,7 +86,6 @@ class DocumentRepositoryServiceStorageTest {
 
         MockMultipartFile file = new MockMultipartFile("file", "informe.pdf", "application/pdf", "data".getBytes());
         var response = documentRepositoryService.uploadDocument("repo-1", file, "ana.rodriguez");
-
         assertEquals("TRM-007/informe.pdf", response.getS3Key());
         assertEquals(1, response.getVersion());
         assertEquals("TRM-007", response.getTramiteCodigo());
@@ -120,6 +127,7 @@ class DocumentRepositoryServiceStorageTest {
                         "etag"
                 ));
         when(documentRecordRepository.save(any(DocumentRecord.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(actorResolver.requireCurrentActor()).thenReturn(new Actor("u1", "ana.rodriguez", "Ana Rodriguez"));
 
         MockMultipartFile file = new MockMultipartFile("file", "informe.pdf", "application/pdf", "data".getBytes());
         var response = documentRepositoryService.uploadDocument("repo-1", file, "ana.rodriguez");

@@ -24,6 +24,8 @@ export interface AnalyticsChart {
 export interface AnalyticsReportResponse {
   title?: string;
   explanation?: string;
+  /** Respuesta directa a la consulta del usuario. */
+  conclusion?: string;
   reportType?: string;
   columns?: string[];
   rows?: Record<string, unknown>[];

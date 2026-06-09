@@ -38,7 +38,7 @@ Detalle: [docs/casos-uso.md](docs/casos-uso.md) · Demo Ciclo 1: [docs/guia-demo
 | CU17 | Gestionar repositorio documental por trámite |
 | CU18 | Gestionar documentos digitales |
 | CU19 | Gestionar permisos, auditoría y colaboración documental |
-| CU20 | Integrar almacenamiento AWS S3 |
+| CU20 | Integrar almacenamiento AWS S3 
 | CU21 | Gestionar agente inteligente de atención  |
 | CU22 | Asignar automáticamente políticas de negocio  |
 | CU23 | Procesar consultas mediante voz, texto y documentos  |

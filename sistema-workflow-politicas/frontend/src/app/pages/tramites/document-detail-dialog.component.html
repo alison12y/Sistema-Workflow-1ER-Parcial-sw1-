@@ -61,6 +61,55 @@
           <strong class="value-break">{{ document.s3Key }}</strong>
         </div>
       }
+
+      @if (access) {
+        <div class="full-width collab-access">
+          <span>Permiso efectivo</span>
+          <strong>{{ access.permissionLevel }}</strong>
+          @if (access.locked) {
+            <p class="collab-lock-hint">
+              En edición por {{ access.lockedByDisplayName || access.lockedByUsername }}
+            </p>
+          }
+        </div>
+      }
+
+      @if (canManagePermissions) {
+        <div class="full-width permissions-section">
+          <span>Permisos documentales</span>
+          @if (permissionsError) {
+            <p class="permissions-error">{{ permissionsError }}</p>
+          }
+          @if (permissions.length) {
+            <ul class="permissions-list">
+              @for (entry of permissions; track entry.id) {
+                <li>
+                  <span>{{ entry.granteeType }} · {{ entry.granteeLabel || entry.granteeKey }} · {{ entry.permissionLevel }}</span>
+                  <button type="button" class="btn-link danger" (click)="removePermission(entry)">Quitar</button>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="empty-hint">Sin permisos explícitos (se aplican reglas por defecto).</p>
+          }
+          <div class="permission-form">
+            <select [(ngModel)]="permissionForm.granteeType">
+              <option value="USER">Usuario</option>
+              <option value="ROLE">Rol</option>
+              <option value="DEPARTMENT">Departamento</option>
+            </select>
+            <input type="text" [(ngModel)]="permissionForm.granteeKey" placeholder="Clave (usuario/rol/depto)" />
+            <select [(ngModel)]="permissionForm.permissionLevel">
+              <option value="READ">READ</option>
+              <option value="EDIT">EDIT</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+            <button type="button" class="btn btn-secondary btn-sm" [disabled]="savingPermission" (click)="grantPermission()">
+              {{ savingPermission ? 'Guardando...' : 'Asignar' }}
+            </button>
+          </div>
+        </div>
+      }
     </div>
   </mat-dialog-content>
 

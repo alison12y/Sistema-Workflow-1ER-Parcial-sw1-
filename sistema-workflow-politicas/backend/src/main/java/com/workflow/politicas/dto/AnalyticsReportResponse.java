@@ -9,6 +9,8 @@ public class AnalyticsReportResponse {
 
     private String title;
     private String explanation;
+    /** Respuesta directa a la consulta del usuario. */
+    private String conclusion;
     private String reportType;
     private List<String> columns = new ArrayList<>();
     private List<Map<String, Object>> rows = new ArrayList<>();
@@ -34,6 +36,14 @@ public class AnalyticsReportResponse {
 
     public void setExplanation(String explanation) {
         this.explanation = explanation;
+    }
+
+    public String getConclusion() {
+        return conclusion;
+    }
+
+    public void setConclusion(String conclusion) {
+        this.conclusion = conclusion;
     }
 
     public String getReportType() {

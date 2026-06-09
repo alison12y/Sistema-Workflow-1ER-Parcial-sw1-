@@ -94,6 +94,14 @@
                     </td>
                     <td class="actions">
                       <a [routerLink]="['/tramites', activity.tramiteId]" class="btn btn-secondary btn-sm">Detalle</a>
+                      <button
+                        type="button"
+                        class="btn btn-ai btn-sm"
+                        [disabled]="isAssistantLoading(activity)"
+                        (click)="openTaskAssistant(activity)"
+                      >
+                        {{ isAssistantLoading(activity) ? 'Analizando...' : 'Asistente IA' }}
+                      </button>
                       @if (activity.canTake) {
                         <button
                           type="button"
@@ -118,3 +126,71 @@
     }
   }
 </div>
+
+@if (assistantModalOpen) {
+  <div class="modal-backdrop" (click)="closeTaskAssistant()">
+    <div class="modal-panel task-assistant-modal" (click)="$event.stopPropagation()">
+      <h2>Asistente Inteligente de Tarea</h2>
+      @if (assistantActivity) {
+        <p class="assistant-context">
+          <strong>{{ assistantActivity.activityName }}</strong>
+          · {{ assistantActivity.code }}
+          · {{ taskStatusLabel(assistantActivity.status) }}
+        </p>
+      }
+
+      @if (assistantLoadingKey) {
+        <div class="loading">Analizando tarea...</div>
+      } @else if (assistantError && !assistantResult) {
+        <div class="alert error">{{ assistantError }}</div>
+      } @else if (assistantResult) {
+        @if (showAssistantFallbackNotice()) {
+          <div class="alert warning assistant-fallback-hint">
+            Respuesta generada con respaldo local.
+          </div>
+        }
+        @if (assistantError) {
+          <div class="alert warning">{{ assistantError }}</div>
+        }
+
+        <div class="assistant-block">
+          <h3>Resumen</h3>
+          <p>{{ assistantResult.summary }}</p>
+        </div>
+
+        @if (assistantResult.importantData?.length) {
+          <div class="assistant-block">
+            <h3>Datos importantes</h3>
+            <ul>
+              @for (item of assistantResult.importantData; track item) {
+                <li>{{ item }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (assistantResult.missingData?.length) {
+          <div class="assistant-block">
+            <h3>Datos faltantes o por verificar</h3>
+            <ul>
+              @for (item of assistantResult.missingData; track item) {
+                <li>{{ item }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        <div class="assistant-block">
+          <h3>Acción recomendada</h3>
+          <p>{{ assistantResult.recommendedAction }}</p>
+        </div>
+
+        <p class="assistant-source">Fuente: {{ assistantSourceLabel() }}</p>
+      }
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeTaskAssistant()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}

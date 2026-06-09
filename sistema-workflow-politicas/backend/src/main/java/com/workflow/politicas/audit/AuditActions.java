@@ -66,6 +66,7 @@ public final class AuditActions {
     // IA
     public static final String GENERAR_WORKFLOW_IA = "GENERAR_WORKFLOW_IA";
     public static final String ASISTENCIA_FORMULARIO_IA = "ASISTENCIA_FORMULARIO_IA";
+    public static final String AI_TASK_ASSISTANT_USED = "AI_TASK_ASSISTANT_USED";
     public static final String AGENT_REQUESTED = "AGENT_REQUESTED";
     public static final String AGENT_POLICY_RECOMMENDED = "AGENT_POLICY_RECOMMENDED";
     public static final String AGENT_TRAMITE_STARTED = "AGENT_TRAMITE_STARTED";
@@ -83,4 +84,17 @@ public final class AuditActions {
     public static final String DOCUMENT_UPLOADED = "DOCUMENT_UPLOADED";
     public static final String DOCUMENT_DOWNLOADED = "DOCUMENT_DOWNLOADED";
     public static final String DOCUMENT_DELETED = "DOCUMENT_DELETED";
+
+    // Colaboración documental (CU19)
+    public static final String DOCUMENT_OPENED = "DOCUMENT_OPENED";
+    public static final String DOCUMENT_VIEWED = "DOCUMENT_VIEWED";
+    public static final String DOCUMENT_LOCK_ACQUIRED = "DOCUMENT_LOCK_ACQUIRED";
+    public static final String DOCUMENT_LOCK_RELEASED = "DOCUMENT_LOCK_RELEASED";
+    public static final String DOCUMENT_EDIT_STARTED = "DOCUMENT_EDIT_STARTED";
+    public static final String DOCUMENT_EDIT_SAVED = "DOCUMENT_EDIT_SAVED";
+    public static final String DOCUMENT_VERSION_UPLOADED = "DOCUMENT_VERSION_UPLOADED";
+    public static final String DOCUMENT_PERMISSION_GRANTED = "DOCUMENT_PERMISSION_GRANTED";
+    public static final String DOCUMENT_PERMISSION_CHANGED = "DOCUMENT_PERMISSION_CHANGED";
+    public static final String DOCUMENT_PERMISSION_DENIED = "DOCUMENT_PERMISSION_DENIED";
+    public static final String DOCUMENT_PERMISSION_REMOVED = "DOCUMENT_PERMISSION_REMOVED";
 }

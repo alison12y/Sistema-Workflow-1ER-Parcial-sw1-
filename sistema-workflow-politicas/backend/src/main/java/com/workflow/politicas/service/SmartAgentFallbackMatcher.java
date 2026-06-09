@@ -20,6 +20,8 @@ public final class SmartAgentFallbackMatcher {
 
     private static final Map<String, List<String>> INTENT_KEYWORDS = Map.of(
             "INSTALACION_MEDIDOR", List.of("medidor", "instalacion", "instalar", "suministro", "electricidad", "gas", "contador"),
+            "SOLICITUD_VACACIONES", List.of("vacaciones", "vacacion", "licencia anual", "descanso", "dias libres", "días libres", "ausencia planificada"),
+            "PERMISO_LABORAL", List.of("permiso laboral", "permiso personal", "licencia medica", "ausencia justificada", "permiso especial"),
             "GESTION_DECOMISADOS", List.of("decomisado", "decomisados", "bienes", "confiscado", "incautacion", "incautados", "comiso"),
             "RECLAMO_SERVICIO", List.of("reclamo", "queja", "mal servicio", "defecto", "insatisfecho", "reclamar"),
             "REVISION_DOCUMENTAL", List.of("documento", "revision", "revisar", "aprobacion", "validar", "legal", "contrato"),
@@ -156,6 +158,14 @@ public final class SmartAgentFallbackMatcher {
                     "Comprobante de domicilio",
                     "Plano o croquis del punto de instalación (opcional)"
             );
+            case "SOLICITUD_VACACIONES" -> List.of(
+                    "Formulario de solicitud de vacaciones firmado",
+                    "Cronograma de actividades delegadas (opcional)"
+            );
+            case "PERMISO_LABORAL" -> List.of(
+                    "Justificativo o certificado correspondiente",
+                    "Aprobación previa del jefe inmediato"
+            );
             case "GESTION_DECOMISADOS" -> List.of(
                     "Acta o informe de decomiso",
                     "Inventario de bienes",
@@ -213,6 +223,8 @@ public final class SmartAgentFallbackMatcher {
     private static String humanIntent(String intent) {
         return switch (intent) {
             case "INSTALACION_MEDIDOR" -> "instalación de medidor";
+            case "SOLICITUD_VACACIONES" -> "solicitud de vacaciones";
+            case "PERMISO_LABORAL" -> "permiso laboral";
             case "GESTION_DECOMISADOS" -> "gestión de bienes decomisados";
             case "RECLAMO_SERVICIO" -> "reclamo de servicio";
             case "REVISION_DOCUMENTAL" -> "revisión documental";

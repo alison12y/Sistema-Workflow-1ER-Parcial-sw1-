@@ -1,0 +1,98 @@
+<section class="document-edit-page">
+  <header class="edit-header">
+    <div>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="goBack()">← Volver al trámite</button>
+      <h1>Edición documental</h1>
+      @if (document) {
+        <p class="subtitle">{{ document.nombreOriginal }} · v{{ document.version }}</p>
+      }
+      @if (readOnly) {
+        <p class="mode-badge mode-readonly">Solo lectura</p>
+      }
+      @if (lockLabel(); as label) {
+        <p class="mode-badge mode-editing">{{ label }}</p>
+      }
+    </div>
+  </header>
+
+  @if (loading) {
+    <p class="empty-hint">Cargando editor...</p>
+  } @else if (error) {
+    <div class="alert error">{{ error }}</div>
+  } @else {
+    @if (message) {
+      <div class="alert success">{{ message }}</div>
+    }
+
+    <div class="edit-layout">
+      <div class="editor-panel">
+        @if (session?.onlyOfficeEnabled && !fallbackMode) {
+          <div id="onlyoffice-editor" class="onlyoffice-host"></div>
+        } @else {
+          <div class="fallback-panel">
+            <strong>Modo alternativo</strong>
+            <p>OnlyOffice no está activo o no está disponible. Puede descargar el documento y subir una nueva versión.</p>
+            @if (document) {
+              <p>Versión actual: <strong>v{{ document.version }}</strong></p>
+            }
+            @if (!readOnly) {
+              <label class="btn btn-primary btn-sm upload-label" [class.is-busy]="uploading">
+                {{ uploading ? 'Subiendo...' : 'Subir nueva versión' }}
+                <input
+                  type="file"
+                  class="upload-input"
+                  accept=".docx,.xlsx"
+                  [disabled]="uploading"
+                  (change)="onFallbackFileSelected($event)"
+                />
+              </label>
+            }
+          </div>
+        }
+      </div>
+
+      <aside class="side-panel">
+        <div class="side-card">
+          <h3>Conectados</h3>
+          @if (collaborationState?.connectedUsers?.length) {
+            <ul class="connected-list">
+              @for (user of collaborationState!.connectedUsers; track user.username) {
+                <li>{{ user.displayName || user.username }}</li>
+              }
+            </ul>
+          } @else {
+            <p class="empty-hint">Sin usuarios conectados</p>
+          }
+        </div>
+
+        <div class="side-card">
+          <h3>Estado de edición</h3>
+          @if (lockLabel(); as label) {
+            <p>{{ label }}</p>
+          } @else {
+            <p class="empty-hint">Nadie está editando este documento</p>
+          }
+          @if (document) {
+            <p class="version-info">Versión actual: v{{ document.version }}</p>
+          }
+        </div>
+
+        <div class="side-card">
+          <h3>Actividad reciente</h3>
+          @if (recentActions.length) {
+            <ul class="activity-list">
+              @for (action of recentActions; track action.actionType + (action.occurredAt ?? '') + (action.actionLabel ?? '')) {
+                <li>
+                  <strong>{{ action.actionLabel }}</strong>
+                  <span>{{ formatDate(action.occurredAt) }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="empty-hint">Sin actividad reciente</p>
+          }
+        </div>
+      </aside>
+    </div>
+  }
+</section>

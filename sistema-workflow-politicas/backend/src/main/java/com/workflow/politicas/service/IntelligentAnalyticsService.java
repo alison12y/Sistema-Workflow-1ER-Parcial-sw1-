@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,6 +32,8 @@ import java.util.Objects;
 
 @Service
 public class IntelligentAnalyticsService {
+
+    private static final Logger log = LoggerFactory.getLogger(IntelligentAnalyticsService.class);
 
     private final RestTemplate restTemplate;
     private final TramiteRepository tramiteRepository;
@@ -63,12 +67,16 @@ public class IntelligentAnalyticsService {
         AnalyticsReportResponse response;
         try {
             response = callAiReport(combinedText, request, tramites, kpiDashboard);
-            response.setSource("AI_SERVICE");
+            if (response.getSource() == null || response.getSource().isBlank()) {
+                response.setSource("AI_SERVICE");
+            }
         } catch (RuntimeException ex) {
+            log.error("Error llamando al servicio de analítica (reporte): {}", ex.getMessage());
             response = IntelligentAnalyticsFallbackMatcher.buildReport(
                     combinedText, tramites, request, kpiDashboard
             );
         }
+        enrichConclusion(response, combinedText, tramites, kpiDashboard);
         return response;
     }
 
@@ -82,8 +90,11 @@ public class IntelligentAnalyticsService {
         AnalyticsRiskResponse response;
         try {
             response = callAiRisks(request, tramites, kpiDashboard);
-            response.setSource("AI_SERVICE");
+            if (response.getSource() == null || response.getSource().isBlank()) {
+                response.setSource("AI_SERVICE");
+            }
         } catch (RuntimeException ex) {
+            log.error("Error llamando al servicio de analítica (riesgos): {}", ex.getMessage());
             response = IntelligentAnalyticsFallbackMatcher.buildRisks(tramites, kpiDashboard);
         }
         return response;
@@ -102,8 +113,11 @@ public class IntelligentAnalyticsService {
         AnalyticsRecommendationResponse response;
         try {
             response = callAiRecommendations(request, tramites, kpiDashboard);
-            response.setSource("AI_SERVICE");
+            if (response.getSource() == null || response.getSource().isBlank()) {
+                response.setSource("AI_SERVICE");
+            }
         } catch (RuntimeException ex) {
+            log.error("Error llamando al servicio de analítica (recomendaciones): {}", ex.getMessage());
             response = IntelligentAnalyticsFallbackMatcher.buildRecommendations(tramites, kpiDashboard);
         }
         return response;
@@ -203,26 +217,45 @@ public class IntelligentAnalyticsService {
         AnalyticsReportResponse response = new AnalyticsReportResponse();
         response.setTitle(asString(raw.get("title")));
         response.setExplanation(asString(raw.get("explanation")));
+        response.setConclusion(asString(raw.get("conclusion")));
         response.setReportType(asString(raw.get("reportType")));
         response.setSuggestedFormat(asString(raw.get("suggestedFormat")));
         response.setSource(asString(raw.get("source")));
 
-        Object columns = raw.get("columns");
-        if (columns instanceof List<?> list) {
-            response.setColumns(list.stream().map(String::valueOf).toList());
+        Object columnsObj = raw.get("columns");
+        List<String> columns = new ArrayList<>();
+        if (columnsObj instanceof List<?> list && !list.isEmpty()) {
+            columns = list.stream().map(String::valueOf).toList();
         }
-        Object rows = raw.get("rows");
-        if (rows instanceof List<?> list) {
-            List<Map<String, Object>> mappedRows = new ArrayList<>();
-            for (Object item : list) {
-                if (item instanceof Map<?, ?> map) {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    map.forEach((k, v) -> row.put(String.valueOf(k), v));
-                    mappedRows.add(row);
+
+        Object rowsObj = raw.get("rows");
+        if (rowsObj instanceof List<?> list && !list.isEmpty()) {
+            // Si columns está vacío, intentar inferir de la primera fila
+            if (columns.isEmpty()) {
+                Object first = list.get(0);
+                if (first instanceof Map<?, ?> firstRow) {
+                    columns = firstRow.keySet().stream().map(String::valueOf).toList();
                 }
             }
-            response.setRows(mappedRows);
+            response.setColumns(columns);
+
+            List<Map<String, Object>> normalizedRows = new ArrayList<>();
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> rawRow) {
+                    Map<String, Object> normalizedRow = new LinkedHashMap<>();
+                    // Normalizar cada fila para que sus llaves coincidan exactamente con las columnas
+                    for (String column : columns) {
+                        Object value = findValueCaseInsensitive(rawRow, column);
+                        normalizedRow.put(column, value);
+                    }
+                    normalizedRows.add(normalizedRow);
+                }
+            }
+            response.setRows(normalizedRows);
+        } else {
+            response.setColumns(columns);
         }
+
         Object filters = raw.get("appliedFilters");
         if (filters instanceof Map<?, ?> map) {
             Map<String, Object> applied = new LinkedHashMap<>();
@@ -242,6 +275,20 @@ public class IntelligentAnalyticsService {
             response.setChart(mapChart(map));
         }
         return response;
+    }
+
+    private Object findValueCaseInsensitive(Map<?, ?> map, String targetKey) {
+        if (map.containsKey(targetKey)) {
+            return map.get(targetKey);
+        }
+        String normalizedTarget = targetKey.trim().toLowerCase(Locale.ROOT);
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            String key = String.valueOf(entry.getKey()).trim().toLowerCase(Locale.ROOT);
+            if (key.equals(normalizedTarget)) {
+                return entry.getValue();
+            }
+        }
+        return "—"; // Valor por defecto si no se encuentra
     }
 
     @SuppressWarnings("unchecked")
@@ -462,6 +509,22 @@ public class IntelligentAnalyticsService {
     private boolean isFinalizado(String status) {
         return "FINALIZADO".equals(status) || "COMPLETADO".equals(status)
                 || "COMPLETED".equals(status) || "DONE".equals(status);
+    }
+
+    private void enrichConclusion(
+            AnalyticsReportResponse response,
+            String combinedText,
+            List<Tramite> tramites,
+            KpiDashboardFullResponse kpiDashboard
+    ) {
+        if (response == null) {
+            return;
+        }
+        if (response.getConclusion() == null || response.getConclusion().isBlank()) {
+            response.setConclusion(
+                    IntelligentAnalyticsConclusionBuilder.build(combinedText, tramites, kpiDashboard)
+            );
+        }
     }
 
     private String truncate(String text) {

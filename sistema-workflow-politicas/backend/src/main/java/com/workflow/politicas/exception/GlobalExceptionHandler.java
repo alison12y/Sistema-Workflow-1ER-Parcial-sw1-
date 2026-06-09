@@ -11,6 +11,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -62,6 +63,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.NOT_FOUND, "Recurso no encontrado", ex.getMessage());
     }
 
+    @ExceptionHandler(DocumentAccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleDocumentAccessDenied(DocumentAccessDeniedException ex) {
+        return error(HttpStatus.FORBIDDEN, "Permiso documental insuficiente.", ex.getMessage());
+    }
+
     @ExceptionHandler(DocumentRepositoryNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleDocumentRepositoryNotFound(
             DocumentRepositoryNotFoundException ex
@@ -78,6 +84,15 @@ public class GlobalExceptionHandler {
                 HttpStatus.METHOD_NOT_ALLOWED,
                 "Método HTTP no permitido.",
                 ex.getMessage()
+        );
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNoResourceFound(NoResourceFoundException ex) {
+        return error(
+                HttpStatus.NOT_FOUND,
+                "Recurso no encontrado",
+                "El endpoint solicitado no existe. Reinicie el backend con la versión actual del proyecto."
         );
     }
 

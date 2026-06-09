@@ -53,6 +53,30 @@ class IntelligentAnalyticsFallbackMatcherTest {
     }
 
     @Test
+    void buildReport_includesConclusionForEmployeeLoadQuery() {
+        KpiLoadMetricDto load = new KpiLoadMetricDto();
+        load.setKey("carlos.mendez");
+        load.setDisplayName("Carlos Méndez");
+        load.setPendingCount(2);
+        load.setInProgressCount(3);
+        load.setTotalActive(5);
+
+        KpiDashboardFullResponse kpi = emptyKpi();
+        kpi.setEmployeeLoad(List.of(load));
+
+        AnalyticsRequest request = new AnalyticsRequest();
+        request.setMessage("¿Qué funcionario tiene mayor carga de trabajo?");
+
+        AnalyticsReportResponse response = IntelligentAnalyticsFallbackMatcher.buildReport(
+                request.getMessage(), List.of(), request, kpi
+        );
+
+        assertNotNull(response.getConclusion());
+        assertTrue(response.getConclusion().contains("Carlos Méndez"));
+        assertTrue(response.getConclusion().contains("5 tarea(s) activas"));
+    }
+
+    @Test
     void buildRisks_detectsDelayedTramiteAndOverdueTask() {
         Tramite tramite = activeTramite("TRM-010", "Política X", LocalDateTime.now().minusHours(72));
         TramiteTask task = new TramiteTask();

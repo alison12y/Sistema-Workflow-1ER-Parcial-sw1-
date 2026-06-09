@@ -76,26 +76,54 @@ public class DatabaseSeeder implements CommandLineRunner {
     }
 
     private void seedPolicies() {
-        if (businessPolicyRepository.count() > 0) {
-            log.info("DatabaseSeeder: policies already exist, skipping policy seed");
-            return;
+        LocalDateTime now = LocalDateTime.now();
+
+        // 1. Solicitud de vacaciones
+        if (!businessPolicyRepository.findAll().stream().anyMatch(p -> "Solicitud de vacaciones".equalsIgnoreCase(p.getName()))) {
+            BusinessPolicy v = new BusinessPolicy();
+            v.setName("Solicitud de vacaciones");
+            v.setDescription("Define el proceso para registrar, revisar y aprobar solicitudes de vacaciones del personal.");
+            v.setType("Permiso de Ausencia");
+            v.setStatus("ACTIVE");
+            v.setVersion("1.0");
+            v.setResponsible("Recursos Humanos");
+            v.setCreatedBy("sistema.admin");
+            v.setCreatedAt(now);
+            v.setUpdatedAt(now);
+            businessPolicyRepository.save(v);
+            log.info("DatabaseSeeder: created policy 'Solicitud de vacaciones'");
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        BusinessPolicy policy = new BusinessPolicy();
-        policy.setName("Política de solicitud de vacaciones");
-        policy.setDescription(
-                "Define el proceso para registrar, revisar y aprobar solicitudes de vacaciones del personal."
-        );
-        policy.setType("Permiso de Ausencia");
-        policy.setStatus("ACTIVE");
-        policy.setVersion("1.0");
-        policy.setResponsible("Recursos Humanos");
-        policy.setCreatedBy("sistema.admin");
-        policy.setCreatedAt(now);
-        policy.setUpdatedAt(now);
-        businessPolicyRepository.save(policy);
+        // 2. Solicitud de Permiso Laboral
+        if (!businessPolicyRepository.findAll().stream().anyMatch(p -> "Solicitud de Permiso Laboral".equalsIgnoreCase(p.getName()))) {
+            BusinessPolicy p = new BusinessPolicy();
+            p.setName("Solicitud de Permiso Laboral");
+            p.setDescription("Trámite general para permisos de corta duración o motivos personales.");
+            p.setType("Permiso de Ausencia");
+            p.setStatus("ACTIVE");
+            p.setVersion("1.0");
+            p.setResponsible("Recursos Humanos");
+            p.setCreatedBy("sistema.admin");
+            p.setCreatedAt(now);
+            p.setUpdatedAt(now);
+            businessPolicyRepository.save(p);
+            log.info("DatabaseSeeder: created policy 'Solicitud de Permiso Laboral'");
+        }
 
-        log.info("DatabaseSeeder: created initial business policy '{}'", policy.getName());
+        // 3. Solicitud de revisión documental
+        if (!businessPolicyRepository.findAll().stream().anyMatch(p -> "Solicitud de revisión documental".equalsIgnoreCase(p.getName()))) {
+            BusinessPolicy d = new BusinessPolicy();
+            d.setName("Solicitud de revisión documental");
+            d.setDescription("Establece el flujo de carga, revisión legal y validación de documentación.");
+            d.setType("DOCUMENT_APPROVAL");
+            d.setStatus("ACTIVE");
+            d.setVersion("1.0");
+            d.setResponsible("Legal");
+            d.setCreatedBy("sistema.admin");
+            d.setCreatedAt(now);
+            d.setUpdatedAt(now);
+            businessPolicyRepository.save(d);
+            log.info("DatabaseSeeder: created policy 'Solicitud de revisión documental'");
+        }
     }
 }

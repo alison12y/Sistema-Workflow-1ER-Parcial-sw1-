@@ -2,7 +2,10 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { TimeoutError } from 'rxjs';
+import { finalize, timeout } from 'rxjs/operators';
 import { MyActivitiesService } from '../../services/my-activities.service';
+import { TaskAssistantResponse } from '../../models/task-assistant.model';
 import { PolicyService } from '../../services/policy.service';
 import {
   MyActivitiesFilterParams,
@@ -26,6 +29,7 @@ import { CYCLE1_POLL_INTERVAL_MS } from '../../core/polling.config';
 import { ConnectivityService } from '../../core/offline/connectivity.service';
 import { OfflineSyncService } from '../../core/offline/offline-sync.service';
 import { shouldQueueOffline } from '../../utils/network-error.util';
+import { buildTaskAssistantFallback } from '../../utils/task-assistant-fallback.util';
 
 @Component({
   selector: 'app-my-activities',
@@ -47,7 +51,14 @@ export class MyActivitiesComponent implements OnInit, OnDestroy {
   error = '';
   message = '';
   takingTaskKey: string | null = null;
+  assistantLoadingKey: string | null = null;
+  assistantModalOpen = false;
+  assistantActivity: MyActivity | null = null;
+  assistantResult: TaskAssistantResponse | null = null;
+  assistantError = '';
   lastUpdated: Date | null = null;
+
+  private static readonly ASSISTANT_TIMEOUT_MS = 30_000;
 
   filterStatus = '';
   filterPolicyId = '';
@@ -153,6 +164,68 @@ export class MyActivitiesComponent implements OnInit, OnDestroy {
         this.error = httpErrorMessage(err, 'No se pudo tomar la tarea');
       },
     });
+  }
+
+  openTaskAssistant(activity: MyActivity): void {
+    const key = this.taskKey(activity);
+    this.assistantActivity = activity;
+    this.assistantModalOpen = true;
+    this.assistantResult = null;
+    this.assistantError = '';
+    this.assistantLoadingKey = key;
+
+    this.myActivitiesService
+      .getTaskAssistant(activity.tramiteId, activity.taskOrder)
+      .pipe(
+        timeout(MyActivitiesComponent.ASSISTANT_TIMEOUT_MS),
+        finalize(() => {
+          this.assistantLoadingKey = null;
+        }),
+      )
+      .subscribe({
+        next: (response) => {
+          this.assistantResult = response;
+        },
+        error: (err) => {
+          this.assistantResult = buildTaskAssistantFallback(activity);
+          if (err instanceof TimeoutError) {
+            this.assistantError =
+              'No se pudo consultar la IA a tiempo, se muestra una orientación local.';
+            return;
+          }
+          this.assistantError = httpErrorMessage(
+            err,
+            'No se pudo consultar la IA, se muestra una orientación local.',
+          );
+        },
+      });
+  }
+
+  closeTaskAssistant(): void {
+    this.assistantModalOpen = false;
+    this.assistantActivity = null;
+    this.assistantResult = null;
+    this.assistantError = '';
+    this.assistantLoadingKey = null;
+  }
+
+  isAssistantLoading(activity: MyActivity): boolean {
+    return this.assistantLoadingKey === this.taskKey(activity);
+  }
+
+  assistantSourceLabel(): string {
+    const source = this.assistantResult?.source;
+    if (source === 'AI') {
+      return 'Servicio IA';
+    }
+    if (source === 'LOCAL_FALLBACK') {
+      return 'Respaldo local';
+    }
+    return source ?? '—';
+  }
+
+  showAssistantFallbackNotice(): boolean {
+    return this.assistantResult?.source === 'LOCAL_FALLBACK';
   }
 
   openForm(activity: MyActivity): void {

@@ -66,6 +66,8 @@ public final class IntelligentAnalyticsFallbackMatcher {
             default -> buildGeneralSummaryReport(response, scoped, kpiDashboard);
         }
 
+        response.setConclusion(IntelligentAnalyticsConclusionBuilder.build(combinedText, tramites, kpiDashboard));
+
         if (scoped.isEmpty()) {
             response.getWarnings().add("No hay datos en el periodo o filtros seleccionados.");
         }
@@ -148,11 +150,11 @@ public final class IntelligentAnalyticsFallbackMatcher {
                     risks.add(riskItem(
                             "CARGA",
                             load.getTotalActive() >= HIGH_LOAD_THRESHOLD + 2 ? "ALTO" : "MEDIO",
-                            "Sobrecarga: " + load.getDisplayName(),
+                            "Sobrecarga: " + resolveEmployeeLabel(load),
                             load.getTotalActive() + " tareas activas (pendientes + en curso).",
                             "User",
                             load.getKey(),
-                            load.getDisplayName()
+                            resolveEmployeeLabel(load)
                     ));
                 }
             }
@@ -242,8 +244,8 @@ public final class IntelligentAnalyticsFallbackMatcher {
                         AnalyticsRecommendationItemDto item = new AnalyticsRecommendationItemDto();
                         item.setPriority(load.getTotalActive() >= HIGH_LOAD_THRESHOLD + 2 ? "ALTA" : "MEDIA");
                         item.setType("REASIGNAR_TAREA");
-                        item.setTitle("Reasignar carga de " + load.getDisplayName());
-                        item.setAction("Redistribuir tareas pendientes del responsable " + load.getDisplayName() + ".");
+                        item.setTitle("Reasignar carga de " + resolveEmployeeLabel(load));
+                        item.setAction("Redistribuir tareas pendientes del responsable " + resolveEmployeeLabel(load) + ".");
                         item.setRationale(load.getTotalActive() + " tareas activas superan el umbral recomendado.");
                         items.add(item);
                     });
@@ -368,45 +370,54 @@ public final class IntelligentAnalyticsFallbackMatcher {
             List<Tramite> scoped,
             KpiDashboardFullResponse kpiDashboard
     ) {
-        Map<String, Long> load = new LinkedHashMap<>();
-        for (Tramite tramite : scoped) {
-            if (tramite.getTasks() == null) continue;
-            for (TramiteTask task : tramite.getTasks()) {
-                if (!isPendingOrInProgress(task.getStatus())) continue;
-                String key = task.getTakenBy() != null && !task.getTakenBy().isBlank()
-                        ? task.getTakenBy()
-                        : safe(task.getResponsible());
-                load.merge(key, 1L, Long::sum);
-            }
+        if (kpiDashboard == null || kpiDashboard.getEmployeeLoad() == null || kpiDashboard.getEmployeeLoad().isEmpty()) {
+            response.setTitle("Carga por funcionario");
+            response.setExplanation("No hay datos de carga de funcionarios disponibles.");
+            response.setColumns(List.of("Funcionario", "Tareas activas"));
+            return;
         }
 
+        List<KpiLoadMetricDto> loadMetrics = kpiDashboard.getEmployeeLoad();
+
         response.setTitle("Carga por funcionario");
-        response.setExplanation("Funcionarios con mayor cantidad de tareas pendientes o en curso.");
-        response.setColumns(List.of("Funcionario", "Tareas activas"));
-        response.setRows(load.entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .map(e -> {
+        response.setExplanation("Análisis detallado de la carga de trabajo actual por responsable.");
+        response.setColumns(List.of("Funcionario", "Departamento", "Tareas activas", "Completadas", "Promedio atención"));
+        List<KpiLoadMetricDto> rankableLoads = loadMetrics.stream()
+                .filter(l -> EmployeeDisplayNameResolver.isRankableMetric(
+                        l, Collections.emptyList(), Collections.emptyMap()))
+                .sorted(Comparator.comparingLong(KpiLoadMetricDto::getTotalActive).reversed())
+                .toList();
+
+        response.setRows(rankableLoads.stream()
+                .map(l -> {
                     Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("Funcionario", e.getKey());
-                    row.put("Tareas activas", e.getValue());
+                    row.put("Funcionario", resolveEmployeeLabel(l));
+                    row.put("Departamento", l.getDepartmentName());
+                    row.put("Tareas activas", l.getTotalActive());
+                    row.put("Completadas", l.getCompletedCount());
+                    row.put("Promedio atención", l.getAverageHandlingTime());
                     return row;
                 })
                 .toList());
 
-        load.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
+        rankableLoads.stream()
+                .findFirst()
                 .ifPresent(top -> response.getCards().add(
-                        card("Mayor carga", top.getKey(), top.getValue() + " tarea(s) activa(s)", "warning")));
+                        card("Mayor carga", resolveEmployeeLabel(top), top.getTotalActive() + " tarea(s) activa(s)", "warning")));
 
-        if (kpiDashboard != null && kpiDashboard.getSummary() != null) {
-            response.getCards().add(card(
-                    "Responsable KPI",
-                    kpiDashboard.getSummary().getResponsableMayorCarga(),
-                    "Según indicadores del sistema",
-                    "info"
-            ));
-        }
-        response.setChart(buildBarChart("Tareas activas por funcionario", load));
+        long totalActivas = rankableLoads.stream().mapToLong(KpiLoadMetricDto::getTotalActive).sum();
+        response.getCards().add(card("Total tareas", String.valueOf(totalActivas), "En toda la muestra", "info"));
+
+        AnalyticsChartDto chart = new AnalyticsChartDto();
+        chart.setType("bar");
+        chart.setTitle("Tareas activas por funcionario");
+        rankableLoads.stream()
+                .limit(8)
+                .forEach(l -> {
+                    chart.getLabels().add(resolveEmployeeLabel(l));
+                    chart.getValues().add((double) l.getTotalActive());
+                });
+        response.setChart(chart);
     }
 
     private static void buildDelayedReport(AnalyticsReportResponse response, List<Tramite> scoped) {
@@ -782,5 +793,17 @@ public final class IntelligentAnalyticsFallbackMatcher {
 
     private static String safe(String value) {
         return value == null || value.isBlank() ? "—" : value.trim();
+    }
+
+    private static String resolveEmployeeLabel(KpiLoadMetricDto load) {
+        String resolved = EmployeeDisplayNameResolver.resolvePersonLabel(
+                load,
+                Collections.emptyMap(),
+                Collections.emptyList()
+        );
+        if (resolved != null && !EmployeeDisplayNameResolver.isRoleLabel(resolved, Collections.emptyList())) {
+            return resolved;
+        }
+        return safe(load.getKey());
     }
 }

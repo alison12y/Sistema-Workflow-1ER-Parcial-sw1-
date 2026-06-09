@@ -44,6 +44,14 @@
       <button type="button" class="btn btn-secondary btn-sm" (click)="loadRepository()">Reintentar</button>
     </div>
   } @else if (phase === 'ready') {
+    @if (collaborationState?.connectedUsers?.length) {
+      <div class="collab-presence">
+        <strong>Conectados:</strong>
+        @for (user of collaborationState!.connectedUsers; track user.username) {
+          <span class="collab-user-chip">{{ user.displayName || user.username }}</span>
+        }
+      </div>
+    }
     @if (message) {
       <div class="alert success section-alert">{{ message }}</div>
     }
@@ -81,6 +89,9 @@
               <tr>
                 <td class="file-name-cell">
                   <span class="file-name" [title]="doc.nombreOriginal">{{ doc.nombreOriginal }}</span>
+                  @if (lockLabel(doc); as lockText) {
+                    <span class="collab-lock-hint">{{ lockText }}</span>
+                  }
                 </td>
                 <td>{{ typeLabel(doc.extension, doc.contentType) }}</td>
                 <td>{{ formatSize(doc.tamano) }}</td>
@@ -104,6 +115,29 @@
                       {{ isVersionsExpanded(doc) ? 'Ocultar versiones' : 'Versiones' }}
                     </button>
                     <button type="button" class="btn-link" (click)="openDetail(doc)">Detalle</button>
+                    @if (canOpenEditor(doc)) {
+                      <button type="button" class="btn-link" (click)="openEditor(doc)">Abrir edición</button>
+                    }
+                    @if (canTakeLock(doc)) {
+                      <button
+                        type="button"
+                        class="btn-link"
+                        [disabled]="isLockActing(doc)"
+                        (click)="takeLock(doc)"
+                      >
+                        {{ isLockActing(doc) ? 'Tomando...' : 'Tomar edición' }}
+                      </button>
+                    }
+                    @if (canReleaseLock(doc)) {
+                      <button
+                        type="button"
+                        class="btn-link"
+                        [disabled]="isLockActing(doc)"
+                        (click)="releaseLock(doc)"
+                      >
+                        {{ isLockActing(doc) ? 'Liberando...' : 'Liberar edición' }}
+                      </button>
+                    }
                     @if (canDeleteDocuments) {
                       <button
                         type="button"

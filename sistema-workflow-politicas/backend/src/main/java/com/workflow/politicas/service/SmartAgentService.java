@@ -16,6 +16,7 @@ import com.workflow.politicas.model.Tramite;
 import com.workflow.politicas.repository.BusinessPolicyRepository;
 import com.workflow.politicas.repository.DocumentRecordRepository;
 import com.workflow.politicas.repository.DocumentRepositoryStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -40,6 +41,9 @@ import java.util.stream.Collectors;
 @Service
 public class SmartAgentService {
 
+    private static final String IA_UNAVAILABLE_WARNING =
+            "Servicio IA no disponible; se usó recomendación local.";
+
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final BusinessPolicyRepository businessPolicyRepository;
@@ -53,7 +57,7 @@ public class SmartAgentService {
     private String aiServiceUrl;
 
     public SmartAgentService(
-            RestTemplate aiRestTemplate,
+            @Qualifier("smartAgentRestTemplate") RestTemplate smartAgentRestTemplate,
             ObjectMapper objectMapper,
             BusinessPolicyRepository businessPolicyRepository,
             DocumentRecordRepository documentRecordRepository,
@@ -62,7 +66,7 @@ public class SmartAgentService {
             TramiteService tramiteService,
             BitacoraService bitacoraService
     ) {
-        this.restTemplate = aiRestTemplate;
+        this.restTemplate = smartAgentRestTemplate;
         this.objectMapper = objectMapper;
         this.businessPolicyRepository = businessPolicyRepository;
         this.documentRecordRepository = documentRecordRepository;
@@ -91,18 +95,22 @@ public class SmartAgentService {
         try {
             response = callAiService(combinedText, request, activePolicies, attachmentFileName);
             response.setSource("AI_SERVICE");
-        } catch (RuntimeException ex) {
+        } catch (Exception ex) {
             response = SmartAgentFallbackMatcher.match(
                     combinedText,
                     activePolicies,
                     request.getRequesterName(),
                     attachmentFileName
             );
-            response.getWarnings().add("Servicio IA no disponible; se usó recomendación local.");
+            addFallbackWarning(response);
         }
 
         enrichResponseWithPolicy(response, activePolicies);
-        auditPolicyRecommended(authenticatedUsername, response);
+        try {
+            auditPolicyRecommended(authenticatedUsername, response);
+        } catch (Exception ignored) {
+            // La auditoría no debe impedir devolver la recomendación al cliente.
+        }
         return response;
     }
 
@@ -387,6 +395,15 @@ public class SmartAgentService {
                 "Tramite",
                 tramite.getId()
         );
+    }
+
+    private void addFallbackWarning(SmartAgentAnalyzeResponse response) {
+        if (response.getSource() == null || response.getSource().isBlank()) {
+            response.setSource("LOCAL_FALLBACK");
+        }
+        if (response.getWarnings().stream().noneMatch(IA_UNAVAILABLE_WARNING::equals)) {
+            response.getWarnings().add(IA_UNAVAILABLE_WARNING);
+        }
     }
 
     private String asString(Object value) {

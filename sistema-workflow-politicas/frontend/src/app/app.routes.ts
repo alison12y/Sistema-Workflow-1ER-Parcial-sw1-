@@ -150,6 +150,12 @@ export const routes: Routes = [
         canActivate: [permissionGuard('TASKS_EXECUTE', 'POLICIES_MANAGE', 'MONITORING_VIEW', 'REPORTS_VIEW')],
       },
       {
+        path: 'tramites/:tramiteId/documentos/:documentId/editar',
+        loadComponent: () =>
+          import('./pages/tramites/document-edit.component').then((m) => m.DocumentEditComponent),
+        canActivate: [permissionGuard('DOCUMENTS_VIEW', 'DOCUMENTS_UPLOAD', 'DOCUMENTS_DELETE', 'TASKS_EXECUTE', 'POLICIES_MANAGE', 'MONITORING_VIEW')],
+      },
+      {
         path: 'ai-assistant',
         loadComponent: () =>
           import('./pages/ai-assistant/ai-assistant.component').then((m) => m.AiAssistantComponent),

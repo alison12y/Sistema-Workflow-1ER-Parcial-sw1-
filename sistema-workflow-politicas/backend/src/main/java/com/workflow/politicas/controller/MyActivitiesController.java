@@ -4,8 +4,11 @@ import com.workflow.politicas.dto.AiFormAssistTraceRequest;
 import com.workflow.politicas.dto.CompleteActivityRequest;
 import com.workflow.politicas.dto.MyActivitiesFilter;
 import com.workflow.politicas.dto.MyActivityDto;
+import com.workflow.politicas.dto.TaskAssistantResponseDto;
 import com.workflow.politicas.model.Tramite;
 import com.workflow.politicas.service.MyActivitiesService;
+import com.workflow.politicas.service.TaskAssistantLocalFallback;
+import com.workflow.politicas.service.TaskAssistantService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
@@ -19,15 +22,21 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/my-activities")
 public class MyActivitiesController {
 
     private final MyActivitiesService myActivitiesService;
+    private final TaskAssistantService taskAssistantService;
 
-    public MyActivitiesController(MyActivitiesService myActivitiesService) {
+    public MyActivitiesController(
+            MyActivitiesService myActivitiesService,
+            TaskAssistantService taskAssistantService
+    ) {
         this.myActivitiesService = myActivitiesService;
+        this.taskAssistantService = taskAssistantService;
     }
 
     @GetMapping
@@ -72,6 +81,28 @@ public class MyActivitiesController {
             Authentication authentication
     ) {
         return myActivitiesService.takeTask(id, taskOrder, resolveUsername(authentication));
+    }
+
+    @PostMapping("/{activityId}/tasks/{taskId}/ai-assistant")
+    public TaskAssistantResponseDto taskAssistant(
+            @PathVariable String activityId,
+            @PathVariable int taskId,
+            Authentication authentication
+    ) {
+        String username = resolveUsername(authentication);
+        try {
+            return taskAssistantService.assist(activityId, taskId, username);
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            return TaskAssistantLocalFallback.build(Map.of(
+                    "tramiteId", activityId,
+                    "tramiteName", activityId,
+                    "activityName", "Actividad",
+                    "taskStatus", "PENDIENTE",
+                    "assignedTo", username
+            ));
+        }
     }
 
     @PostMapping("/{id}/ai-form-assisted")

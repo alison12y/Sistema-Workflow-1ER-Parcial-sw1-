@@ -1,10 +1,19 @@
-import { Component, ElementRef, Input, OnChanges, SimpleChanges, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, Input, OnChanges, OnDestroy, SimpleChanges, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
+import { Subscription, interval } from 'rxjs';
 
 import { AuthService } from '../../services/auth.service';
 import { DocumentRepositoryService } from '../../services/document-repository.service';
+import { DocumentCollaborationService } from '../../services/document-collaboration.service';
 import { DocumentRecord, DocumentRepository } from '../../models/document-repository.model';
+import {
+  DOCUMENT_COLLABORATION_POLL_MS,
+  DocumentCollaborationActiveLock,
+  DocumentCollaborationState,
+  isOnlyOfficeEditableDocument,
+} from '../../models/document-collaboration.model';
 import {
   ACCEPTED_DOCUMENT_EXTENSIONS,
   documentStatusClass,
@@ -41,10 +50,12 @@ type LoadPhase = 'idle' | 'loading' | 'ready' | 'no-repository' | 'error';
 
 })
 
-export class TramiteDocumentsComponent implements OnChanges {
+export class TramiteDocumentsComponent implements OnChanges, OnDestroy {
 
   private readonly documentService = inject(DocumentRepositoryService);
+  private readonly collaborationService = inject(DocumentCollaborationService);
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly connectivity = inject(ConnectivityService);
   private readonly offlineSync = inject(OfflineSyncService);
@@ -95,6 +106,14 @@ export class TramiteDocumentsComponent implements OnChanges {
 
   selectedDocument: DocumentRecord | null = null;
 
+  collaborationState: DocumentCollaborationState | null = null;
+
+  collaborationSessionId = '';
+
+  private collaborationPollSub?: Subscription;
+
+  lockActingFamilyId: string | null = null;
+
 
 
   readonly canViewDocuments = this.auth.canViewDocuments();
@@ -121,9 +140,19 @@ export class TramiteDocumentsComponent implements OnChanges {
 
     if (changes['tramiteId'] || changes['syncKey']) {
 
+      this.stopCollaboration();
+
       this.loadRepository();
 
     }
+
+  }
+
+
+
+  ngOnDestroy(): void {
+
+    this.stopCollaboration();
 
   }
 
@@ -162,6 +191,8 @@ export class TramiteDocumentsComponent implements OnChanges {
         this.repository = repo;
 
         this.phase = 'ready';
+
+        this.startCollaboration();
 
         this.loadDocuments();
 
@@ -303,6 +334,34 @@ export class TramiteDocumentsComponent implements OnChanges {
 
     }
 
+    const existingDoc = this.documents.find(
+
+      (doc) => doc.nombreOriginal.toLowerCase() === file.name.toLowerCase(),
+
+    );
+
+    if (existingDoc) {
+
+      const lock = this.getLock(existingDoc);
+
+      const me = this.auth.getCurrentUser()?.username;
+
+      if (!lock || lock.username.toLowerCase() !== (me ?? '').toLowerCase()) {
+
+        this.error = lock
+
+          ? `El documento está en edición por ${lock.displayName || lock.username}. Tome edición antes de subir una nueva versión.`
+
+          : 'Debe tomar edición del documento antes de subir una nueva versión.';
+
+        this.resetFileInput();
+
+        return;
+
+      }
+
+    }
+
 
 
     if (!isKnownDocumentExtension(file.name)) {
@@ -346,6 +405,8 @@ export class TramiteDocumentsComponent implements OnChanges {
         this.message = `Documento "${file.name}"${versionLabel} subido correctamente`;
 
         this.loadDocuments();
+
+        this.refreshCollaboration();
 
       },
 
@@ -479,7 +540,6 @@ export class TramiteDocumentsComponent implements OnChanges {
 
   openDetail(document: DocumentRecord): void {
     this.actingOnDocumentId = document.id;
-
     this.documentService.getDownloadInfo(document.id).subscribe({
       next: (info) => {
         this.actingOnDocumentId = null;
@@ -491,6 +551,8 @@ export class TramiteDocumentsComponent implements OnChanges {
           data: {
             document,
             downloadUrl: info.presignedDownloadUrl,
+            repositoryId: this.repository?.id,
+            sessionId: this.collaborationSessionId,
           },
         });
       },
@@ -499,6 +561,25 @@ export class TramiteDocumentsComponent implements OnChanges {
         this.error = httpErrorMessage(err, 'No se pudo cargar el detalle del documento');
       },
     });
+  }
+
+
+
+  canOpenEditor(document: DocumentRecord): boolean {
+    return isOnlyOfficeEditableDocument(document.extension);
+  }
+
+
+
+  openEditor(document: DocumentRecord): void {
+    if (!this.tramiteId || !document.id) return;
+    void this.router.navigate([
+      '/tramites',
+      this.tramiteId,
+      'documentos',
+      document.id,
+      'editar',
+    ]);
   }
 
 
@@ -596,6 +677,264 @@ export class TramiteDocumentsComponent implements OnChanges {
   isActingOn(documentId: string): boolean {
 
     return this.actingOnDocumentId === documentId;
+
+  }
+
+
+
+  getFamilyId(document: DocumentRecord): string {
+
+    return document.documentFamilyId || document.id;
+
+  }
+
+
+
+  getLock(document: DocumentRecord): DocumentCollaborationActiveLock | undefined {
+
+    const familyId = this.getFamilyId(document);
+
+    return this.collaborationState?.activeLocks?.find((lock) => lock.documentFamilyId === familyId);
+
+  }
+
+
+
+  lockLabel(document: DocumentRecord): string | null {
+
+    const lock = this.getLock(document);
+
+    if (!lock) return null;
+
+    return `En edición por ${lock.displayName || lock.username}`;
+
+  }
+
+
+
+  canTakeLock(document: DocumentRecord): boolean {
+
+    return !this.getLock(document) && (this.canUploadDocuments || this.auth.isAdmin());
+
+  }
+
+
+
+  canReleaseLock(document: DocumentRecord): boolean {
+
+    const lock = this.getLock(document);
+
+    if (!lock) return false;
+
+    const me = this.auth.getCurrentUser()?.username ?? '';
+
+    return lock.username.toLowerCase() === me.toLowerCase() || this.auth.isAdmin();
+
+  }
+
+
+
+  takeLock(document: DocumentRecord): void {
+
+    if (!this.repository?.id || !this.collaborationSessionId) return;
+
+    const familyId = this.getFamilyId(document);
+
+    this.lockActingFamilyId = familyId;
+
+    this.error = '';
+
+    this.collaborationService.acquireLock(this.repository.id, {
+
+      sessionId: this.collaborationSessionId,
+
+      documentFamilyId: familyId,
+
+      documentId: document.id,
+
+      documentName: document.nombreOriginal,
+
+    }).subscribe({
+
+      next: (state) => {
+
+        this.lockActingFamilyId = null;
+
+        this.collaborationState = state;
+
+        this.message = `Edición tomada: ${document.nombreOriginal}`;
+
+      },
+
+      error: (err) => {
+
+        this.lockActingFamilyId = null;
+
+        this.error = httpErrorMessage(err, 'No se pudo tomar edición');
+
+      },
+
+    });
+
+  }
+
+
+
+  releaseLock(document: DocumentRecord): void {
+
+    if (!this.repository?.id || !this.collaborationSessionId) return;
+
+    const lock = this.getLock(document);
+
+    const me = this.auth.getCurrentUser()?.username ?? '';
+
+    const force = !!lock
+
+      && this.auth.isAdmin()
+
+      && lock.username.toLowerCase() !== me.toLowerCase();
+
+    const familyId = this.getFamilyId(document);
+
+    this.lockActingFamilyId = familyId;
+
+    this.error = '';
+
+    this.collaborationService.releaseLock(
+
+      this.repository.id,
+
+      familyId,
+
+      this.collaborationSessionId,
+
+      force,
+
+    ).subscribe({
+
+      next: (state) => {
+
+        this.lockActingFamilyId = null;
+
+        this.collaborationState = state;
+
+        this.message = `Edición liberada: ${document.nombreOriginal}`;
+
+      },
+
+      error: (err) => {
+
+        this.lockActingFamilyId = null;
+
+        this.error = httpErrorMessage(err, 'No se pudo liberar edición');
+
+      },
+
+    });
+
+  }
+
+
+
+  isLockActing(document: DocumentRecord): boolean {
+
+    return this.lockActingFamilyId === this.getFamilyId(document);
+
+  }
+
+
+
+  private startCollaboration(): void {
+
+    if (!this.repository?.id || !this.canViewDocuments) return;
+
+    this.collaborationSessionId = this.ensureSessionId();
+
+    this.collaborationService.open(this.repository.id, this.collaborationSessionId).subscribe({
+
+      next: (state) => {
+
+        this.collaborationState = state;
+
+        this.collaborationPollSub?.unsubscribe();
+
+        this.collaborationPollSub = interval(DOCUMENT_COLLABORATION_POLL_MS).subscribe(() => {
+
+          this.refreshCollaboration();
+
+        });
+
+      },
+
+      error: () => {
+
+        this.collaborationState = null;
+
+      },
+
+    });
+
+  }
+
+
+
+  private refreshCollaboration(): void {
+
+    if (!this.repository?.id || !this.collaborationSessionId) return;
+
+    this.collaborationService.heartbeat(this.repository.id, this.collaborationSessionId).subscribe({
+
+      next: (state) => {
+
+        this.collaborationState = state;
+
+      },
+
+    });
+
+  }
+
+
+
+  private stopCollaboration(): void {
+
+    this.collaborationPollSub?.unsubscribe();
+
+    this.collaborationPollSub = undefined;
+
+    if (this.repository?.id && this.collaborationSessionId) {
+
+      this.collaborationService.close(this.repository.id, this.collaborationSessionId).subscribe();
+
+    }
+
+    this.collaborationState = null;
+
+    this.collaborationSessionId = '';
+
+  }
+
+
+
+  private ensureSessionId(): string {
+
+    if (!this.repository?.id) return '';
+
+    const user = this.auth.getCurrentUser()?.username ?? 'anon';
+
+    const key = `document-collaboration-session:${this.repository.id}:${user}`;
+
+    let id = sessionStorage.getItem(key);
+
+    if (!id) {
+
+      id = crypto.randomUUID();
+
+      sessionStorage.setItem(key, id);
+
+    }
+
+    return id;
 
   }
 

@@ -1,13 +1,20 @@
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { TimeoutError } from 'rxjs';
+import { finalize } from 'rxjs/operators';
 import { SmartAgentService } from '../../services/smart-agent.service';
+import { PolicyService } from '../../services/policy.service';
 import { UserService } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
+import { BusinessPolicy } from '../../models/auth.model';
 import { UserDto } from '../../models/api.models';
 import { SmartAgentAnalyzeResponse } from '../../models/smart-agent.model';
 import { httpErrorMessage } from '../../utils/tramite-display.util';
+import { isNetworkError } from '../../utils/network-error.util';
+import { matchSmartAgentFallback } from '../../utils/smart-agent-fallback.util';
 
 @Component({
   selector: 'app-smart-agent',
@@ -18,6 +25,7 @@ import { httpErrorMessage } from '../../utils/tramite-display.util';
 })
 export class SmartAgentComponent implements OnInit, OnDestroy {
   private readonly smartAgentService = inject(SmartAgentService);
+  private readonly policyService = inject(PolicyService);
   private readonly userService = inject(UserService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -30,6 +38,7 @@ export class SmartAgentComponent implements OnInit, OnDestroy {
   selectedFile: File | null = null;
 
   users: UserDto[] = [];
+  policies: BusinessPolicy[] = [];
   analyzing = false;
   starting = false;
   listening = false;
@@ -52,6 +61,7 @@ export class SmartAgentComponent implements OnInit, OnDestroy {
     this.requesterName = current?.fullName ?? current?.username ?? '';
     this.requestedBy = current?.username ?? '';
     this.loadUsers();
+    this.loadPolicies();
     this.initSpeech();
   }
 
@@ -66,6 +76,17 @@ export class SmartAgentComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.users = [];
+      },
+    });
+  }
+
+  loadPolicies(): void {
+    this.policyService.getAll().subscribe({
+      next: (policies) => {
+        this.policies = (policies ?? []).filter((p) => p.status?.toUpperCase() === 'ACTIVE');
+      },
+      error: () => {
+        this.policies = [];
       },
     });
   }
@@ -92,6 +113,8 @@ export class SmartAgentComponent implements OnInit, OnDestroy {
     this.success = '';
     this.result = null;
 
+    const combinedText = this.buildCombinedText(text, voice);
+
     this.smartAgentService
       .analyze(
         {
@@ -101,19 +124,19 @@ export class SmartAgentComponent implements OnInit, OnDestroy {
         },
         this.selectedFile,
       )
+      .pipe(finalize(() => {
+        this.analyzing = false;
+      }))
       .subscribe({
         next: (response) => {
-          this.analyzing = false;
           this.result = response;
-          if (response.suggestedFields?.length) {
-            const descriptionField = response.suggestedFields.find((f) => f.name === 'description');
-            if (descriptionField?.suggestedValue && !this.message.trim()) {
-              this.message = descriptionField.suggestedValue;
-            }
-          }
+          this.applySuggestedDescription(response);
         },
         error: (err) => {
-          this.analyzing = false;
+          if (this.shouldUseLocalFallback(err)) {
+            this.applyLocalFallback(combinedText);
+            return;
+          }
           this.error = httpErrorMessage(err, 'No se pudo analizar la solicitud');
         },
       });
@@ -147,16 +170,17 @@ export class SmartAgentComponent implements OnInit, OnDestroy {
         },
         this.selectedFile,
       )
+      .pipe(finalize(() => {
+        this.starting = false;
+      }))
       .subscribe({
         next: (response) => {
-          this.starting = false;
           this.success = response.message ?? `Trámite ${response.tramite.code} iniciado correctamente.`;
           if (response.tramite?.id) {
             setTimeout(() => this.router.navigate(['/tramites', response.tramite.id]), 900);
           }
         },
         error: (err) => {
-          this.starting = false;
           this.error = httpErrorMessage(err, 'No se pudo iniciar el trámite');
         },
       });
@@ -220,5 +244,51 @@ export class SmartAgentComponent implements OnInit, OnDestroy {
       this.speechRecognition.stop();
     }
     this.listening = false;
+  }
+
+  private buildCombinedText(text: string, voice: string): string {
+    const parts = [text, voice !== text ? voice : ''].filter((part) => !!part?.trim());
+    let combined = parts.join(' ').trim();
+    if (this.selectedFile?.name) {
+      combined = combined
+        ? `${combined} Documento adjunto: ${this.selectedFile.name}`
+        : `Documento adjunto: ${this.selectedFile.name}`;
+    }
+    return combined;
+  }
+
+  private applySuggestedDescription(response: SmartAgentAnalyzeResponse): void {
+    if (!response.suggestedFields?.length) return;
+    const descriptionField = response.suggestedFields.find((f) => f.name === 'description');
+    if (descriptionField?.suggestedValue && !this.message.trim()) {
+      this.message = descriptionField.suggestedValue;
+    }
+  }
+
+  private applyLocalFallback(combinedText: string): void {
+    this.error = '';
+    this.result = matchSmartAgentFallback(
+      combinedText,
+      this.policies,
+      this.requesterName || undefined,
+      this.selectedFile?.name,
+    );
+    this.applySuggestedDescription(this.result);
+  }
+
+  private shouldUseLocalFallback(err: unknown): boolean {
+    if (err instanceof TimeoutError) {
+      return true;
+    }
+    if (isNetworkError(err)) {
+      return true;
+    }
+    if (err instanceof HttpErrorResponse) {
+      if (err.status === 403 || err.status === 401 || err.status === 400) {
+        return false;
+      }
+      return err.status === 0 || err.status >= 500 || err.status === 408 || err.status === 504;
+    }
+    return false;
   }
 }

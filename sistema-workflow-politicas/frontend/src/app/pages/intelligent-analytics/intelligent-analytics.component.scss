@@ -26,8 +26,30 @@
 }
 
 .explanation,
-.section-summary {
+.section-summary,
+.conclusion-text {
   margin: 0 0 1rem;
+}
+
+.conclusion-block {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  border-left: 3px solid var(--color-accent);
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.98rem;
+    color: var(--color-accent);
+  }
+}
+
+.conclusion-text {
+  margin: 0;
+  color: var(--color-text);
+  line-height: 1.5;
+  white-space: pre-line;
 }
 
 .field-block {

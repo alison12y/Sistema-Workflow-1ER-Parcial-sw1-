@@ -90,6 +90,13 @@
         <p class="explanation">{{ result.report?.explanation }}</p>
       }
 
+      @if (result.report?.conclusion) {
+        <div class="conclusion-block">
+          <h3>Conclusión del análisis</h3>
+          <p class="conclusion-text">{{ result.report?.conclusion }}</p>
+        </div>
+      }
+
       @if (allCards().length) {
         <div class="cards-grid">
           @for (card of allCards(); track card.label + card.value) {

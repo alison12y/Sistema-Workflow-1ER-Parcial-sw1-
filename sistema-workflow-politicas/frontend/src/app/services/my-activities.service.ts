@@ -9,6 +9,7 @@ import {
   MyActivity,
 } from '../models/my-activities.model';
 import { Tramite } from '../models/tramite.model';
+import { TaskAssistantResponse } from '../models/task-assistant.model';
 
 @Injectable({ providedIn: 'root' })
 export class MyActivitiesService {
@@ -48,6 +49,14 @@ export class MyActivitiesService {
     return this.http.post<void>(
       `${this.api}/${encodeURIComponent(tramiteId)}/ai-form-assisted`,
       payload
+    );
+  }
+
+  /** activityId = tramiteId, taskId = taskOrder de la bandeja. */
+  getTaskAssistant(tramiteId: string, taskOrder: number): Observable<TaskAssistantResponse> {
+    return this.http.post<TaskAssistantResponse>(
+      `${this.api}/${encodeURIComponent(tramiteId)}/tasks/${taskOrder}/ai-assistant`,
+      {}
     );
   }
 }

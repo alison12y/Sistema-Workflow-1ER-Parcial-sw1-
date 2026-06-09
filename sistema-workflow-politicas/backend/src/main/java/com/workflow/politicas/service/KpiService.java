@@ -9,6 +9,7 @@ import com.workflow.politicas.model.User;
 import com.workflow.politicas.model.WorkflowActivity;
 import com.workflow.politicas.repository.DepartmentRepository;
 import com.workflow.politicas.repository.KpiReportRepository;
+import com.workflow.politicas.repository.RoleRepository;
 import com.workflow.politicas.repository.TramiteRepository;
 import com.workflow.politicas.repository.UserRepository;
 import com.workflow.politicas.repository.WorkflowActivityRepository;
@@ -34,6 +35,7 @@ public class KpiService {
     private final TramiteRepository tramiteRepository;
     private final KpiReportRepository kpiReportRepository;
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final DepartmentRepository departmentRepository;
     private final WorkflowActivityRepository workflowActivityRepository;
 
@@ -41,12 +43,14 @@ public class KpiService {
             TramiteRepository tramiteRepository,
             KpiReportRepository kpiReportRepository,
             UserRepository userRepository,
+            RoleRepository roleRepository,
             DepartmentRepository departmentRepository,
             WorkflowActivityRepository workflowActivityRepository
     ) {
         this.tramiteRepository = tramiteRepository;
         this.kpiReportRepository = kpiReportRepository;
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
         this.departmentRepository = departmentRepository;
         this.workflowActivityRepository = workflowActivityRepository;
     }
@@ -106,6 +110,13 @@ public class KpiService {
                         u -> u,
                         (a, b) -> a
                 ));
+        ctx.usersById = userRepository.findAll().stream()
+                .filter(u -> u.getId() != null && !u.getId().isBlank())
+                .collect(Collectors.toMap(User::getId, u -> u, (a, b) -> a));
+        ctx.roleNames = roleRepository.findAll().stream()
+                .map(role -> role.getName())
+                .filter(name -> name != null && !name.isBlank())
+                .collect(Collectors.toSet());
         ctx.departmentsById = departmentRepository.findAll().stream()
                 .collect(Collectors.toMap(Department::getId, d -> d, (a, b) -> a));
         ctx.activitiesById = loadActivitiesForTramites(tramites);
@@ -169,16 +180,18 @@ public class KpiService {
                     }
                 }
 
-                String employeeKey = resolveEmployeeKey(task, tramite, ctx);
+                EmployeeIdentity employee = resolveEmployeeIdentity(task, tramite, ctx);
                 String deptKey = resolveDepartmentKey(task, tramite, ctx);
                 String deptDisplay = ctx.departmentsById.values().stream()
                         .filter(d -> deptKey.equals(d.getName()))
                         .map(Department::getName)
                         .findFirst()
                         .orElse(deptKey);
-                accumulateLoad(ctx.employeeLoads, employeeKey, employeeKey, deptDisplay, status, task, tramite, ctx.now);
+                if (employee.rankable()) {
+                    accumulateLoad(ctx.employeeLoads, employee.key(), employee.displayName(), deptDisplay, status, task, tramite, ctx.now);
+                    acc.responsibleCounts.merge(employee.displayName(), 1L, Long::sum);
+                }
                 accumulateLoad(ctx.departmentLoads, deptKey, deptKey, deptDisplay, status, task, tramite, ctx.now);
-                acc.responsibleCounts.merge(employeeKey, 1L, Long::sum);
                 acc.departmentCounts.merge(deptKey, 1L, Long::sum);
             }
         }
@@ -217,10 +230,7 @@ public class KpiService {
                 .orElse(null);
         summary.setActividadMayorDemora(topSlow != null ? topSlow.activityName : "Sin datos");
 
-        KpiLoadMetricDto topEmployee = ctx.employeeLoads.values().stream()
-                .max(Comparator.comparingLong(LoadAccumulator::totalActive))
-                .map(this::toLoadDto)
-                .orElse(null);
+        KpiLoadMetricDto topEmployee = buildEmployeeLoad(ctx).stream().findFirst().orElse(null);
         summary.setResponsableMayorCarga(topEmployee != null ? topEmployee.getDisplayName() : "Sin datos");
 
         summary.setCuelloDeBotellaPrincipal(
@@ -262,21 +272,28 @@ public class KpiService {
     private List<KpiLoadMetricDto> buildEmployeeLoad(KpiContext ctx) {
         return ctx.employeeLoads.values().stream()
                 .sorted(Comparator.comparingLong(LoadAccumulator::totalActive).reversed())
-                .map(this::toLoadDto)
+                .map(load -> toLoadDto(load, ctx))
+                .filter(load -> EmployeeDisplayNameResolver.isRankableMetric(
+                        load, ctx.roleNames, ctx.usersByUsername))
                 .toList();
     }
 
     private List<KpiLoadMetricDto> buildDepartmentLoad(KpiContext ctx) {
         return ctx.departmentLoads.values().stream()
                 .sorted(Comparator.comparingLong(LoadAccumulator::totalActive).reversed())
-                .map(this::toLoadDto)
+                .map(load -> toLoadDto(load, ctx))
                 .toList();
     }
 
-    private KpiLoadMetricDto toLoadDto(LoadAccumulator load) {
+    private KpiLoadMetricDto toLoadDto(LoadAccumulator load, KpiContext ctx) {
         KpiLoadMetricDto dto = new KpiLoadMetricDto();
         dto.setKey(load.key);
-        dto.setDisplayName(load.displayName);
+        String resolvedDisplay = EmployeeDisplayNameResolver.resolvePersonLabel(
+                provisionalMetric(load.key, load.displayName),
+                ctx.usersByUsername,
+                ctx.roleNames
+        );
+        dto.setDisplayName(resolvedDisplay != null ? resolvedDisplay : load.displayName);
         dto.setDepartmentName(load.departmentName);
         dto.setPendingCount(load.pendingCount);
         dto.setInProgressCount(load.inProgressCount);
@@ -496,22 +513,89 @@ public class KpiService {
         return tramite.getPolicyId() + "||" + normalizeActivity(task.getName());
     }
 
-    private String resolveEmployeeKey(TramiteTask task, Tramite tramite, KpiContext ctx) {
+    private record EmployeeIdentity(String key, String displayName, boolean rankable) {
+        static EmployeeIdentity fromUser(User user) {
+            String displayName = EmployeeDisplayNameResolver.fromUser(user);
+            return new EmployeeIdentity(user.getUsername(), displayName, true);
+        }
+
+        static EmployeeIdentity unrankable() {
+            return new EmployeeIdentity("", "", false);
+        }
+    }
+
+    private EmployeeIdentity resolveEmployeeIdentity(TramiteTask task, Tramite tramite, KpiContext ctx) {
         if (task.getTakenBy() != null && !task.getTakenBy().isBlank()) {
-            User user = ctx.usersByUsername.get(task.getTakenBy().trim().toLowerCase(Locale.ROOT));
+            String username = task.getTakenBy().trim();
+            User user = ctx.usersByUsername.get(username.toLowerCase(Locale.ROOT));
             if (user != null) {
-                return user.getFullName() != null && !user.getFullName().isBlank()
-                        ? user.getFullName().trim()
-                        : user.getUsername();
+                return EmployeeIdentity.fromUser(user);
             }
-            return task.getTakenBy().trim();
+            if (!EmployeeDisplayNameResolver.isRoleLabel(username, ctx.roleNames)) {
+                return new EmployeeIdentity(username, username, true);
+            }
+            return EmployeeIdentity.unrankable();
         }
+
+        if (task.getWorkflowActivityId() != null) {
+            WorkflowActivity activity = ctx.activitiesById.get(task.getWorkflowActivityId());
+            if (activity != null && "USER".equalsIgnoreCase(activity.getResponsibleType())) {
+                User user = resolveUserReference(activity.getResponsibleId(), activity.getResponsibleName(), ctx);
+                if (user != null) {
+                    return EmployeeIdentity.fromUser(user);
+                }
+            }
+        }
+
         String responsible = task.getResponsible() != null ? task.getResponsible() : tramite.getResponsible();
-        User byName = ctx.usersByFullName.get(normalizeKey(responsible));
-        if (byName != null) {
-            return byName.getFullName() != null ? byName.getFullName().trim() : byName.getUsername();
+        if (responsible != null && !responsible.isBlank()) {
+            User byUsername = ctx.usersByUsername.get(responsible.trim().toLowerCase(Locale.ROOT));
+            if (byUsername != null) {
+                return EmployeeIdentity.fromUser(byUsername);
+            }
+
+            User byName = ctx.usersByFullName.get(normalizeKey(responsible));
+            if (byName != null) {
+                return EmployeeIdentity.fromUser(byName);
+            }
+
+            if (EmployeeDisplayNameResolver.isRoleLabel(responsible, ctx.roleNames)) {
+                return EmployeeIdentity.unrankable();
+            }
+
+            String normalized = normalizeResponsible(responsible);
+            if (EmployeeDisplayNameResolver.isRoleLabel(normalized, ctx.roleNames)) {
+                return EmployeeIdentity.unrankable();
+            }
+            return new EmployeeIdentity(normalized, normalized, true);
         }
-        return normalizeResponsible(responsible);
+
+        return EmployeeIdentity.unrankable();
+    }
+
+    private User resolveUserReference(String id, String name, KpiContext ctx) {
+        if (id != null && !id.isBlank()) {
+            String trimmed = id.trim();
+            User byUsername = ctx.usersByUsername.get(trimmed.toLowerCase(Locale.ROOT));
+            if (byUsername != null) {
+                return byUsername;
+            }
+            User byId = ctx.usersById.get(trimmed);
+            if (byId != null) {
+                return byId;
+            }
+        }
+        if (name != null && !name.isBlank()) {
+            return ctx.usersByFullName.get(normalizeKey(name));
+        }
+        return null;
+    }
+
+    private static KpiLoadMetricDto provisionalMetric(String key, String displayName) {
+        KpiLoadMetricDto dto = new KpiLoadMetricDto();
+        dto.setKey(key);
+        dto.setDisplayName(displayName);
+        return dto;
     }
 
     private String resolveDepartmentKey(TramiteTask task, Tramite tramite, KpiContext ctx) {
@@ -691,6 +775,8 @@ public class KpiService {
         long tramitesConError;
         Map<String, User> usersByUsername = Map.of();
         Map<String, User> usersByFullName = Map.of();
+        Map<String, User> usersById = Map.of();
+        Set<String> roleNames = Set.of();
         Map<String, Department> departmentsById = Map.of();
         Map<String, WorkflowActivity> activitiesById = Map.of();
         Map<String, ActivityAccumulator> activityMetrics = new HashMap<>();

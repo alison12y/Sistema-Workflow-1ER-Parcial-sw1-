@@ -70,9 +70,40 @@ def _status_chart(tramites: list[dict[str, Any]], title: str) -> dict[str, Any]:
 def fallback_analytics_report(payload: dict[str, Any]) -> dict[str, Any]:
     message = payload.get("message") or ""
     tramites = payload.get("tramiteSample") or []
+    employee_load = payload.get("employeeLoad") or []
     report_type = _detect_report_type(message)
 
-    if report_type == "POLITICA_MAS_USADA":
+    if report_type == "FUNCIONARIO_CARGA":
+        rows = [
+            {
+                "Funcionario": load.get("displayName", "—"),
+                "Usuario": load.get("key", "—"),
+                "Tareas activas": int(load.get("totalActive") or 0),
+                "Completadas": int(load.get("completedCount") or 0),
+                "Departamento": load.get("departmentName", "—"),
+            }
+            for load in sorted(
+                employee_load,
+                key=lambda x: int(x.get("totalActive") or 0),
+                reverse=True
+            )
+        ]
+        title = "Reporte de carga por funcionario"
+        top = rows[0]["Funcionario"] if rows else "Sin datos"
+        load_val = rows[0]["Tareas activas"] if rows else 0
+        explanation = f"El funcionario con mayor carga es {top}, con {load_val} tareas activas."
+        cards = [
+            {"label": "Mayor carga", "value": top, "hint": "Funcionario", "severity": "warning"},
+            {"label": "Total tareas", "value": str(sum(r["Tareas activas"] for r in rows)), "hint": "Activas", "severity": "info"}
+        ]
+        chart = {
+            "type": "bar",
+            "title": "Tareas activas por funcionario",
+            "labels": [r["Funcionario"] for r in rows[:8]],
+            "values": [float(r["Tareas activas"]) for r in rows[:8]]
+        }
+        suggested_format = "PANTALLA"
+    elif report_type == "POLITICA_MAS_USADA":
         counts = Counter(t.get("policyName", "Sin política") for t in tramites)
         total = max(len(tramites), 1)
         rows = [

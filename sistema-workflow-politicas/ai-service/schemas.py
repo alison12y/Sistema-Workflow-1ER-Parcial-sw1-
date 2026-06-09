@@ -77,3 +77,26 @@ class AnalyticsRequest(BaseModel):
         if self.audioText:
             text = f"{text} {self.audioText}".strip()
         return text
+
+
+class TaskAssistantRequest(BaseModel):
+    taskId: str | None = None
+    tramiteId: str | None = None
+    tramiteName: str | None = None
+    activityName: str | None = None
+    activityDescription: str | None = None
+    taskStatus: str | None = None
+    assignedTo: str | None = None
+    formData: dict[str, Any] = Field(default_factory=dict)
+    documents: list[dict[str, Any]] = Field(default_factory=list)
+    observations: str | None = None
+    createdAt: str | None = None
+
+
+class TaskAssistantResponse(BaseModel):
+    summary: str
+    importantData: list[str] = Field(default_factory=list)
+    missingData: list[str] = Field(default_factory=list)
+    recommendedAction: str
+    source: str = "AI"
+
