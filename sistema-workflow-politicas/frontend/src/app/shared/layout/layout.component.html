@@ -1,60 +1,72 @@
-<div class="app-shell" [class.sidebar-open]="sidebarOpen">
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <i class="material-icons logo">account_tree</i>
-      <span class="title">Workflow</span>
-      <button type="button" class="sidebar-close mobile-only" (click)="closeSidebar()" aria-label="Cerrar menú">
-        <i class="material-icons">close</i>
-      </button>
-    </div>
-    <nav class="sidebar-nav">
-      @for (item of navItems; track item.path) {
-        @if (item.disabled) {
-          <span class="nav-link nav-link--disabled" [title]="item.tooltip">
-            <i class="material-icons nav-icon">{{ item.icon }}</i>
-            <span>{{ item.label }}</span>
-            <small class="nav-badge">Próximamente</small>
-          </span>
-        } @else {
-          <a
-            [routerLink]="item.path"
-            routerLinkActive="active"
-            class="nav-link"
-            [title]="item.tooltip"
-            (click)="closeSidebar()"
-          >
-            <i class="material-icons nav-icon">{{ item.icon }}</i>
-            <span>{{ item.label }}</span>
-          </a>
+<div class="app-shell" [class.sidebar-open]="sidebarOpen" [class.app-shell--document-edit]="documentEditMode">
+  @if (!documentEditMode) {
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <i class="material-icons logo">account_tree</i>
+        <span class="title">Workflow</span>
+        <button type="button" class="sidebar-close mobile-only" (click)="closeSidebar()" aria-label="Cerrar menú">
+          <i class="material-icons">close</i>
+        </button>
+      </div>
+      <nav class="sidebar-nav">
+        @for (item of navItems; track item.path) {
+          @if (item.disabled) {
+            <span class="nav-link nav-link--disabled" [title]="item.tooltip">
+              <i class="material-icons nav-icon">{{ item.icon }}</i>
+              <span>{{ item.label }}</span>
+              <small class="nav-badge">Próximamente</small>
+            </span>
+          } @else {
+            <a
+              [routerLink]="item.path"
+              routerLinkActive="active"
+              class="nav-link"
+              [title]="item.tooltip"
+              (click)="closeSidebar()"
+            >
+              <i class="material-icons nav-icon">{{ item.icon }}</i>
+              <span>{{ item.label }}</span>
+            </a>
+          }
         }
-      }
-    </nav>
-  </aside>
+      </nav>
+    </aside>
 
-  @if (sidebarOpen) {
-    <button type="button" class="sidebar-backdrop mobile-only" (click)="closeSidebar()" aria-label="Cerrar menú"></button>
+    @if (sidebarOpen) {
+      <button type="button" class="sidebar-backdrop mobile-only" (click)="closeSidebar()" aria-label="Cerrar menú"></button>
+    }
   }
 
   <div class="main-area" [class.document-edit-mode]="documentEditMode">
-    <header class="top-header">
+    <header class="top-header" [class.top-header--compact]="documentEditMode">
       <div class="header-left">
-        <button type="button" class="menu-toggle mobile-only" (click)="toggleSidebar()" aria-label="Abrir menú">
-          <i class="material-icons">menu</i>
-        </button>
+        @if (!documentEditMode) {
+          <button type="button" class="menu-toggle mobile-only" (click)="toggleSidebar()" aria-label="Abrir menú">
+            <i class="material-icons">menu</i>
+          </button>
+        }
         <div class="header-title">
-          <h2>Sistema Workflow</h2>
-          <p class="subtitle mobile-hide">Panel de gestión integral</p>
+          <h2>{{ documentEditMode ? 'Editor de Documentos' : 'Sistema Workflow' }}</h2>
+          @if (!documentEditMode) {
+            <p class="subtitle mobile-hide">Panel de gestión integral</p>
+          }
         </div>
       </div>
       <div class="header-actions">
-        <app-pwa-install />
+        @if (!documentEditMode) {
+          <app-pwa-install />
+        }
         @if (user) {
           <div class="user-info mobile-hide">
             <span class="user-badge">{{ user.fullName || user.username }}</span>
-            <span class="role-badge">{{ roleLabel }}</span>
+            @if (!documentEditMode) {
+              <span class="role-badge">{{ roleLabel }}</span>
+            }
           </div>
         }
-        <button type="button" class="btn-ghost" (click)="logout()">Salir</button>
+        @if (!documentEditMode) {
+          <button type="button" class="btn-ghost" (click)="logout()">Salir</button>
+        }
       </div>
     </header>
 

@@ -203,9 +203,24 @@
   padding-bottom: 1.5rem;
 }
 
-.main-area.document-edit-mode .content {
-  padding: 0.75rem 1rem 1rem;
-  overflow-x: hidden;
+.main-area.document-edit-mode {
+  height: 100vh;
+  overflow: hidden;
+
+  .top-header--compact {
+    padding: 0.5rem 1rem;
+    min-height: 50px;
+
+    h2 {
+      font-size: 1rem;
+    }
+  }
+
+  .content {
+    padding: 0;
+    overflow: hidden;
+    height: calc(100vh - 50px);
+  }
 }
 
 .mobile-bottom-nav {
@@ -220,6 +235,12 @@
 
   &--hidden {
     display: none !important;
+  }
+}
+
+.app-shell--document-edit {
+  .sidebar {
+    display: none;
   }
 }
 

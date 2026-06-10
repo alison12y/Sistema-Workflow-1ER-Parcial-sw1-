@@ -53,7 +53,7 @@ export class LayoutComponent implements OnInit, OnDestroy {
   }
 
   private updateDocumentEditMode(url: string): void {
-    this.documentEditMode = /\/documentos\/[^/]+\/editar(?:\?|$)/.test(url);
+    this.documentEditMode = url.includes('/tramites/') && url.includes('/documentos/');
   }
 
   logout(): void {

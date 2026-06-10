@@ -1,26 +1,42 @@
 <section class="document-edit-page">
-  <header class="edit-header">
-    <button type="button" class="btn btn-secondary btn-sm" (click)="goBack()">← Volver al trámite</button>
-
-    <div class="edit-meta">
-      <h1>Edición documental</h1>
-      @if (document) {
-        <p class="subtitle">{{ document.nombreOriginal }} · v{{ document.version }}</p>
-      }
-      <div class="edit-badges">
-        @if (readOnly) {
-          <span class="mode-badge mode-readonly">Solo lectura</span>
-        }
-        @if (lockLabel(); as label) {
-          <span class="mode-badge mode-editing">{{ label }}</span>
+  <header class="edit-toolbar">
+    <div class="toolbar-left">
+      <button type="button" class="btn-back" (click)="goBack()" title="Volver al trámite">
+        <i class="material-icons">arrow_back</i>
+      </button>
+      <div class="doc-info">
+        @if (document) {
+          <h1 class="doc-name">{{ document.nombreOriginal }}</h1>
+          <span class="doc-version">v{{ document.version }}</span>
+        } @else {
+          <h1 class="doc-name">Cargando...</h1>
         }
       </div>
     </div>
+
+    <div class="toolbar-center">
+      <div class="edit-status">
+        @if (readOnly) {
+          <span class="status-badge status-readonly">
+            <i class="material-icons">visibility</i> Solo lectura
+          </span>
+        }
+        @if (lockLabel(); as label) {
+          <span class="status-badge status-editing">
+            <i class="material-icons">edit</i> {{ label }}
+          </span>
+        }
+      </div>
+    </div>
+
+    <div class="toolbar-right">
+      @if (loading) {
+        <span class="loading-text">Cargando editor...</span>
+      }
+    </div>
   </header>
 
-  @if (loading) {
-    <p class="empty-hint">Cargando editor...</p>
-  } @else if (error) {
+  @if (error) {
     <div class="alert error">{{ error }}</div>
   } @else {
     @if (message) {
@@ -28,19 +44,18 @@
     }
 
     <div class="document-edit-layout">
-      <div class="editor-column">
-        <div class="editor-card">
+      <div class="editor-main">
+        <div class="editor-container">
           @if (session?.onlyOfficeEnabled && !fallbackMode) {
             <div id="onlyoffice-editor" class="onlyoffice-host"></div>
-          } @else {
+          } @else if (!loading) {
             <div class="fallback-panel">
+              <i class="material-icons fallback-icon">cloud_off</i>
               <strong>Modo alternativo</strong>
-              <p>OnlyOffice no está activo o no está disponible. Puede descargar el documento y subir una nueva versión.</p>
-              @if (document) {
-                <p>Versión actual: <strong>v{{ document.version }}</strong></p>
-              }
+              <p>OnlyOffice no está disponible. Puede descargar el documento y subir una nueva versión.</p>
               @if (!readOnly) {
                 <label class="btn btn-primary btn-sm upload-label" [class.is-busy]="uploading">
+                  <i class="material-icons">cloud_upload</i>
                   {{ uploading ? 'Subiendo...' : 'Subir nueva versión' }}
                   <input
                     type="file"
@@ -56,46 +71,61 @@
         </div>
       </div>
 
-      <aside class="collaboration-panel">
-        <div class="side-card">
-          <h3>Conectados</h3>
-          @if (collaborationState?.connectedUsers?.length) {
-            <ul class="connected-list">
-              @for (user of collaborationState!.connectedUsers; track user.username) {
-                <li>{{ user.displayName || user.username }}</li>
-              }
-            </ul>
-          } @else {
-            <p class="empty-hint">Sin usuarios conectados</p>
-          }
+      <aside class="collaboration-sidebar">
+        <div class="collab-card">
+          <div class="card-header">
+            <i class="material-icons">group</i>
+            <h3>Conectados</h3>
+          </div>
+          <div class="card-body">
+            @if (collaborationState?.connectedUsers?.length) {
+              <ul class="user-list">
+                @for (user of collaborationState!.connectedUsers; track user.username) {
+                  <li>
+                    <span class="user-dot"></span>
+                    {{ user.displayName || user.username }}
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="empty-hint">Sin usuarios conectados</p>
+            }
+          </div>
         </div>
 
-        <div class="side-card">
-          <h3>Estado de edición</h3>
-          @if (lockLabel(); as label) {
-            <p>{{ label }}</p>
-          } @else {
-            <p class="empty-hint">Nadie está editando este documento</p>
-          }
-          @if (document) {
-            <p class="version-info">Versión actual: v{{ document.version }}</p>
-          }
+        <div class="collab-card">
+          <div class="card-header">
+            <i class="material-icons">info</i>
+            <h3>Estado</h3>
+          </div>
+          <div class="card-body">
+            @if (lockLabel(); as label) {
+              <p class="status-text">{{ label }}</p>
+            } @else {
+              <p class="empty-hint">Sin ediciones activas</p>
+            }
+          </div>
         </div>
 
-        <div class="side-card">
-          <h3>Actividad reciente</h3>
-          @if (recentActions.length) {
-            <ul class="activity-list">
-              @for (action of recentActions; track action.actionType + (action.occurredAt ?? '') + (action.actionLabel ?? '')) {
-                <li>
-                  <strong>{{ action.actionLabel }}</strong>
-                  <span>{{ formatDate(action.occurredAt) }}</span>
-                </li>
-              }
-            </ul>
-          } @else {
-            <p class="empty-hint">Sin actividad reciente</p>
-          }
+        <div class="collab-card mobile-hide">
+          <div class="card-header">
+            <i class="material-icons">history</i>
+            <h3>Actividad</h3>
+          </div>
+          <div class="card-body">
+            @if (recentActions.length) {
+              <ul class="activity-list">
+                @for (action of recentActions; track action.actionType + (action.occurredAt ?? '') + (action.actionLabel ?? '')) {
+                  <li>
+                    <strong>{{ action.actionLabel }}</strong>
+                    <span>{{ formatDate(action.occurredAt) }}</span>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="empty-hint">Sin actividad</p>
+            }
+          </div>
         </div>
       </aside>
     </div>
