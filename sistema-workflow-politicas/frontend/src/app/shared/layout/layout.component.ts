@@ -1,5 +1,6 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Subscription, filter } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { ConnectivityService } from '../../core/offline/connectivity.service';
 import { OfflineSyncService } from '../../core/offline/offline-sync.service';
@@ -21,9 +22,10 @@ import { PwaInstallComponent } from '../components/pwa-install/pwa-install.compo
   templateUrl: './layout.component.html',
   styleUrl: './layout.component.scss',
 })
-export class LayoutComponent implements OnInit {
+export class LayoutComponent implements OnInit, OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly offlineSync = inject(OfflineSyncService);
+  private readonly router = inject(Router);
   readonly connectivity = inject(ConnectivityService);
 
   user = this.auth.getCurrentUser();
@@ -31,12 +33,27 @@ export class LayoutComponent implements OnInit {
   navItems: VisibleNavItem[] = getVisibleNavItems(this.auth);
   mobileNavItems: MobileNavItem[] = getVisibleMobileNavItems(this.auth);
   sidebarOpen = false;
+  documentEditMode = false;
+
+  private routerSub?: Subscription;
 
   ngOnInit(): void {
     void this.connectivity.refreshPendingCount();
     if (this.connectivity.isOnline) {
       void this.offlineSync.syncPending().finally(() => this.connectivity.refreshPendingCount());
     }
+    this.updateDocumentEditMode(this.router.url);
+    this.routerSub = this.router.events
+      .pipe(filter((event) => event instanceof NavigationEnd))
+      .subscribe((event) => this.updateDocumentEditMode((event as NavigationEnd).urlAfterRedirects));
+  }
+
+  ngOnDestroy(): void {
+    this.routerSub?.unsubscribe();
+  }
+
+  private updateDocumentEditMode(url: string): void {
+    this.documentEditMode = /\/documentos\/[^/]+\/editar(?:\?|$)/.test(url);
   }
 
   logout(): void {

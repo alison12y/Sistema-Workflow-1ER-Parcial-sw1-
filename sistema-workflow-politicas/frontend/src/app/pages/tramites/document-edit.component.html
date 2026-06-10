@@ -1,17 +1,20 @@
 <section class="document-edit-page">
   <header class="edit-header">
-    <div>
-      <button type="button" class="btn btn-secondary btn-sm" (click)="goBack()">← Volver al trámite</button>
+    <button type="button" class="btn btn-secondary btn-sm" (click)="goBack()">← Volver al trámite</button>
+
+    <div class="edit-meta">
       <h1>Edición documental</h1>
       @if (document) {
         <p class="subtitle">{{ document.nombreOriginal }} · v{{ document.version }}</p>
       }
-      @if (readOnly) {
-        <p class="mode-badge mode-readonly">Solo lectura</p>
-      }
-      @if (lockLabel(); as label) {
-        <p class="mode-badge mode-editing">{{ label }}</p>
-      }
+      <div class="edit-badges">
+        @if (readOnly) {
+          <span class="mode-badge mode-readonly">Solo lectura</span>
+        }
+        @if (lockLabel(); as label) {
+          <span class="mode-badge mode-editing">{{ label }}</span>
+        }
+      </div>
     </div>
   </header>
 
@@ -24,34 +27,36 @@
       <div class="alert success">{{ message }}</div>
     }
 
-    <div class="edit-layout">
-      <div class="editor-panel">
-        @if (session?.onlyOfficeEnabled && !fallbackMode) {
-          <div id="onlyoffice-editor" class="onlyoffice-host"></div>
-        } @else {
-          <div class="fallback-panel">
-            <strong>Modo alternativo</strong>
-            <p>OnlyOffice no está activo o no está disponible. Puede descargar el documento y subir una nueva versión.</p>
-            @if (document) {
-              <p>Versión actual: <strong>v{{ document.version }}</strong></p>
-            }
-            @if (!readOnly) {
-              <label class="btn btn-primary btn-sm upload-label" [class.is-busy]="uploading">
-                {{ uploading ? 'Subiendo...' : 'Subir nueva versión' }}
-                <input
-                  type="file"
-                  class="upload-input"
-                  accept=".docx,.xlsx"
-                  [disabled]="uploading"
-                  (change)="onFallbackFileSelected($event)"
-                />
-              </label>
-            }
-          </div>
-        }
+    <div class="document-edit-layout">
+      <div class="editor-column">
+        <div class="editor-card">
+          @if (session?.onlyOfficeEnabled && !fallbackMode) {
+            <div id="onlyoffice-editor" class="onlyoffice-host"></div>
+          } @else {
+            <div class="fallback-panel">
+              <strong>Modo alternativo</strong>
+              <p>OnlyOffice no está activo o no está disponible. Puede descargar el documento y subir una nueva versión.</p>
+              @if (document) {
+                <p>Versión actual: <strong>v{{ document.version }}</strong></p>
+              }
+              @if (!readOnly) {
+                <label class="btn btn-primary btn-sm upload-label" [class.is-busy]="uploading">
+                  {{ uploading ? 'Subiendo...' : 'Subir nueva versión' }}
+                  <input
+                    type="file"
+                    class="upload-input"
+                    accept=".docx,.xlsx"
+                    [disabled]="uploading"
+                    (change)="onFallbackFileSelected($event)"
+                  />
+                </label>
+              }
+            </div>
+          }
+        </div>
       </div>
 
-      <aside class="side-panel">
+      <aside class="collaboration-panel">
         <div class="side-card">
           <h3>Conectados</h3>
           @if (collaborationState?.connectedUsers?.length) {

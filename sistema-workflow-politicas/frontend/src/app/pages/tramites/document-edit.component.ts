@@ -206,7 +206,12 @@ export class DocumentEditComponent implements OnInit, OnDestroy {
           this.error = 'OnlyOffice no está disponible. Use el modo alternativo.';
           return;
         }
-        this.docEditor = new window.DocsAPI.DocEditor('onlyoffice-editor', session.onlyOfficeConfig);
+        // Espera al layout responsive antes de medir el contenedor del iframe.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            this.docEditor = new window.DocsAPI.DocEditor('onlyoffice-editor', session.onlyOfficeConfig);
+          });
+        });
       })
       .catch(() => {
         this.error = 'No se pudo cargar OnlyOffice. Use el modo alternativo.';

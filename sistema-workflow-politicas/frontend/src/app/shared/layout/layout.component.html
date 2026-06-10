@@ -35,7 +35,7 @@
     <button type="button" class="sidebar-backdrop mobile-only" (click)="closeSidebar()" aria-label="Cerrar menú"></button>
   }
 
-  <div class="main-area">
+  <div class="main-area" [class.document-edit-mode]="documentEditMode">
     <header class="top-header">
       <div class="header-left">
         <button type="button" class="menu-toggle mobile-only" (click)="toggleSidebar()" aria-label="Abrir menú">
@@ -64,7 +64,11 @@
       <router-outlet />
     </main>
 
-    <nav class="mobile-bottom-nav mobile-only" aria-label="Navegación móvil">
+    <nav
+      class="mobile-bottom-nav mobile-only"
+      [class.mobile-bottom-nav--hidden]="documentEditMode"
+      aria-label="Navegación móvil"
+    >
       @for (item of mobileNavItems; track item.path) {
         <a [routerLink]="item.path" routerLinkActive="active" class="mobile-nav-item">
           <i class="material-icons">{{ item.icon }}</i>

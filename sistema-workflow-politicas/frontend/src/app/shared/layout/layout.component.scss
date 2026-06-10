@@ -203,6 +203,11 @@
   padding-bottom: 1.5rem;
 }
 
+.main-area.document-edit-mode .content {
+  padding: 0.75rem 1rem 1rem;
+  overflow-x: hidden;
+}
+
 .mobile-bottom-nav {
   position: sticky;
   bottom: 0;
@@ -212,6 +217,10 @@
   border-top: 1px solid var(--color-border);
   padding: 0.35rem 0.25rem calc(0.35rem + env(safe-area-inset-bottom));
   z-index: 100;
+
+  &--hidden {
+    display: none !important;
+  }
 }
 
 .mobile-nav-item {
@@ -273,6 +282,11 @@
   .content {
     padding: 1rem;
     padding-bottom: 4.5rem;
+  }
+
+  .main-area.document-edit-mode .content {
+    padding: 0.65rem 0.75rem 1rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
   }
 
   .top-header {
